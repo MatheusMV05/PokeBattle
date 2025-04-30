@@ -11,10 +11,13 @@
  #include "structures.h"
  #include "monsters.h"
  #include "battle.h"
- #include "ai_integration.h"
+ #include "ia_integration.h"
  #include "screens.h"
+ #include <math.h>  // Para a função fmin
+ #include "game_state.h"
  
  // Variáveis externas do main.c
+ extern BattleSystem* battleSystem;
  extern GameState currentScreen;
  extern bool gameRunning;
  extern bool vsBot;
@@ -92,6 +95,21 @@
          UnloadTexture(typeIcons[i]);
      }
  }
+
+ void drawBattleHUD(void) {
+    // Implementação básica
+    if (battleSystem == NULL) return;
+    
+    // Área para HUD
+    Rectangle hudArea = { 0, GetScreenHeight() - 150, GetScreenWidth(), 150 };
+    DrawRectangleRec(hudArea, RAYWHITE);
+    DrawRectangleLines(hudArea.x, hudArea.y, hudArea.width, hudArea.height, BLACK);
+    
+    // Exibir informações básicas
+    char turnText[32];
+    sprintf(turnText, "Turno: %d", battleSystem->turn);
+    DrawText(turnText, hudArea.x + 20, hudArea.y + 20, 20, BLACK);
+}
  
  // Carrega sons e música
  void loadSounds(void) {
@@ -909,7 +927,7 @@
          "Um jogo inspirado em Pokémon Stadium",
          "",
          "Desenvolvido por:",
-         "Claude - Abril/2025",
+         "Julia Torres, Maria Claudia, Matheus Martins, Vinicius Jose - Abril/2025",
          "",
          "Projeto para a disciplina de",
          "Algoritmos e Estruturas de Dados",

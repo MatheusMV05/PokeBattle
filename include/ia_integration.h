@@ -9,6 +9,7 @@
  
  #include <stdbool.h>
  #include "structures.h"
+ #include "battle.h"
  
  // Tamanho máximo para um prompt de IA
  #define MAX_PROMPT_SIZE 1024

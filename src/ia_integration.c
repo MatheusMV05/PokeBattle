@@ -9,8 +9,9 @@
  #include <stdlib.h>
  #include <string.h>
  #include <curl/curl.h>
- #include "ai_integration.h"
+ #include "ia_integration.h"
  #include "structures.h"
+ #include "monsters.h"
  
  // Variáveis globais
  static CURL* curl_handle = NULL;

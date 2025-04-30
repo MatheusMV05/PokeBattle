@@ -14,7 +14,7 @@
  #include "structures.h"
  #include "monsters.h"
  #include "battle.h"
- #include "ai_integration.h"
+ #include "ia_integration.h"
  #include "screens.h"
  
  // Estados do jogo
