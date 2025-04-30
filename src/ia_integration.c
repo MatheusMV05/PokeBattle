@@ -18,7 +18,7 @@
  static char errorBuffer[256];
  
  // Chave da API (em um sistema real, seria obtida de uma variável de ambiente ou arquivo seguro)
- static const char* API_KEY = "SUA_KEY"; // Substitua pela sua chave real
+ static const char* API_KEY = "AIzaSyCQDFjSqzONZN29n3TW-jMjzjr5Lm2YifM"; 
  
  // Modelo a ser usado
  static const char* MODEL = "gemini-1.5-flash-latest";
