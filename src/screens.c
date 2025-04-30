@@ -15,6 +15,7 @@
  #include "screens.h"
  #include <math.h>  // Para a função fmin
  #include "game_state.h"
+ #include <stdbool.h>
  
  // Variáveis externas do main.c
  extern BattleSystem* battleSystem;
@@ -22,6 +23,8 @@
  extern bool gameRunning;
  extern bool vsBot;
  extern bool playerTurn;
+ // Variáveis externas para tabela de tipos
+extern float typeEffectiveness[TYPE_COUNT][TYPE_COUNT];
  
  // Recursos visuais
  static Font gameFont;
@@ -51,15 +54,15 @@
  static float soundVolume = 0.8f;
  
  // Funções auxiliares de desenho
- static bool drawButton(Rectangle bounds, const char* text, Color color);
- static void drawMonsterCard(Rectangle bounds, PokeMonster* monster, bool selected);
- static void drawTypeIcon(Rectangle bounds, MonsterType type);
- static void drawHealthBar(Rectangle bounds, int currentHP, int maxHP);
- static void drawMonsterStats(Rectangle bounds, PokeMonster* monster);
- static void drawAttackList(Rectangle bounds, PokeMonster* monster, int selectedAttack);
- static void drawMessageBox(Rectangle bounds, const char* message);
- static void drawBattleHUD(void);
- static void drawConfirmationDialog(const char* message, const char* yesText, const char* noText);
+ bool drawButton(Rectangle bounds, const char* text, Color color);
+ void drawMonsterCard(Rectangle bounds, PokeMonster* monster, bool selected);
+ void drawTypeIcon(Rectangle bounds, MonsterType type);
+ void drawHealthBar(Rectangle bounds, int currentHP, int maxHP);
+ void drawMonsterStats(Rectangle bounds, PokeMonster* monster);
+ void drawAttackList(Rectangle bounds, PokeMonster* monster, int selectedAttack);
+ void drawMessageBox(Rectangle bounds, const char* message);
+ void drawBattleHUD(void);
+ void drawConfirmationDialog(const char* message, const char* yesText, const char* noText);
  
  // Carrega texturas, fontes e recursos visuais
  void loadTextures(void) {
@@ -307,7 +310,7 @@
          // Desenhar grade de monstros disponíveis
          int monsterCount = getMonsterCount();
          int columns = 3;
-         int rows = (monsterCount + columns - 1) / columns;
+       
          
          int cardWidth = 230;
          int cardHeight = 160;
@@ -994,7 +997,7 @@
      }
      
      // Desenhar borda
-     DrawRectangleRoundedLines(bounds, 0.2f, 10, 2, BLACK);
+     DrawRectangleRoundedLines(bounds, 0.2f, 10, BLACK);
      
      // Desenhar texto
      Vector2 textSize = MeasureTextEx(gameFont, text, 20, 1);
@@ -1013,7 +1016,7 @@
      DrawRectangleRounded(bounds, 0.2f, 10, cardColor);
      
      // Desenhar borda
-     DrawRectangleRoundedLines(bounds, 0.2f, 10, selected ? 3 : 1, selected ? BLUE : BLACK);
+     DrawRectangleRoundedLines(bounds, 0.2f, 10, selected ? BLUE : BLACK);
      
      // Desenhar nome
      DrawText(monster->name, bounds.x + 10, bounds.y + 10, 20, BLACK);
@@ -1171,7 +1174,7 @@
          }
          
          // Desenhar botão de ataque
-         bool attackSelected = i == selectedAttack;
+
          
          if (monster->attacks[i].ppCurrent > 0 && drawButton(attackBounds, monster->attacks[i].name, attackColor)) {
              PlaySound(selectSound);
@@ -1186,7 +1189,7 @@
          } else if (monster->attacks[i].ppCurrent <= 0) {
              // Desenhar ataque desabilitado
              DrawRectangleRounded(attackBounds, 0.2f, 10, attackColor);
-             DrawRectangleRoundedLines(attackBounds, 0.2f, 10, 2, BLACK);
+             DrawRectangleRoundedLines(attackBounds, 0.2f, 10, BLACK);
              
              Vector2 textSize = MeasureTextEx(gameFont, monster->attacks[i].name, 20, 1);
              DrawTextEx(gameFont, monster->attacks[i].name, (Vector2){ 
@@ -1211,7 +1214,7 @@
  void drawMessageBox(Rectangle bounds, const char* message) {
      // Desenhar fundo
      DrawRectangleRounded(bounds, 0.2f, 10, WHITE);
-     DrawRectangleRoundedLines(bounds, 0.2f, 10, 2, BLACK);
+     DrawRectangleRoundedLines(bounds, 0.2f, 10, BLACK);
      
      // Desenhar texto
      DrawText(message, bounds.x + 15, bounds.y + bounds.height/2 - 10, 20, BLACK);
@@ -1231,7 +1234,7 @@
      };
      
      DrawRectangleRounded(dialogBox, 0.2f, 10, WHITE);
-     DrawRectangleRoundedLines(dialogBox, 0.2f, 10, 2, BLACK);
+     DrawRectangleRoundedLines(dialogBox, 0.2f, 10, BLACK);
      
      // Desenhar mensagem
      Vector2 textSize = MeasureTextEx(gameFont, message, 20, 1);
