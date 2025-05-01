@@ -11,7 +11,7 @@
  #include "raylib.h"
  #include "battle.h"
  #include "monsters.h"
- #include "ai_integration.h"
+ #include "ia_integration.h"
  
  // Sistema de batalha global
  static BattleSystem* battleSystem = NULL;

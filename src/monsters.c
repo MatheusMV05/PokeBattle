@@ -17,10 +17,10 @@
  // Matriz de efetividade de tipos (multiplicadores de dano)
  // Linhas: tipo do ataque, Colunas: tipo do defensor
  static float typeEffectiveness[TYPE_COUNT][TYPE_COUNT] = {
-     // ROCK     FIRE    WATER   ELECTRIC  GRASS   DRAGON   GHOST   FLYING   FAIRY
-     {  0.5f,    2.0f,   1.0f,   1.0f,     1.0f,   0.5f,    1.0f,   2.0f,    1.0f  }, // ROCK
-     {  0.5f,    0.5f,   0.5f,   1.0f,     2.0f,   0.5f,    1.0f,   1.0f,    0.5f  }, // FIRE
-     {  2.0f,    2.0f,   0.5f,   1.0f,     0.5f,   0.5f,    1.0f,   1.0f,    1.0f  }, // WATER
+    // METAL     FIRE    WATER   ELECTRIC  GRASS   DRAGON   GHOST   FLYING   FAIRY
+     {  0.5f,    0.5f,   0.5f,   0.5f,     1.0f,   1.0f,    1.0f,   2.0f,    2.0f  }, // METAL
+     {  2.0f,    0.5f,   0.5f,   1.0f,     2.0f,   0.5f,    1.0f,   1.0f,    0.5f  }, // FIRE
+     {  1.0f,    2.0f,   0.5f,   1.0f,     0.5f,   0.5f,    1.0f,   1.0f,    1.0f  }, // WATER
      {  1.0f,    1.0f,   2.0f,   0.5f,     0.5f,   0.5f,    1.0f,   2.0f,    1.0f  }, // ELECTRIC
      {  2.0f,    0.5f,   2.0f,   1.0f,     0.5f,   0.5f,    1.0f,   0.5f,    1.0f  }, // GRASS
      {  1.0f,    1.0f,   1.0f,   1.0f,     1.0f,   2.0f,    1.0f,   1.0f,    0.0f  }, // DRAGON
@@ -31,12 +31,12 @@
  
  // Nomes dos tipos
  static const char* typeNames[TYPE_COUNT] = {
-     "Pedra", "Fogo", "Água", "Elétrico", "Grama", "Dragão", "Fantasma", "Voador", "Fada"
+     "Metal", "Fogo", "Água", "Elétrico", "Grama", "Dragão", "Fantasma", "Voador", "Fada"
  };
  
  // Cores dos tipos
  static Color typeColors[TYPE_COUNT] = {
-     (Color){ 184, 160, 56, 255 },   // Pedra (Marrom)
+     (Color){ 170, 170, 190, 255 },  // Metal (cinza metálico)
      (Color){ 240, 80, 48, 255 },    // Fogo (Vermelho)
      (Color){ 48, 128, 240, 255 },   // Água (Azul)
      (Color){ 248, 208, 48, 255 },   // Elétrico (Amarelo)
@@ -108,7 +108,7 @@
      // Adicionar ataques
      addAttackToMonster(monster, 0, "Jato d'Água", TYPE_WATER, 80, 100, 15, 0, 0, 0);
      addAttackToMonster(monster, 1, "Bolhas", TYPE_WATER, 65, 100, 20, 2, 10, 30);
-     addAttackToMonster(monster, 2, "Cabeçada", TYPE_ROCK, 70, 95, 20, 0, 0, 0);
+     addAttackToMonster(monster, 2, "Cabeçada", TYPE_METAL, 70, 95, 20, 0, 0, 0);
      addAttackToMonster(monster, 3, "Hidro Bomba", TYPE_WATER, 120, 80, 5, 0, 0, 0);
      
      // Monstro 3: Tipo Grama
@@ -155,8 +155,8 @@
      
      // Monstro 5: Tipo Pedra
      monster = &monsterDB.monsters[4];
-     strcpy(monster->name, "Rocktoise");
-     monster->type1 = TYPE_ROCK;
+     strcpy(monster->name, "Metaltoise");
+     monster->type1 = TYPE_METAL;
      monster->type2 = TYPE_WATER;
      monster->maxHp = 95;
      monster->hp = 95;
@@ -169,10 +169,10 @@
      monster->prev = NULL;
      
      // Adicionar ataques
-     addAttackToMonster(monster, 0, "Lança Rochas", TYPE_ROCK, 80, 90, 15, 0, 0, 0);
+     addAttackToMonster(monster, 0, "Lança Metal", TYPE_METAL, 80, 90, 15, 0, 0, 0);
      addAttackToMonster(monster, 1, "Jato d'Água", TYPE_WATER, 70, 100, 20, 0, 0, 0);
-     addAttackToMonster(monster, 2, "Defesa de Ferro", TYPE_ROCK, 0, 100, 15, 7, 30, 100);
-     addAttackToMonster(monster, 3, "Terremoto", TYPE_ROCK, 100, 85, 10, 2, 10, 20);
+     addAttackToMonster(monster, 2, "Defesa de Ferro", TYPE_METAL, 0, 100, 15, 7, 30, 100);
+     addAttackToMonster(monster, 3, "Vigas de Metal", TYPE_METAL, 100, 85, 10, 2, 10, 20);
      
      // Continuar adicionando mais monstros...
      // ...

@@ -12,7 +12,7 @@
  // Tipos de PokeMonstros
  typedef enum {
      TYPE_NONE = -1,
-     TYPE_ROCK = 0,   // Pedra
+     TYPE_METAL = 0,   // Metal (antes era Pedra)
      TYPE_FIRE,       // Fogo
      TYPE_WATER,      // Água
      TYPE_ELECTRIC,   // Elétrico
