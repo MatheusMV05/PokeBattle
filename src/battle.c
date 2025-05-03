@@ -90,28 +90,31 @@ void startTurn(void) {
  }
 
  void determineAndExecuteTurnOrder(void) {
+    printf("[DEBUG] Ordenando ações. Contagem atual na fila: %d\n", battleSystem->actionQueue->count);
+    
     if (battleSystem == NULL || isQueueEmpty(battleSystem->actionQueue)) {
+        printf("[DEBUG] Fila vazia ou battleSystem nulo\n");
         return;
     }
     
-    // Criar dois arrays para armazenar as ações temporariamente
     int actions[2];
     int parameters[2];
     PokeMonster* monsters[2];
     int actionCount = 0;
     
-    // Extrair as ações da fila
     while (!isQueueEmpty(battleSystem->actionQueue) && actionCount < 2) {
         dequeue(battleSystem->actionQueue, &actions[actionCount], 
                 &parameters[actionCount], &monsters[actionCount]);
+        printf("[DEBUG] Ação %d: tipo=%d, parâmetro=%d, monstro=%s\n", 
+               actionCount, actions[actionCount], parameters[actionCount], monsters[actionCount]->name);
         actionCount++;
     }
     
-    // Ordenar ações por velocidade (do mais rápido para o mais lento)
     if (actionCount == 2) {
-        // Verificar se precisa trocar a ordem
         if (monsters[0]->speed < monsters[1]->speed) {
-            // Trocar as ações se o segundo for mais rápido
+            printf("[DEBUG] Trocando ordem - %s mais rápido que %s\n", 
+                   monsters[1]->name, monsters[0]->name);
+            
             int tempAction = actions[0];
             int tempParam = parameters[0];
             PokeMonster* tempMonster = monsters[0];
@@ -126,10 +129,11 @@ void startTurn(void) {
         }
     }
     
-    // Colocar as ações de volta na fila na ordem correta
     for (int i = 0; i < actionCount; i++) {
         enqueue(battleSystem->actionQueue, actions[i], parameters[i], monsters[i]);
     }
+    
+    printf("[DEBUG] Ações reordenadas. Nova contagem: %d\n", battleSystem->actionQueue->count);
 }
  
  // Libera o sistema de batalha
@@ -769,13 +773,20 @@ void startTurn(void) {
     PokeMonster* botMonster = battleSystem->opponentTeam->current;
     PokeMonster* playerMonster = battleSystem->playerTeam->current;
     
+    printf("[DEBUG] Bot escolhendo ação...\n");
+    
     int action = getAISuggestedAction(botMonster, playerMonster);
+    
+    // Garantir que uma ação seja sempre enfileirada
+    bool actionQueued = false;
     
     switch (action) {
         case 0: // Atacar
             {
                 int attackIndex = botChooseAttack(botMonster, playerMonster);
                 enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+                actionQueued = true;
+                printf("[DEBUG] Bot escolheu atacar com ataque %d\n", attackIndex);
             }
             break;
             
@@ -792,9 +803,8 @@ void startTurn(void) {
                     }
                     
                     enqueue(battleSystem->actionQueue, 1, monsterIndex, botMonster);
-                } else {
-                    int attackIndex = botChooseAttack(botMonster, playerMonster);
-                    enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+                    actionQueued = true;
+                    printf("[DEBUG] Bot escolheu trocar para %s\n", newMonster->name);
                 }
             }
             break;
@@ -802,19 +812,18 @@ void startTurn(void) {
         case 2: // Usar item
             if (!battleSystem->itemUsed) {
                 enqueue(battleSystem->actionQueue, 2, 0, botMonster);
-            } else {
-                int attackIndex = botChooseAttack(botMonster, playerMonster);
-                enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+                actionQueued = true;
+                printf("[DEBUG] Bot escolheu usar item\n");
             }
-            break;
-            
-        default:
-            int attackIndex = botChooseAttack(botMonster, playerMonster);
-            enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
             break;
     }
     
-    // NÃO alterar playerTurn aqui - isso é gerenciado pelo updateBattle()
+    // Se por algum motivo nenhuma ação foi enfileirada, atacar como fallback
+    if (!actionQueued) {
+        printf("[DEBUG] Nenhuma ação do bot foi enfileirada, forçando ataque\n");
+        int attackIndex = botChooseAttack(botMonster, playerMonster);
+        enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+    }
 }
 
 // Faz o bot escolher um ataque

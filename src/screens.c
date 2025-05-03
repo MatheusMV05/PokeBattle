@@ -635,7 +635,7 @@ void loadSounds(void) {
                  }
                  break;
                  
-             case BATTLE_SELECT_MONSTER:
+                 case BATTLE_SELECT_MONSTER:
                  // Mostrar lista de monstros para troca
                  if (battleSystem->playerTurn) {
                      Rectangle monsterArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
@@ -653,10 +653,8 @@ void loadSounds(void) {
                              60
                          };
                          
-                         // Destacar o monstro atual
                          Color buttonColor = (current == battleSystem->playerTeam->current) ? DARKGRAY : BLUE;
                          
-                         // Desabilitar se estiver desmaiado
                          if (isMonsterFainted(current)) {
                              buttonColor = GRAY;
                          }
@@ -668,11 +666,10 @@ void loadSounds(void) {
                              // Enfileirar ação de troca
                              enqueue(battleSystem->actionQueue, 1, count, battleSystem->playerTeam->current);
                              
-                             // Passar para a execução de ações
-                             battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
+                             // CORREÇÃO: Passar o turno para o bot
                              battleSystem->playerTurn = false;
+                             battleSystem->battleState = BATTLE_SELECT_ACTION;
                          } else if (current == battleSystem->playerTeam->current || isMonsterFainted(current)) {
-                             // Mostrar desabilitado
                              DrawRectangleRounded(monsterButton, 0.2f, 10, buttonColor);
                              DrawText(current->name, monsterButton.x + 10, monsterButton.y + 20, 20, WHITE);
                          }
@@ -689,7 +686,7 @@ void loadSounds(void) {
                  }
                  break;
                  
-             case BATTLE_ITEM_MENU:
+                 case BATTLE_ITEM_MENU:
                  // Confirmar uso do item
                  if (battleSystem->playerTurn) {
                      Rectangle itemArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
@@ -721,9 +718,9 @@ void loadSounds(void) {
                          // Enfileirar ação de usar item
                          enqueue(battleSystem->actionQueue, 2, battleSystem->itemType, battleSystem->playerTeam->current);
                          
-                         // Passar para a execução de ações
-                         battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
+                         // CORREÇÃO: Passar o turno para o bot
                          battleSystem->playerTurn = false;
+                         battleSystem->battleState = BATTLE_SELECT_ACTION;
                      }
                      
                      if (drawButton((Rectangle){ itemArea.x + 180, itemArea.y + 40, 150, 30 }, "Cancelar", RED)) {
@@ -805,14 +802,22 @@ void loadSounds(void) {
             botDelay++;
             
             if (botDelay > 30) { // ~0.5 segundo a 60 FPS
-                // Bot escolhe sua ação
-                botChooseAction();
-                
-                // Ordenar ações por velocidade
-                determineAndExecuteTurnOrder();
-                
-                // Começar executando as ações
-                battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
+                // VERIFICAR se há ação do jogador na fila antes de continuar
+                if (!isQueueEmpty(battleSystem->actionQueue)) {
+                    // Bot escolhe sua ação
+                    botChooseAction();
+                    
+                    // Ordenar ações por velocidade
+                    determineAndExecuteTurnOrder();
+                    
+                    // Começar executando as ações
+                    battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
+                } else {
+                    // Se não há ação do jogador enfileirada, algo deu errado
+                    // Resetar para o estado inicial
+                    battleSystem->playerTurn = true;
+                    battleSystem->battleState = BATTLE_SELECT_ACTION;
+                }
                 
                 botDelay = 0;
             }
