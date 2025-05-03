@@ -10,11 +10,15 @@
  #include <stdbool.h>
  #include "structures.h"
  #include "battle.h"
+ #include <curl/curl.h>
  
  // Tamanho máximo para um prompt de IA
  #define MAX_PROMPT_SIZE 1024
  // Tamanho máximo para uma resposta da IA
  #define MAX_RESPONSE_SIZE 4096
+
+extern bool initialized;
+extern CURL* curl_handle;
  
  // Protótipos das funções
  
@@ -55,5 +59,7 @@
  
  // Interpreta a resposta da API de IA
  int interpretAIResponse(const char* response);
+
+ 
  
  #endif // AI_INTEGRATION_H

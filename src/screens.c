@@ -16,6 +16,7 @@
  #include <math.h>  // Para a função fmin
  #include "game_state.h"
  #include <stdbool.h>
+ #include <curl/curl.h>
  
  // Variáveis externas do main.c
  extern BattleSystem* battleSystem;
@@ -63,6 +64,7 @@ extern float typeEffectiveness[TYPE_COUNT][TYPE_COUNT];
  void drawMessageBox(Rectangle bounds, const char* message);
  void drawBattleHUD(void);
  void drawConfirmationDialog(const char* message, const char* yesText, const char* noText);
+ void drawMonsterInBattle(PokeMonster* monster, Rectangle bounds, bool isPlayer);
  
  // Carrega texturas, fontes e recursos visuais
  void loadTextures(void) {
@@ -99,6 +101,53 @@ extern float typeEffectiveness[TYPE_COUNT][TYPE_COUNT];
      }
  }
 
+ // Desenha um monstro na tela de batalha
+void drawMonsterInBattle(PokeMonster* monster, Rectangle bounds, bool isPlayer) {
+    if (monster == NULL) return;
+    
+    // Verificar se a textura foi carregada
+    if (monster->texture.id == 0) {
+        // Desenhar apenas um retângulo colorido se não houver textura
+        Color monsterColor = getTypeColor(monster->type1);
+        DrawRectangleRounded(bounds, 0.2f, 10, monsterColor);
+        DrawText(monster->name, bounds.x + 10, bounds.y + 10, 20, WHITE);
+        return;
+    }
+    
+    // Calcular tamanho e posição para desenhar a textura
+    float scale = fmin(
+        bounds.width / monster->texture.width,
+        bounds.height / monster->texture.height
+    );
+    
+    float width = monster->texture.width * scale;
+    float height = monster->texture.height * scale;
+    
+    float x = bounds.x + (bounds.width - width) / 2;
+    float y = bounds.y + (bounds.height - height) / 2;
+    
+    // Se for o monstro do jogador, aplicar efeito espelhado
+    if (isPlayer) {
+        // Desenhar com efeito espelhado
+        DrawTexturePro(
+            monster->texture,
+            (Rectangle){ 0, 0, monster->texture.width, monster->texture.height },
+            (Rectangle){ x, y, width, height },
+            (Vector2){ 0, 0 },
+            0.0f,  // Rotação
+            WHITE
+        );
+    } else {
+        // Desenhar normalmente
+        DrawTextureEx(monster->texture, (Vector2){ x, y }, 0.0f, scale, WHITE);
+    }
+    
+    // Desenhar o nome e a barra de HP acima do sprite
+    DrawText(monster->name, bounds.x + 10, bounds.y - 40, 20, WHITE);
+    drawHealthBar((Rectangle){ bounds.x, bounds.y - 20, bounds.width, 10 },
+                 monster->hp, monster->maxHp);
+}
+
  void drawBattleHUD(void) {
     // Implementação básica
     if (battleSystem == NULL) return;
@@ -115,31 +164,40 @@ extern float typeEffectiveness[TYPE_COUNT][TYPE_COUNT];
 }
  
  // Carrega sons e música
- void loadSounds(void) {
-     // Inicializar áudio
-     InitAudioDevice();
-     
-     // Carregar efeitos sonoros
-     selectSound = LoadSound("resources/select.wav");
-     attackSound = LoadSound("resources/attack.wav");
-     hitSound = LoadSound("resources/hit.wav");
-     faintSound = LoadSound("resources/faint.wav");
-     
-     // Carregar músicas
-     menuMusic = LoadMusicStream("resources/menu_music.mp3");
-     battleMusic = LoadMusicStream("resources/battle_music.mp3");
-     
-     // Configurar volume
-     SetMusicVolume(menuMusic, musicVolume);
-     SetMusicVolume(battleMusic, musicVolume);
-     SetSoundVolume(selectSound, soundVolume);
-     SetSoundVolume(attackSound, soundVolume);
-     SetSoundVolume(hitSound, soundVolume);
-     SetSoundVolume(faintSound, soundVolume);
-     
-     // Iniciar música do menu
-     PlayMusicStream(menuMusic);
- }
+void loadSounds(void) {
+    // Tentar reinicializar o áudio se falhar
+    if (!IsAudioDeviceReady()) {
+        printf("Iniciando dispositivo de áudio...\n");
+        InitAudioDevice();
+    }
+    
+    // Verificar se o áudio está disponível
+    if (!IsAudioDeviceReady()) {
+        printf("Aviso: Dispositivo de áudio não está disponível. Sons desativados.\n");
+        return;
+    }
+    
+    // Carregar efeitos sonoros
+    selectSound = LoadSound("resources/select.wav");
+    attackSound = LoadSound("resources/attack.wav");
+    hitSound = LoadSound("resources/hit.wav");
+    faintSound = LoadSound("resources/faint.wav");
+    
+    // Carregar músicas
+    menuMusic = LoadMusicStream("resources/menu_music.mp3");
+    battleMusic = LoadMusicStream("resources/battle_music.mp3");
+    
+    // Configurar volume
+    SetMusicVolume(menuMusic, musicVolume);
+    SetMusicVolume(battleMusic, musicVolume);
+    SetSoundVolume(selectSound, soundVolume);
+    SetSoundVolume(attackSound, soundVolume);
+    SetSoundVolume(hitSound, soundVolume);
+    SetSoundVolume(faintSound, soundVolume);
+    
+    // Iniciar música do menu
+    PlayMusicStream(menuMusic);
+}
  
  void unloadSounds(void) {
      // Parar músicas
@@ -482,41 +540,24 @@ extern float typeEffectiveness[TYPE_COUNT][TYPE_COUNT];
          PokeMonster* playerMonster = battleSystem->playerTeam->current;
          PokeMonster* opponentMonster = battleSystem->opponentTeam->current;
          
-         // Desenhar monstro do oponente (lado esquerdo, topo)
-         Rectangle opponentRect = { 100, 80, 200, 200 };
-         DrawRectangleRounded(opponentRect, 0.2f, 10, LIGHTGRAY);
-         DrawText(opponentMonster->name, opponentRect.x + 10, opponentRect.y + 10, 20, BLACK);
-         
-         // Tipos do monstro do oponente
-         DrawRectangleRec((Rectangle){ opponentRect.x + 10, opponentRect.y + 40, 60, 25 }, getTypeColor(opponentMonster->type1));
-         DrawText(getTypeName(opponentMonster->type1), opponentRect.x + 15, opponentRect.y + 45, 15, WHITE);
-         
-         if (opponentMonster->type2 != TYPE_NONE) {
-             DrawRectangleRec((Rectangle){ opponentRect.x + 80, opponentRect.y + 40, 60, 25 }, getTypeColor(opponentMonster->type2));
-             DrawText(getTypeName(opponentMonster->type2), opponentRect.x + 85, opponentRect.y + 45, 15, WHITE);
-         }
-         
-         // Barra de HP do oponente
-         drawHealthBar((Rectangle){ opponentRect.x + 10, opponentRect.y + 70, 180, 20 }, 
-                      opponentMonster->hp, opponentMonster->maxHp);
-         
-         // Desenhar monstro do jogador (lado direito, baixo)
-         Rectangle playerRect = { GetScreenWidth() - 300, 230, 200, 200 };
-         DrawRectangleRounded(playerRect, 0.2f, 10, LIGHTGRAY);
-         DrawText(playerMonster->name, playerRect.x + 10, playerRect.y + 10, 20, BLACK);
-         
-         // Tipos do monstro do jogador
-         DrawRectangleRec((Rectangle){ playerRect.x + 10, playerRect.y + 40, 60, 25 }, getTypeColor(playerMonster->type1));
-         DrawText(getTypeName(playerMonster->type1), playerRect.x + 15, playerRect.y + 45, 15, WHITE);
-         
-         if (playerMonster->type2 != TYPE_NONE) {
-             DrawRectangleRec((Rectangle){ playerRect.x + 80, playerRect.y + 40, 60, 25 }, getTypeColor(playerMonster->type2));
-             DrawText(getTypeName(playerMonster->type2), playerRect.x + 85, playerRect.y + 45, 15, WHITE);
-         }
-         
-         // Barra de HP do jogador
-         drawHealthBar((Rectangle){ playerRect.x + 10, playerRect.y + 70, 180, 20 }, 
-                      playerMonster->hp, playerMonster->maxHp);
+         // Definir retângulos para os monstros
+     Rectangle opponentRect = { 100, 80, 200, 200 };
+     Rectangle playerRect = { GetScreenWidth() - 300, 230, 200, 200 };
+     
+     // Desenhar tipos do monstro do oponente
+     Rectangle typeRect = { opponentRect.x + 220, opponentRect.y, 60, 25 };
+     DrawRectangleRec(typeRect, getTypeColor(opponentMonster->type1));
+     DrawText(getTypeName(opponentMonster->type1), typeRect.x + 5, typeRect.y + 5, 15, WHITE);
+     
+     // Desenhar tipos do monstro do jogador
+     typeRect = (Rectangle){ playerRect.x - 70, playerRect.y, 60, 25 };
+     DrawRectangleRec(typeRect, getTypeColor(playerMonster->type1));
+     DrawText(getTypeName(playerMonster->type1), typeRect.x + 5, typeRect.y + 5, 15, WHITE);
+     
+     // Desenhar os monstros com suas texturas
+     drawMonsterInBattle(opponentMonster, opponentRect, false);
+     drawMonsterInBattle(playerMonster, playerRect, true);
+
          
          // Desenhar caixa de mensagem
          Rectangle messageBox = { 50, GetScreenHeight() - 160, GetScreenWidth() - 100, 60 };
@@ -582,7 +623,6 @@ extern float typeEffectiveness[TYPE_COUNT][TYPE_COUNT];
                  break;
                  
              case BATTLE_SELECT_ATTACK:
-                 // Mostrar lista de ataques
                  if (battleSystem->playerTurn) {
                      Rectangle attackArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
                      DrawRectangleRounded(attackArea, 0.2f, 10, LIGHTGRAY);
@@ -724,11 +764,56 @@ extern float typeEffectiveness[TYPE_COUNT][TYPE_COUNT];
                      resetBattle();
                  }
                  break;
+             case BATTLE_RESULT_MESSAGE:
+                 // Aguardar confirmação do jogador para continuar
+                 Rectangle messageArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
+                 DrawRectangleRounded(messageArea, 0.2f, 10, LIGHTGRAY);
+                 
+                 // A mensagem principal já está sendo desenhada acima
+                 // Adicionar apenas o texto de instrução
+                 DrawText("Clique para continuar...", messageArea.x + 20, messageArea.y + 50, 20, DARKGRAY);
+                 
+                 // Verificar clique em qualquer lugar da tela
+                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
+                     // Verificar se precisa mudar de estado
+                     if (!isQueueEmpty(battleSystem->actionQueue)) {
+                         // Ainda há ações para executar
+                         battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
+                     } else {
+                         // Não há mais ações, verificar o que fazer
+                         if (isBattleOver()) {
+                             battleSystem->battleState = BATTLE_OVER;
+                         } else {
+                             // Continuar a batalha
+                             battleSystem->battleState = BATTLE_SELECT_ACTION;
+                             
+                             // Se for a vez do bot, deixar ele jogar logo
+                             if (!battleSystem->playerTurn) {
+                                 // Adicionar um pequeno delay para parecer mais natural
+                                 static int botDelay = 0;
+                                 botDelay++;
+                                 if (botDelay > 60) { // ~1 segundo a 60 FPS
+                                     botChooseAction();
+                                     botDelay = 0;
+                                 }
+                             }
+                         }
+                     }
+                 }
+                 break;
+             case BATTLE_EXECUTING_ACTIONS:
+                 // Mostrar mensagem de execução
+                 Rectangle executingArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
+                 DrawRectangleRounded(executingArea, 0.2f, 10, LIGHTGRAY);
+                 DrawText("Executando ações...", executingArea.x + 20, executingArea.y + 30, 24, DARKGRAY);
+                 break;
                  
              default:
                  break;
          }
+
      }
+     drawAIIndicator();
  }
  
  void updateBattleScreen(void) {
@@ -1152,63 +1237,71 @@ extern float typeEffectiveness[TYPE_COUNT][TYPE_COUNT];
  
  // Desenha lista de ataques
  void drawAttackList(Rectangle bounds, PokeMonster* monster, int selectedAttack) {
-     // Dividir em 5 áreas: 4 ataques + botão voltar
-     int attackWidth = (bounds.width - 130) / 4;
-     
-     for (int i = 0; i < 4; i++) {
-         Rectangle attackBounds = {
-             bounds.x + 10 + i * (attackWidth + 10),
-             bounds.y + 10,
-             attackWidth,
-             60
-         };
+    // Dividir em 5 áreas: 4 ataques + botão voltar
+    int attackWidth = (bounds.width - 130) / 4;
+    
+    for (int i = 0; i < 4; i++) {
+        Rectangle attackBounds = {
+            bounds.x + 10 + i * (attackWidth + 10),
+            bounds.y + 10,
+            attackWidth,
+            60
+        };
+        
+        // Verificar PP restante para determinar cor
+        Color attackColor = getTypeColor(monster->attacks[i].type);
+        
+        // Escurecer se PP = 0
+        if (monster->attacks[i].ppCurrent <= 0) {
+            attackColor.r = attackColor.r / 2;
+            attackColor.g = attackColor.g / 2;
+            attackColor.b = attackColor.b / 2;
+        }
+        
+        // Desenhar botão de ataque
          
-         // Verificar PP restante para determinar cor
-         Color attackColor = getTypeColor(monster->attacks[i].type);
-         
-         // Escurecer se PP = 0
-         if (monster->attacks[i].ppCurrent <= 0) {
-             attackColor.r = attackColor.r / 2;
-             attackColor.g = attackColor.g / 2;
-             attackColor.b = attackColor.b / 2;
-         }
-         
-         // Desenhar botão de ataque
-
-         
-         if (monster->attacks[i].ppCurrent > 0 && drawButton(attackBounds, monster->attacks[i].name, attackColor)) {
-             PlaySound(selectSound);
-             battleSystem->selectedAttack = i;
-             
-             // Enfileirar ação de ataque
-             enqueue(battleSystem->actionQueue, 0, i, battleSystem->playerTeam->current);
-             
-             // Passar para a execução de ações
-             battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
-             battleSystem->playerTurn = false;
-         } else if (monster->attacks[i].ppCurrent <= 0) {
-             // Desenhar ataque desabilitado
-             DrawRectangleRounded(attackBounds, 0.2f, 10, attackColor);
-             DrawRectangleRoundedLines(attackBounds, 0.2f, 10, BLACK);
-             
-             Vector2 textSize = MeasureTextEx(gameFont, monster->attacks[i].name, 20, 1);
-             DrawTextEx(gameFont, monster->attacks[i].name, (Vector2){ 
-                 attackBounds.x + attackBounds.width/2 - textSize.x/2,
-                 attackBounds.y + 10
-             }, 20, 1, WHITE);
-             
-             // Mostrar PP
-             char ppText[20];
-             sprintf(ppText, "PP: %d/%d", monster->attacks[i].ppCurrent, monster->attacks[i].ppMax);
-             DrawText(ppText, attackBounds.x + 10, attackBounds.y + 35, 15, WHITE);
-         } else {
-             // Mostrar informação de PP para ataques disponíveis
-             char ppText[20];
-             sprintf(ppText, "PP: %d/%d", monster->attacks[i].ppCurrent, monster->attacks[i].ppMax);
-             DrawText(ppText, attackBounds.x + 10, attackBounds.y + 35, 15, WHITE);
-         }
-     }
- }
+        if (monster->attacks[i].ppCurrent > 0 && drawButton(attackBounds, monster->attacks[i].name, attackColor)) {
+            PlaySound(selectSound);
+            battleSystem->selectedAttack = i;
+            
+            // Enfileirar ação de ataque
+            enqueue(battleSystem->actionQueue, 0, i, battleSystem->playerTeam->current);
+            
+            // CORREÇÃO: Mudar para o estado correto
+            battleSystem->battleState = BATTLE_RESULT_MESSAGE;
+            
+            // Executar o ataque imediatamente
+            executeAttack(battleSystem->playerTeam->current, 
+                         battleSystem->opponentTeam->current, 
+                         i);
+            
+            // Se não for mais o turno do jogador, deixar o bot jogar
+            if (!battleSystem->playerTurn) {
+                botChooseAction();
+            }
+        } else if (monster->attacks[i].ppCurrent <= 0) {
+            // Desenhar ataque desabilitado
+            DrawRectangleRounded(attackBounds, 0.2f, 10, attackColor);
+            DrawRectangleRoundedLines(attackBounds, 0.2f, 10, BLACK);
+            
+            Vector2 textSize = MeasureTextEx(gameFont, monster->attacks[i].name, 20, 1);
+            DrawTextEx(gameFont, monster->attacks[i].name, (Vector2){ 
+                attackBounds.x + attackBounds.width/2 - textSize.x/2,
+                attackBounds.y + 10
+            }, 20, 1, WHITE);
+            
+            // Mostrar PP
+            char ppText[20];
+            sprintf(ppText, "PP: %d/%d", monster->attacks[i].ppCurrent, monster->attacks[i].ppMax);
+            DrawText(ppText, attackBounds.x + 10, attackBounds.y + 35, 15, WHITE);
+        } else {
+            // Mostrar informação de PP para ataques disponíveis
+            char ppText[20];
+            sprintf(ppText, "PP: %d/%d", monster->attacks[i].ppCurrent, monster->attacks[i].ppMax);
+            DrawText(ppText, attackBounds.x + 10, attackBounds.y + 35, 15, WHITE);
+        }
+    }
+}
  
  // Desenha caixa de mensagem
  void drawMessageBox(Rectangle bounds, const char* message) {
@@ -1273,3 +1366,22 @@ extern float typeEffectiveness[TYPE_COUNT][TYPE_COUNT];
          battleSystem->battleState = BATTLE_SELECT_ACTION;
      }
  }
+
+// Função auxiliar para desenhar o indicador de IA
+void drawAIIndicator(void) {
+    Rectangle indicator = { GetScreenWidth() - 80, 5, 75, 25 };
+    Color indicatorColor;
+    const char* text;
+    
+    // Verificar se a IA está disponível
+    if (initialized && curl_handle != NULL) {
+        indicatorColor = GREEN;
+        text = "IA ON";
+    } else {
+        indicatorColor = YELLOW;
+        text = "IA OFF";
+    }
+    
+    DrawRectangleRounded(indicator, 0.3f, 8, indicatorColor);
+    DrawText(text, indicator.x + 8, indicator.y + 4, 18, WHITE);
+}

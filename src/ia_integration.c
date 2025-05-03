@@ -14,8 +14,8 @@
  #include "monsters.h"
  
  // Variáveis globais
- static CURL* curl_handle = NULL;
- static bool initialized = false;
+ CURL* curl_handle = NULL;
+ bool initialized = false;
  static char errorBuffer[256];
  
  // Chave da API (em um sistema real, seria obtida de uma variável de ambiente ou arquivo seguro)
@@ -228,68 +228,6 @@
      return description;
  }
  
- // Sugere a melhor ação para o bot
- int getAISuggestedAction(PokeMonster* botMonster, PokeMonster* playerMonster) {
-     if (botMonster == NULL || playerMonster == NULL) {
-         return 0; // Ação padrão: atacar
-     }
-     
-     // Formatar o prompt para a IA
-     char prompt[MAX_PROMPT_SIZE];
-     snprintf(prompt, MAX_PROMPT_SIZE,
-              "Como IA para um jogo de batalha tipo Pokémon, qual seria a melhor ação para um %s com %d/%d de HP contra um %s com %d/%d de HP? Responda APENAS com um número: 0 para atacar, 1 para trocar, 2 para usar item.",
-              botMonster->name, botMonster->hp, botMonster->maxHp,
-              playerMonster->name, playerMonster->hp, playerMonster->maxHp);
-     
-     // Consultar a IA
-     char* response = queryAI(prompt);
-     
-     // Processar a resposta
-     int action = interpretAIResponse(response);
-     
-     // Liberar a resposta
-     if (response) free(response);
-     
-     return action;
- }
- 
- // Sugere o melhor ataque para o bot
- int getAISuggestedAttack(PokeMonster* botMonster, PokeMonster* playerMonster) {
-     if (botMonster == NULL || playerMonster == NULL) {
-         return 0; // Ataque padrão: primeiro ataque
-     }
-     
-     // Formatar o prompt para a IA
-     char prompt[MAX_PROMPT_SIZE];
-     snprintf(prompt, MAX_PROMPT_SIZE,
-              "Como IA para um jogo de batalha tipo Pokémon, qual seria o melhor ataque para um %s (%s/%s) usar contra um %s (%s/%s)? Os ataques disponíveis são: 0:%s (%s), 1:%s (%s), 2:%s (%s), 3:%s (%s). Responda APENAS com o número do ataque (0, 1, 2 ou 3).",
-              botMonster->name, 
-              getTypeName(botMonster->type1), 
-              getTypeName(botMonster->type2 != TYPE_NONE ? botMonster->type2 : botMonster->type1),
-              playerMonster->name,
-              getTypeName(playerMonster->type1), 
-              getTypeName(playerMonster->type2 != TYPE_NONE ? playerMonster->type2 : playerMonster->type1),
-              botMonster->attacks[0].name, getTypeName(botMonster->attacks[0].type),
-              botMonster->attacks[1].name, getTypeName(botMonster->attacks[1].type),
-              botMonster->attacks[2].name, getTypeName(botMonster->attacks[2].type),
-              botMonster->attacks[3].name, getTypeName(botMonster->attacks[3].type));
-     
-     // Consultar a IA
-     char* response = queryAI(prompt);
-     
-     // Processar a resposta
-     int attackIndex = interpretAIResponse(response);
-     
-     // Validar o índice do ataque
-     if (attackIndex < 0 || attackIndex > 3) {
-         attackIndex = rand() % 4; // Fallback: ataque aleatório
-     }
-     
-     // Liberar a resposta
-     if (response) free(response);
-     
-     return attackIndex;
- }
  
  // Interpreta a resposta da API de IA para um número
  int interpretAIResponse(const char* response) {
@@ -336,3 +274,161 @@
      
      return hint;
  }
+
+// Sugere a melhor ação para o bot com sistema de fallback
+int getAISuggestedAction(PokeMonster* botMonster, PokeMonster* playerMonster) {
+    if (botMonster == NULL || playerMonster == NULL) {
+        return 0;
+    }
+    
+    // Tentar usar a IA Gemini primeiro
+    if (initialized && curl_handle != NULL) {
+        char prompt[MAX_PROMPT_SIZE];
+        snprintf(prompt, MAX_PROMPT_SIZE,
+                 "Como IA para um jogo de batalha tipo Pokémon, qual seria a melhor ação para um %s com %d/%d de HP contra um %s com %d/%d de HP? Responda APENAS com um número: 0 para atacar, 1 para trocar, 2 para usar item.",
+                 botMonster->name, botMonster->hp, botMonster->maxHp,
+                 playerMonster->name, playerMonster->hp, playerMonster->maxHp);
+        
+        // Consultar a IA
+        char* response = queryAI(prompt);
+        
+        // Processar a resposta
+        if (response != NULL && strstr(response, "Erro:") != response) {
+            printf("[IA Gemini] Decisão recebida: %s\n", response);
+            int action = interpretAIResponse(response);
+            free(response);
+            return action;
+        }
+        
+        // Se falhou, liberar a resposta
+        printf("[IA Gemini] Falhou. Usando sistema simples.\n");
+        if (response) free(response);
+    }
+    
+    // Fallback para IA simples
+    printf("[Sistema Simples] Tomando decisão localmente...\n");
+    return getAISuggestedActionSimple(botMonster, playerMonster);
+}
+
+// Sugere o melhor ataque para o bot com sistema de fallback
+int getAISuggestedAttack(PokeMonster* botMonster, PokeMonster* playerMonster) {
+    if (botMonster == NULL || playerMonster == NULL) {
+        return 0; // Ataque padrão: primeiro ataque
+    }
+    
+    // Tentar usar a IA Gemini primeiro
+    if (initialized && curl_handle != NULL) {
+        // Formatar o prompt para a IA
+        char prompt[MAX_PROMPT_SIZE];
+        snprintf(prompt, MAX_PROMPT_SIZE,
+                 "Como IA para um jogo de batalha tipo Pokémon, qual seria o melhor ataque para um %s (%s) usar contra um %s (%s)? Os ataques disponíveis são: 0:%s (%s), 1:%s (%s), 2:%s (%s), 3:%s (%s). Responda APENAS com o número do ataque (0, 1, 2 ou 3).",
+                 botMonster->name, 
+                 getTypeName(botMonster->type1),
+                 playerMonster->name,
+                 getTypeName(playerMonster->type1),
+                 botMonster->attacks[0].name, getTypeName(botMonster->attacks[0].type),
+                 botMonster->attacks[1].name, getTypeName(botMonster->attacks[1].type),
+                 botMonster->attacks[2].name, getTypeName(botMonster->attacks[2].type),
+                 botMonster->attacks[3].name, getTypeName(botMonster->attacks[3].type));
+        
+        // Consultar a IA
+        char* response = queryAI(prompt);
+        
+        // Processar a resposta
+        if (response != NULL && strstr(response, "Erro:") != response) {
+            int attackIndex = interpretAIResponse(response);
+            
+            // Validar o índice do ataque
+            if (attackIndex >= 0 && attackIndex <= 3) {
+                free(response);
+                return attackIndex;
+            }
+        }
+        
+        // Se falhou, liberar a resposta
+        if (response) free(response);
+    }
+    
+    // Fallback para lógica simples
+    printf("Usando IA simples para escolha de ataque.\n");
+    return botChooseAttack(botMonster, playerMonster);
+}
+
+// Sugere o melhor monstro para troca com sistema de fallback
+int getAISuggestedMonster(MonsterList* botTeam, PokeMonster* playerMonster) {
+    if (botTeam == NULL || playerMonster == NULL) {
+        return 0;
+    }
+    
+    // Tentar usar a IA Gemini primeiro
+    if (initialized && curl_handle != NULL) {
+        // Construir lista de monstros disponíveis para o prompt
+        char prompt[MAX_PROMPT_SIZE];
+        char monsterList[256] = "";
+        
+        int count = 0;
+        PokeMonster* current = botTeam->first;
+        
+        while (current != NULL && count < 3) {
+            if (!isMonsterFainted(current) && current != botTeam->current) {
+                char temp[64];
+                snprintf(temp, sizeof(temp), "%d:%s (HP:%d/%d) ", 
+                        count, current->name, current->hp, current->maxHp);
+                strcat(monsterList, temp);
+            }
+            current = current->next;
+            count++;
+        }
+        
+        snprintf(prompt, MAX_PROMPT_SIZE,
+                 "Como IA para um jogo de batalha tipo Pokémon, qual seria o melhor monstro para trocar contra um %s com %d/%d de HP? Monstros disponíveis: %s. Responda APENAS com o número do monstro.",
+                 playerMonster->name, playerMonster->hp, playerMonster->maxHp, monsterList);
+        
+        // Consultar a IA
+        char* response = queryAI(prompt);
+        
+        // Processar a resposta
+        if (response != NULL && strstr(response, "Erro:") != response) {
+            int monsterIndex = interpretAIResponse(response);
+            free(response);
+            return monsterIndex;
+        }
+        
+        // Se falhou, liberar a resposta
+        if (response) free(response);
+    }
+    
+    // Fallback para lógica simples
+    printf("Usando IA simples para escolha de monstro.\n");
+    PokeMonster* chosenMonster = botChooseMonster(botTeam, playerMonster);
+    
+    // Encontrar o índice do monstro escolhido
+    int index = 0;
+    PokeMonster* current = botTeam->first;
+    while (current != NULL && current != chosenMonster) {
+        index++;
+        current = current->next;
+    }
+    
+    return index;
+}
+
+bool testAIConnection(void) {
+    if (!initialized || curl_handle == NULL) {
+        printf("AVISO: Sistema de IA não está inicializado!\n");
+        return false;
+    }
+    
+    // Testar com um prompt simples
+    char* response = queryAI("Teste de conexão: Responda apenas 'OK'");
+    
+    if (response != NULL && strstr(response, "Erro:") != response) {
+        printf("✓ Sistema de IA conectado com sucesso!\n");
+        free(response);
+        return true;
+    } else {
+        printf("✗ Falha ao conectar com a IA. Usando sistema simples de fallback.\n");
+        if (response) free(response);
+        return false;
+    }
+}

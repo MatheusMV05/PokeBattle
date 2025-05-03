@@ -94,5 +94,7 @@
  
  // Reinicia a batalha
  void resetBattle(void);
+
+ int getAISuggestedActionSimple(PokeMonster* botMonster, PokeMonster* playerMonster);
  
  #endif // BATTLE_H

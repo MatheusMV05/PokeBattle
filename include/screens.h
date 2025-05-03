@@ -40,6 +40,7 @@
  void updateCredits(void);
  
  // Funções auxiliares para a interface
+ void drawAIIndicator(void);
  
  // Carrega texturas, fontes e recursos visuais
  void loadTextures(void);

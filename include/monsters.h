@@ -10,6 +10,7 @@
  #include "structures.h"
  
  // Protótipos das funções
+ extern float typeEffectiveness[TYPE_COUNT][TYPE_COUNT];
  
  // Inicializa o banco de dados de monstros
  void initializeMonsterDatabase(void);

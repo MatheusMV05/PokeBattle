@@ -16,7 +16,7 @@
  
  // Matriz de efetividade de tipos (multiplicadores de dano)
  // Linhas: tipo do ataque, Colunas: tipo do defensor
- static float typeEffectiveness[TYPE_COUNT][TYPE_COUNT] = {
+ float typeEffectiveness[TYPE_COUNT][TYPE_COUNT] = {
     // METAL     FIRE    WATER   ELECTRIC  GRASS   DRAGON   GHOST   FLYING   FAIRY
      {  0.5f,    0.5f,   0.5f,   0.5f,     1.0f,   1.0f,    1.0f,   2.0f,    2.0f  }, // METAL
      {  2.0f,    0.5f,   0.5f,   1.0f,     2.0f,   0.5f,    1.0f,   1.0f,    0.5f  }, // FIRE
@@ -49,167 +49,231 @@
  
  // Inicializa o banco de dados de monstros
  void initializeMonsterDatabase(void) {
-     monsterDB.count = 0;
-     monsterDB.monsters = NULL;
-     
-     // Criar monstros manualmente (em um jogo real, seria carregado de um arquivo)
-     createMonsterDatabase();
- }
+    monsterDB.count = 0;
+    monsterDB.monsters = NULL;
+    
+    // Criar monstros manualmente
+    createMonsterDatabase();
+    
+    // Note: As texturas serão carregadas depois pela função loadMonsterTextures
+    // Não carregamos texturas aqui porque o Raylib precisa estar inicializado primeiro
+}
  
  // Cria o banco de dados de monstros com monstros pré-definidos
- void createMonsterDatabase(void) {
-     // Alocar espaço para 15 monstros
-     monsterDB.count = 15;
-     monsterDB.monsters = (PokeMonster*)malloc(sizeof(PokeMonster) * monsterDB.count);
-     
-     if (monsterDB.monsters == NULL) {
-         printf("Erro ao alocar memória para o banco de monstros!\n");
-         return;
-     }
-     
-     // Inicializar alguns monstros de exemplo (em um jogo real, seriam mais e mais diversos)
-     
-     // Monstro 1: Tipo Fogo
-     PokeMonster* monster = &monsterDB.monsters[0];
-     strcpy(monster->name, "Flamizard");
-     monster->type1 = TYPE_FIRE;
-     monster->type2 = TYPE_NONE;
-     monster->maxHp = 78;
-     monster->hp = 78;
-     monster->attack = 84;
-     monster->defense = 78;
-     monster->speed = 100;
-     monster->statusCondition = 0;
-     monster->statusCounter = 0;
-     monster->next = NULL;
-     monster->prev = NULL;
-     
-     // Adicionar ataques
-     addAttackToMonster(monster, 0, "Lança-Chamas", TYPE_FIRE, 90, 100, 15, 0, 0, 0);
-     addAttackToMonster(monster, 1, "Rugido de Fogo", TYPE_FIRE, 60, 100, 25, 1, 10, 30);
-     addAttackToMonster(monster, 2, "Garras Afiadas", TYPE_FLYING, 70, 95, 20, 0, 0, 0);
-     addAttackToMonster(monster, 3, "Rajada de Calor", TYPE_FIRE, 110, 85, 10, 0, 0, 0);
-     
-     // Monstro 2: Tipo Água
-     monster = &monsterDB.monsters[1];
-     strcpy(monster->name, "Aquatle");
-     monster->type1 = TYPE_WATER;
-     monster->type2 = TYPE_NONE;
-     monster->maxHp = 85;
-     monster->hp = 85;
-     monster->attack = 75;
-     monster->defense = 85;
-     monster->speed = 80;
-     monster->statusCondition = 0;
-     monster->statusCounter = 0;
-     monster->next = NULL;
-     monster->prev = NULL;
-     
-     // Adicionar ataques
-     addAttackToMonster(monster, 0, "Jato d'Água", TYPE_WATER, 80, 100, 15, 0, 0, 0);
-     addAttackToMonster(monster, 1, "Bolhas", TYPE_WATER, 65, 100, 20, 2, 10, 30);
-     addAttackToMonster(monster, 2, "Cabeçada", TYPE_METAL, 70, 95, 20, 0, 0, 0);
-     addAttackToMonster(monster, 3, "Hidro Bomba", TYPE_WATER, 120, 80, 5, 0, 0, 0);
-     
-     // Monstro 3: Tipo Grama
-     monster = &monsterDB.monsters[2];
-     strcpy(monster->name, "Leafasaur");
-     monster->type1 = TYPE_GRASS;
-     monster->type2 = TYPE_NONE;
-     monster->maxHp = 80;
-     monster->hp = 80;
-     monster->attack = 80;
-     monster->defense = 90;
-     monster->speed = 70;
-     monster->statusCondition = 0;
-     monster->statusCounter = 0;
-     monster->next = NULL;
-     monster->prev = NULL;
-     
-     // Adicionar ataques
-     addAttackToMonster(monster, 0, "Chicote de Vinha", TYPE_GRASS, 75, 100, 15, 0, 0, 0);
-     addAttackToMonster(monster, 1, "Pó de Sono", TYPE_GRASS, 0, 75, 15, 5, 1, 100);
-     addAttackToMonster(monster, 2, "Semente Bomba", TYPE_GRASS, 80, 90, 10, 0, 0, 0);
-     addAttackToMonster(monster, 3, "Raio Solar", TYPE_GRASS, 120, 100, 10, 0, 0, 0);
-     
-     // Monstro 4: Tipo Elétrico
-     monster = &monsterDB.monsters[3];
-     strcpy(monster->name, "Voltachu");
-     monster->type1 = TYPE_ELECTRIC;
-     monster->type2 = TYPE_NONE;
-     monster->maxHp = 60;
-     monster->hp = 60;
-     monster->attack = 90;
-     monster->defense = 55;
-     monster->speed = 120;
-     monster->statusCondition = 0;
-     monster->statusCounter = 0;
-     monster->next = NULL;
-     monster->prev = NULL;
-     
-     // Adicionar ataques
-     addAttackToMonster(monster, 0, "Choque do Trovão", TYPE_ELECTRIC, 70, 100, 15, 4, 10, 30);
-     addAttackToMonster(monster, 1, "Onda de Choque", TYPE_ELECTRIC, 60, 90, 20, 3, 20, 50);
-     addAttackToMonster(monster, 2, "Investida Rápida", TYPE_FLYING, 40, 100, 30, 0, 0, 0);
-     addAttackToMonster(monster, 3, "Trovão", TYPE_ELECTRIC, 110, 70, 10, 4, 20, 30);
-     
-     // Monstro 5: Tipo Pedra
-     monster = &monsterDB.monsters[4];
-     strcpy(monster->name, "Metaltoise");
-     monster->type1 = TYPE_METAL;
-     monster->type2 = TYPE_WATER;
-     monster->maxHp = 95;
-     monster->hp = 95;
-     monster->attack = 75;
-     monster->defense = 110;
-     monster->speed = 60;
-     monster->statusCondition = 0;
-     monster->statusCounter = 0;
-     monster->next = NULL;
-     monster->prev = NULL;
-     
-     // Adicionar ataques
-     addAttackToMonster(monster, 0, "Lança Metal", TYPE_METAL, 80, 90, 15, 0, 0, 0);
-     addAttackToMonster(monster, 1, "Jato d'Água", TYPE_WATER, 70, 100, 20, 0, 0, 0);
-     addAttackToMonster(monster, 2, "Defesa de Ferro", TYPE_METAL, 0, 100, 15, 7, 30, 100);
-     addAttackToMonster(monster, 3, "Vigas de Metal", TYPE_METAL, 100, 85, 10, 2, 10, 20);
-     
-     // Continuar adicionando mais monstros...
-     // ...
-     
-     // Monstro 6: Tipo Dragão
-     monster = &monsterDB.monsters[5];
-     strcpy(monster->name, "Drakonite");
-     monster->type1 = TYPE_DRAGON;
-     monster->type2 = TYPE_FLYING;
-     monster->maxHp = 90;
-     monster->hp = 90;
-     monster->attack = 95;
-     monster->defense = 80;
-     monster->speed = 95;
-     monster->statusCondition = 0;
-     monster->statusCounter = 0;
-     monster->next = NULL;
-     monster->prev = NULL;
-     
-     // Adicionar ataques
-     addAttackToMonster(monster, 0, "Sopro do Dragão", TYPE_DRAGON, 85, 90, 15, 0, 0, 0);
-     addAttackToMonster(monster, 1, "Garra de Dragão", TYPE_DRAGON, 75, 100, 20, 0, 0, 0);
-     addAttackToMonster(monster, 2, "Asa de Aço", TYPE_FLYING, 70, 90, 20, 7, 10, 10);
-     addAttackToMonster(monster, 3, "Fúria do Dragão", TYPE_DRAGON, 120, 75, 5, 0, 0, 0);
-     
-     // Carregar texturas para os monstros (em um jogo real, seria uma imagem para cada)
-     // Por agora, vamos deixar sem imagem e depois podemos adicionar
- }
+ // Cria o banco de dados de monstros com monstros pré-definidos
+void createMonsterDatabase(void) {
+    // Alocar espaço para 9 monstros (um para cada tipo)
+    monsterDB.count = 9;
+    monsterDB.monsters = (PokeMonster*)malloc(sizeof(PokeMonster) * monsterDB.count);
+    
+    if (monsterDB.monsters == NULL) {
+        printf("Erro ao alocar memória para o banco de monstros!\n");
+        return;
+    }
+    
+    // Monstro 1: Tipo Metal
+    PokeMonster* monster = &monsterDB.monsters[0];
+    strcpy(monster->name, "Monstro_Metal");
+    monster->type1 = TYPE_METAL;
+    monster->type2 = TYPE_NONE; // Mantido apenas para compatibilidade com o código existente
+    monster->maxHp = 90;
+    monster->hp = 90;
+    monster->attack = 80;
+    monster->defense = 120;
+    monster->speed = 70;
+    monster->statusCondition = 0;
+    monster->statusCounter = 0;
+    monster->next = NULL;
+    monster->prev = NULL;
+    
+    // Adicionar ataques (pelo menos um do tipo do monstro)
+    addAttackToMonster(monster, 0, "Lança Metal", TYPE_METAL, 80, 95, 15, 0, 0, 0);
+    addAttackToMonster(monster, 1, "Escudo de Aço", TYPE_METAL, 0, 100, 20, 7, 30, 100);
+    addAttackToMonster(monster, 2, "Impacto Pesado", TYPE_METAL, 95, 85, 10, 0, 0, 0);
+    addAttackToMonster(monster, 3, "Rocha Pontiaguda", TYPE_METAL, 65, 100, 20, 2, 10, 30);
+    
+    // Monstro 2: Tipo Fogo
+    monster = &monsterDB.monsters[1];
+    strcpy(monster->name, "Monstro_Fogo");
+    monster->type1 = TYPE_FIRE;
+    monster->type2 = TYPE_NONE; // Mantido apenas para compatibilidade com o código existente
+    monster->maxHp = 78;
+    monster->hp = 78;
+    monster->attack = 95;
+    monster->defense = 70;
+    monster->speed = 100;
+    monster->statusCondition = 0;
+    monster->statusCounter = 0;
+    monster->next = NULL;
+    monster->prev = NULL;
+    
+    // Adicionar ataques (pelo menos um do tipo do monstro)
+    addAttackToMonster(monster, 0, "Lança-Chamas", TYPE_FIRE, 90, 100, 15, 0, 0, 0);
+    addAttackToMonster(monster, 1, "Rugido de Fogo", TYPE_FIRE, 70, 95, 20, 1, 15, 30);
+    addAttackToMonster(monster, 2, "Garras Afiadas", TYPE_FLYING, 65, 95, 20, 0, 0, 0);
+    addAttackToMonster(monster, 3, "Rajada de Calor", TYPE_FIRE, 110, 80, 10, 0, 0, 0);
+    
+    // Monstro 3: Tipo Água
+    monster = &monsterDB.monsters[2];
+    strcpy(monster->name, "Monstro_Agua");
+    monster->type1 = TYPE_WATER;
+    monster->type2 = TYPE_NONE; // Mantido apenas para compatibilidade com o código existente
+    monster->maxHp = 85;
+    monster->hp = 85;
+    monster->attack = 80;
+    monster->defense = 90;
+    monster->speed = 80;
+    monster->statusCondition = 0;
+    monster->statusCounter = 0;
+    monster->next = NULL;
+    monster->prev = NULL;
+    
+    // Adicionar ataques (pelo menos um do tipo do monstro)
+    addAttackToMonster(monster, 0, "Jato d'Água", TYPE_WATER, 80, 100, 15, 0, 0, 0);
+    addAttackToMonster(monster, 1, "Bolhas", TYPE_WATER, 65, 100, 20, 2, 10, 30);
+    addAttackToMonster(monster, 2, "Cabeçada", TYPE_METAL, 70, 95, 20, 0, 0, 0);
+    addAttackToMonster(monster, 3, "Hidro Bomba", TYPE_WATER, 120, 80, 5, 0, 0, 0);
+    
+    // Monstro 4: Tipo Elétrico
+    monster = &monsterDB.monsters[3];
+    strcpy(monster->name, "Monstro_Eletrico");
+    monster->type1 = TYPE_ELECTRIC;
+    monster->type2 = TYPE_NONE; // Mantido apenas para compatibilidade com o código existente
+    monster->maxHp = 70;
+    monster->hp = 70;
+    monster->attack = 90;
+    monster->defense = 65;
+    monster->speed = 120;
+    monster->statusCondition = 0;
+    monster->statusCounter = 0;
+    monster->next = NULL;
+    monster->prev = NULL;
+    
+    // Adicionar ataques (pelo menos um do tipo do monstro)
+    addAttackToMonster(monster, 0, "Choque do Trovão", TYPE_ELECTRIC, 80, 100, 15, 4, 10, 30);
+    addAttackToMonster(monster, 1, "Onda de Choque", TYPE_ELECTRIC, 60, 90, 20, 3, 20, 50);
+    addAttackToMonster(monster, 2, "Investida Rápida", TYPE_FLYING, 40, 100, 30, 0, 0, 0);
+    addAttackToMonster(monster, 3, "Trovão", TYPE_ELECTRIC, 110, 70, 10, 4, 20, 30);
+    
+    // Monstro 5: Tipo Grama
+    monster = &monsterDB.monsters[4];
+    strcpy(monster->name, "Monstro_Grama");
+    monster->type1 = TYPE_GRASS;
+    monster->type2 = TYPE_NONE; // Mantido apenas para compatibilidade com o código existente
+    monster->maxHp = 80;
+    monster->hp = 80;
+    monster->attack = 85;
+    monster->defense = 85;
+    monster->speed = 80;
+    monster->statusCondition = 0;
+    monster->statusCounter = 0;
+    monster->next = NULL;
+    monster->prev = NULL;
+    
+    // Adicionar ataques (pelo menos um do tipo do monstro)
+    addAttackToMonster(monster, 0, "Chicote de Vinha", TYPE_GRASS, 75, 100, 15, 0, 0, 0);
+    addAttackToMonster(monster, 1, "Pó de Sono", TYPE_GRASS, 0, 75, 15, 5, 1, 100);
+    addAttackToMonster(monster, 2, "Semente Bomba", TYPE_GRASS, 85, 90, 10, 0, 0, 0);
+    addAttackToMonster(monster, 3, "Lâmina de Folha", TYPE_GRASS, 95, 85, 10, 2, 15, 30);
+    
+    // Monstro 6: Tipo Dragão
+    monster = &monsterDB.monsters[5];
+    strcpy(monster->name, "Monstro_Dragao");
+    monster->type1 = TYPE_DRAGON;
+    monster->type2 = TYPE_NONE; // Mantido apenas para compatibilidade com o código existente
+    monster->maxHp = 90;
+    monster->hp = 90;
+    monster->attack = 100;
+    monster->defense = 80;
+    monster->speed = 95;
+    monster->statusCondition = 0;
+    monster->statusCounter = 0;
+    monster->next = NULL;
+    monster->prev = NULL;
+    
+    // Adicionar ataques (pelo menos um do tipo do monstro)
+    addAttackToMonster(monster, 0, "Sopro do Dragão", TYPE_DRAGON, 85, 90, 15, 0, 0, 0);
+    addAttackToMonster(monster, 1, "Garra de Dragão", TYPE_DRAGON, 75, 100, 20, 0, 0, 0);
+    addAttackToMonster(monster, 2, "Asa de Aço", TYPE_FLYING, 70, 90, 20, 7, 10, 10);
+    addAttackToMonster(monster, 3, "Fúria do Dragão", TYPE_DRAGON, 120, 75, 5, 0, 0, 0);
+    
+    // Monstro 7: Tipo Fantasma
+    monster = &monsterDB.monsters[6];
+    strcpy(monster->name, "Monstro_Fantasma");
+    monster->type1 = TYPE_GHOST;
+    monster->type2 = TYPE_NONE; // Mantido apenas para compatibilidade com o código existente
+    monster->maxHp = 70;
+    monster->hp = 70;
+    monster->attack = 85;
+    monster->defense = 75;
+    monster->speed = 110;
+    monster->statusCondition = 0;
+    monster->statusCounter = 0;
+    monster->next = NULL;
+    monster->prev = NULL;
+    
+    // Adicionar ataques (pelo menos um do tipo do monstro)
+    addAttackToMonster(monster, 0, "Sombra Espectral", TYPE_GHOST, 80, 100, 15, 0, 0, 0);
+    addAttackToMonster(monster, 1, "Punho Sombrio", TYPE_GHOST, 70, 100, 20, 1, 15, 30);
+    addAttackToMonster(monster, 2, "Pesadelo", TYPE_GHOST, 60, 100, 15, 5, 1, 70);
+    addAttackToMonster(monster, 3, "Bola Sombria", TYPE_GHOST, 90, 85, 10, 2, 20, 30);
+    
+    // Monstro 8: Tipo Voador
+    monster = &monsterDB.monsters[7];
+    strcpy(monster->name, "Monstro_Voador");
+    monster->type1 = TYPE_FLYING;
+    monster->type2 = TYPE_NONE; // Mantido apenas para compatibilidade com o código existente
+    monster->maxHp = 75;
+    monster->hp = 75;
+    monster->attack = 85;
+    monster->defense = 70;
+    monster->speed = 115;
+    monster->statusCondition = 0;
+    monster->statusCounter = 0;
+    monster->next = NULL;
+    monster->prev = NULL;
+    
+    // Adicionar ataques (pelo menos um do tipo do monstro)
+    addAttackToMonster(monster, 0, "Furacão", TYPE_FLYING, 85, 90, 15, 0, 0, 0);
+    addAttackToMonster(monster, 1, "Asas de Aço", TYPE_FLYING, 70, 100, 20, 7, 15, 20);
+    addAttackToMonster(monster, 2, "Picada Aérea", TYPE_FLYING, 75, 95, 20, 3, 15, 30);
+    addAttackToMonster(monster, 3, "Rajada de Ar", TYPE_FLYING, 100, 80, 10, 0, 0, 0);
+    
+    // Monstro 9: Tipo Fada
+    monster = &monsterDB.monsters[8];
+    strcpy(monster->name, "Monstro_Fada");
+    monster->type1 = TYPE_FAIRY;
+    monster->type2 = TYPE_NONE; // Mantido apenas para compatibilidade com o código existente
+    monster->maxHp = 75;
+    monster->hp = 75;
+    monster->attack = 80;
+    monster->defense = 85;
+    monster->speed = 90;
+    monster->statusCondition = 0;
+    monster->statusCounter = 0;
+    monster->next = NULL;
+    monster->prev = NULL;
+    
+    // Adicionar ataques (pelo menos um do tipo do monstro)
+    addAttackToMonster(monster, 0, "Encanto Lunar", TYPE_FAIRY, 85, 95, 15, 0, 0, 0);
+    addAttackToMonster(monster, 1, "Raio Encantado", TYPE_FAIRY, 70, 100, 20, 1, 15, 30);
+    addAttackToMonster(monster, 2, "Beijo Mágico", TYPE_FAIRY, 60, 100, 20, 5, 1, 50);
+    addAttackToMonster(monster, 3, "Luz Cegante", TYPE_ELECTRIC, 75, 90, 15, 3, 20, 30);
+    
+    // Carregar texturas para os monstros (em um jogo real, seria uma imagem para cada)
+    // Por agora, vamos deixar sem imagem e depois podemos adicionar
+}
  
  // Libera o banco de dados de monstros
  void freeMonsterDatabase(void) {
-     if (monsterDB.monsters != NULL) {
-         free(monsterDB.monsters);
-         monsterDB.monsters = NULL;
-         monsterDB.count = 0;
-     }
- }
+    // Note: As texturas já devem ter sido descarregadas pela função unloadMonsterTextures
+    
+    if (monsterDB.monsters != NULL) {
+        free(monsterDB.monsters);
+        monsterDB.monsters = NULL;
+        monsterDB.count = 0;
+    }
+}
  
  // Obtém um monstro do banco de dados pelo índice
  PokeMonster* getMonsterByIndex(int index) {
@@ -404,3 +468,69 @@
      
      return typeColors[type];
  }
+
+ void loadMonsterTextures(void) {
+    char filename[100];
+    
+    // Carregar texturas para cada monstro
+    for (int i = 0; i < monsterDB.count; i++) {
+        // Construir o caminho do arquivo baseado no tipo do monstro
+        switch (monsterDB.monsters[i].type1) {
+            case TYPE_METAL:
+                strcpy(filename, "resources/sprites/monstro_metal.png");
+                break;
+            case TYPE_FIRE:
+                strcpy(filename, "resources/sprites/monstro_fogo.png");
+                break;
+            case TYPE_WATER:
+                strcpy(filename, "resources/sprites/monstro_agua.png");
+                break;
+            case TYPE_ELECTRIC:
+                strcpy(filename, "resources/sprites/monstro_eletrico.png");
+                break;
+            case TYPE_GRASS:
+                strcpy(filename, "resources/sprites/monstro_grama.png");
+                break;
+            case TYPE_DRAGON:
+                strcpy(filename, "resources/sprites/monstro_dragao.png");
+                break;
+            case TYPE_GHOST:
+                strcpy(filename, "resources/sprites/monstro_fantasma.png");
+                break;
+            case TYPE_FLYING:
+                strcpy(filename, "resources/sprites/monstro_voador.png");
+                break;
+            case TYPE_FAIRY:
+                strcpy(filename, "resources/sprites/monstro_fada.png");
+                break;
+            default:
+                strcpy(filename, "resources/sprites/monstro_padrao.png");
+                break;
+        }
+        
+        // Carregar a textura
+        monsterDB.monsters[i].texture = LoadTexture(filename);
+        
+        // Verificar se a textura foi carregada com sucesso
+        if (monsterDB.monsters[i].texture.id == 0) {
+            printf("Aviso: Falha ao carregar textura para o monstro %s. Usando textura padrão.\n", 
+                   monsterDB.monsters[i].name);
+            
+            // Tentar carregar uma textura padrão como fallback
+            monsterDB.monsters[i].texture = LoadTexture("resources/sprites/monstro_padrao.png");
+        }
+    }
+    
+    printf("Texturas de monstros carregadas com sucesso.\n");
+}
+
+void unloadMonsterTextures(void) {
+    // Descarregar texturas para cada monstro
+    for (int i = 0; i < monsterDB.count; i++) {
+        if (monsterDB.monsters[i].texture.id != 0) {
+            UnloadTexture(monsterDB.monsters[i].texture);
+        }
+    }
+    
+    printf("Texturas de monstros descarregadas com sucesso.\n");
+}

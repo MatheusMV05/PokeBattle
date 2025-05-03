@@ -102,21 +102,32 @@
  
  // Inicializa todos os recursos do jogo
  void initializeGame(void) {
-     // Inicializar banco de monstros
-     initializeMonsterDatabase();
-     
-     // Inicializar estruturas de batalha
-     initializeBattleSystem();
-     
-     // Inicializar recursos visuais
-     loadTextures();
-     loadSounds();
-     
-     // Inicializar API de IA
-     initializeAI();
-     
-     gameInitialized = true;
- }
+    // Inicializar banco de monstros
+    initializeMonsterDatabase();
+    
+    // Inicializar estruturas de batalha
+    initializeBattleSystem();
+    
+    // Inicializar recursos visuais
+    loadTextures();
+    loadSounds();
+    
+    // Carregar texturas dos monstros
+    loadMonsterTextures();
+    
+    // Inicializar API de IA
+    if (initializeAI()) {
+        printf("\n=== TESTANDO CONEXÃO COM IA ===\n");
+        testAIConnection();
+        printf("==============================\n\n");
+    } else {
+        printf("\n=== IA INDISPONÍVEL ===\n");
+        printf("Usando sistema de IA local (simples) para o bot.\n");
+        printf("======================\n\n");
+    }
+    
+    gameInitialized = true;
+}
  
  // Atualiza o estado do jogo
  void updateGame(void) {
@@ -150,19 +161,22 @@
  
  // Limpa recursos alocados
  void cleanupGame(void) {
-     // Liberar banco de monstros
-     freeMonsterDatabase();
-     
-     // Liberar estruturas de batalha
-     freeBattleSystem();
-     
-     // Liberar recursos visuais
-     unloadTextures();
-     unloadSounds();
-     
-     // Encerrar API de IA
-     shutdownAI();
- }
+    // Descarregar texturas dos monstros
+    unloadMonsterTextures();
+    
+    // Liberar banco de monstros
+    freeMonsterDatabase();
+    
+    // Liberar estruturas de batalha
+    freeBattleSystem();
+    
+    // Liberar recursos visuais
+    unloadTextures();
+    unloadSounds();
+    
+    // Encerrar API de IA
+    shutdownAI();
+}
  
  // Função para alterar a tela atual
  void changeScreen(GameState newScreen) {
