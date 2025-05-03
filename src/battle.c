@@ -18,29 +18,41 @@
  
  // Mensagem de batalha atual
  static char battleMessage[256] = "";
+
+ // No início de cada turno 
+void startTurn(void) {
+    // Limpar a fila de ações anterior
+    clearQueue(battleSystem->actionQueue);
+    
+    // O jogador sempre começa escolhendo sua ação
+    battleSystem->playerTurn = true;
+    battleSystem->battleState = BATTLE_SELECT_ACTION;
+    
+    sprintf(battleMessage, "Turno %d - Escolha sua ação!", battleSystem->turn);
+}
  
  // Define um turno baseado na velocidade dos monstros
  void determineTurnOrder(void) {
-     if (battleSystem == NULL || 
-         battleSystem->playerTeam == NULL || battleSystem->playerTeam->current == NULL ||
-         battleSystem->opponentTeam == NULL || battleSystem->opponentTeam->current == NULL) {
-         return;
-     }
-     
-     // Resetar a fila de ações
-     clearQueue(battleSystem->actionQueue);
-     
-     // Obter os monstros ativos
-     PokeMonster* playerMonster = battleSystem->playerTeam->current;
-     PokeMonster* opponentMonster = battleSystem->opponentTeam->current;
-     
-     // Quem tem maior velocidade vai primeiro
-     if (playerMonster->speed >= opponentMonster->speed) {
-         battleSystem->playerTurn = true;
-     } else {
-         battleSystem->playerTurn = false;
-     }
- }
+    if (battleSystem == NULL || 
+        battleSystem->playerTeam == NULL || battleSystem->playerTeam->current == NULL ||
+        battleSystem->opponentTeam == NULL || battleSystem->opponentTeam->current == NULL) {
+        return;
+    }
+    
+    // Resetar a fila de ações
+    clearQueue(battleSystem->actionQueue);
+    
+    // Obter os monstros ativos
+    PokeMonster* playerMonster = battleSystem->playerTeam->current;
+    PokeMonster* opponentMonster = battleSystem->opponentTeam->current;
+    
+    // Quem tem maior velocidade vai primeiro
+    if (playerMonster->speed >= opponentMonster->speed) {
+        battleSystem->playerTurn = true;
+    } else {
+        battleSystem->playerTurn = false;
+    }
+}
  
  // Inicializa o sistema de batalha
  void initializeBattleSystem(void) {
@@ -76,6 +88,49 @@
          return;
      }
  }
+
+ void determineAndExecuteTurnOrder(void) {
+    if (battleSystem == NULL || isQueueEmpty(battleSystem->actionQueue)) {
+        return;
+    }
+    
+    // Criar dois arrays para armazenar as ações temporariamente
+    int actions[2];
+    int parameters[2];
+    PokeMonster* monsters[2];
+    int actionCount = 0;
+    
+    // Extrair as ações da fila
+    while (!isQueueEmpty(battleSystem->actionQueue) && actionCount < 2) {
+        dequeue(battleSystem->actionQueue, &actions[actionCount], 
+                &parameters[actionCount], &monsters[actionCount]);
+        actionCount++;
+    }
+    
+    // Ordenar ações por velocidade (do mais rápido para o mais lento)
+    if (actionCount == 2) {
+        // Verificar se precisa trocar a ordem
+        if (monsters[0]->speed < monsters[1]->speed) {
+            // Trocar as ações se o segundo for mais rápido
+            int tempAction = actions[0];
+            int tempParam = parameters[0];
+            PokeMonster* tempMonster = monsters[0];
+            
+            actions[0] = actions[1];
+            parameters[0] = parameters[1];
+            monsters[0] = monsters[1];
+            
+            actions[1] = tempAction;
+            parameters[1] = tempParam;
+            monsters[1] = tempMonster;
+        }
+    }
+    
+    // Colocar as ações de volta na fila na ordem correta
+    for (int i = 0; i < actionCount; i++) {
+        enqueue(battleSystem->actionQueue, actions[i], parameters[i], monsters[i]);
+    }
+}
  
  // Libera o sistema de batalha
  void freeBattleSystem(void) {
@@ -101,32 +156,32 @@
  
  // Inicia uma nova batalha
  void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
-     if (battleSystem == NULL || playerTeam == NULL || opponentTeam == NULL) {
-         return;
-     }
-     
-     // Configurar os times
-     battleSystem->playerTeam = playerTeam;
-     battleSystem->opponentTeam = opponentTeam;
-     
-     // Resetar contadores e estado
-     battleSystem->turn = 1;
-     battleSystem->battleState = BATTLE_SELECT_ACTION;
-     battleSystem->itemUsed = false;
-     
-     // Escolher um item aleatório para a batalha
-     battleSystem->itemType = rollRandomItem();
-     
-     // Determinar quem joga primeiro
-     determineTurnOrder();
-     
-     // Limpar estruturas de dados
-     clearQueue(battleSystem->actionQueue);
-     clearStack(battleSystem->effectStack);
-     
-     // Mensagem inicial
-     sprintf(battleMessage, "Que a batalha comece! Escolha sua ação.");
- }
+    if (battleSystem == NULL || playerTeam == NULL || opponentTeam == NULL) {
+        return;
+    }
+    
+    // Configurar os times
+    battleSystem->playerTeam = playerTeam;
+    battleSystem->opponentTeam = opponentTeam;
+    
+    // Resetar contadores e estado
+    battleSystem->turn = 1;
+    battleSystem->battleState = BATTLE_SELECT_ACTION;
+    battleSystem->playerTurn = true; // CRUCIAL: Jogador sempre começa
+    battleSystem->itemUsed = false;
+    battleSystem->selectedAttack = 0;
+    battleSystem->selectedAction = 0;
+    
+    // Escolher um item aleatório para a batalha
+    battleSystem->itemType = rollRandomItem();
+    
+    // Limpar estruturas de dados
+    clearQueue(battleSystem->actionQueue);
+    clearStack(battleSystem->effectStack);
+    
+    // Mensagem inicial
+    sprintf(battleMessage, "Turno %d - Escolha sua ação!", battleSystem->turn);
+}
  
  // Atualiza o estado da batalha
  void updateBattle(void) {
@@ -140,10 +195,10 @@
         return;
     }
     
-    // Processar estados da batalha
     switch (battleSystem->battleState) {
         case BATTLE_SELECT_ACTION:
-            // Não fazer nada aqui - a ação é feita na interface
+            // Aguardando seleção do jogador ou bot
+            // A seleção é tratada na interface
             break;
             
         case BATTLE_EXECUTING_ACTIONS:
@@ -154,7 +209,6 @@
                 
                 dequeue(battleSystem->actionQueue, &action, &parameter, &monster);
                 
-                // Processar a ação
                 switch (action) {
                     case 0: // Ataque
                         if (monster == battleSystem->playerTeam->current) {
@@ -163,73 +217,70 @@
                             executeAttack(monster, battleSystem->playerTeam->current, parameter);
                         }
                         break;
-                         
-                     case 1: // Troca de monstro
-                         {
-                             // Encontrar o monstro pelo índice (implementação simplificada)
-                             PokeMonster* newMonster = NULL;
-                             PokeMonster* current = NULL;
-                             int count = 0;
-                             
-                             if (monster == battleSystem->playerTeam->current || 
-                                 monster->prev == battleSystem->playerTeam->current || 
-                                 monster->next == battleSystem->playerTeam->current) {
-                                 // Troca do time do jogador
-                                 current = battleSystem->playerTeam->first;
-                                 while (current != NULL && count < parameter) {
-                                     current = current->next;
-                                     count++;
-                                 }
-                                 newMonster = current;
-                                 
-                                 if (newMonster != NULL && !isMonsterFainted(newMonster)) {
-                                     switchMonster(battleSystem->playerTeam, newMonster);
-                                     sprintf(battleMessage, "Você trocou para %s!", newMonster->name);
-                                 }
-                             } else {
-                                 // Troca do time do oponente
-                                 current = battleSystem->opponentTeam->first;
-                                 while (current != NULL && count < parameter) {
-                                     current = current->next;
-                                     count++;
-                                 }
-                                 newMonster = current;
-                                 
-                                 if (newMonster != NULL && !isMonsterFainted(newMonster)) {
-                                     switchMonster(battleSystem->opponentTeam, newMonster);
-                                     sprintf(battleMessage, "Oponente trocou para %s!", newMonster->name);
-                                 }
-                             }
-                         }
-                         break;
-                         
-                     case 2: // Usar item
-                         if (monster == battleSystem->playerTeam->current) {
-                             // Jogador usando item
-                             useItem(battleSystem->itemType, battleSystem->playerTeam->current);
-                             battleSystem->itemUsed = true;
-                         } else {
-                             // Oponente usando item
-                             useItem(battleSystem->itemType, battleSystem->opponentTeam->current);
-                             battleSystem->itemUsed = true;
-                         }
-                         break;
-                 }
-                 
-                 // Passar para o próximo estado
+                        
+                    case 1: // Troca de monstro
+                        {
+                            PokeMonster* current = NULL;
+                            int count = 0;
+                            
+                            if (monster == battleSystem->playerTeam->current) {
+                                // Troca do time do jogador
+                                current = battleSystem->playerTeam->first;
+                                while (current != NULL && count < parameter) {
+                                    current = current->next;
+                                    count++;
+                                }
+                                
+                                if (current != NULL && !isMonsterFainted(current)) {
+                                    switchMonster(battleSystem->playerTeam, current);
+                                    sprintf(battleMessage, "Você trocou para %s!", current->name);
+                                }
+                            } else {
+                                // Troca do time do oponente
+                                current = battleSystem->opponentTeam->first;
+                                while (current != NULL && count < parameter) {
+                                    current = current->next;
+                                    count++;
+                                }
+                                
+                                if (current != NULL && !isMonsterFainted(current)) {
+                                    switchMonster(battleSystem->opponentTeam, current);
+                                    sprintf(battleMessage, "Oponente trocou para %s!", current->name);
+                                }
+                            }
+                        }
+                        break;
+                        
+                    case 2: // Usar item
+                        if (monster == battleSystem->playerTeam->current) {
+                            useItem(battleSystem->itemType, battleSystem->playerTeam->current);
+                            battleSystem->itemUsed = true;
+                        } else {
+                            useItem(battleSystem->itemType, battleSystem->opponentTeam->current);
+                            battleSystem->itemUsed = true;
+                        }
+                        break;
+                }
+                
                 battleSystem->battleState = BATTLE_RESULT_MESSAGE;
             } else {
-                // Todas as ações foram executadas, processar fim do turno
+                // Todas as ações foram executadas, preparar para o próximo turno
                 processTurnEnd();
-                battleSystem->battleState = BATTLE_SELECT_ACTION;
                 battleSystem->turn++;
-                determineTurnOrder(); // Recalcular ordem de turno
+                
+                // CRUCIAL: Sempre começar novo turno com o jogador
+                battleSystem->battleState = BATTLE_SELECT_ACTION;
+                battleSystem->playerTurn = true;
+                
+                // Limpar a fila para o novo turno
+                clearQueue(battleSystem->actionQueue);
+                
+                sprintf(battleMessage, "Turno %d - Escolha sua ação!", battleSystem->turn);
             }
             break;
             
         case BATTLE_RESULT_MESSAGE:
-            // Aguarda o jogador clicar para continuar
-            // A transição é feita no processBattleInput()
+            // Estado gerenciado pela interface
             break;
             
         default:
@@ -306,8 +357,6 @@
     if (attack->ppCurrent <= 0) {
         sprintf(battleMessage, "%s tentou usar %s, mas não tem mais PP!", 
                 attacker->name, attack->name);
-        // Alternar turno mesmo quando não tem PP
-        battleSystem->playerTurn = !battleSystem->playerTurn;
         return;
     }
     
@@ -318,8 +367,6 @@
     int hitRoll = rand() % 100;
     if (hitRoll >= attack->accuracy) {
         sprintf(battleMessage, "%s usou %s, mas errou!", attacker->name, attack->name);
-        // Alternar turno mesmo quando erra
-        battleSystem->playerTurn = !battleSystem->playerTurn;
         return;
     }
     
@@ -352,7 +399,7 @@
     if (attack->statusEffect > 0 && attack->statusChance > 0) {
         int statusRoll = rand() % 100;
         if (statusRoll < attack->statusChance) {
-            applyStatusEffect(defender, attack->statusEffect, attack->statusPower, 3); // 3 turnos de duração
+            applyStatusEffect(defender, attack->statusEffect, attack->statusPower, 3);
             
             // Adicionar informação de status à mensagem
             char statusText[50];
@@ -392,7 +439,7 @@
                 // Mudar para o estado de seleção de monstro
                 battleSystem->battleState = BATTLE_SELECT_MONSTER;
                 battleSystem->playerTurn = true;
-                return; // Não alternar turno aqui
+                return;
             }
         } else if (defender == battleSystem->opponentTeam->current) {
             // Bot escolhe automaticamente o próximo monstro
@@ -413,11 +460,6 @@
                 strncat(battleMessage, switchText, sizeof(battleMessage) - strlen(battleMessage) - 1);
             }
         }
-    }
-    
-    // Alternar o turno no final (a menos que estejamos esperando uma troca de monstro)
-    if (battleSystem->battleState != BATTLE_SELECT_MONSTER) {
-        battleSystem->playerTurn = !battleSystem->playerTurn;
     }
 }
  
@@ -717,7 +759,7 @@
 
 
  // Faz o bot escolher uma ação
-void botChooseAction(void) {
+ void botChooseAction(void) {
     if (battleSystem == NULL || 
         battleSystem->opponentTeam == NULL || battleSystem->opponentTeam->current == NULL ||
         battleSystem->playerTeam == NULL || battleSystem->playerTeam->current == NULL) {
@@ -727,20 +769,13 @@ void botChooseAction(void) {
     PokeMonster* botMonster = battleSystem->opponentTeam->current;
     PokeMonster* playerMonster = battleSystem->playerTeam->current;
     
-    // Usar a IA para escolher a ação
     int action = getAISuggestedAction(botMonster, playerMonster);
     
-    // Validação e execução da ação
     switch (action) {
         case 0: // Atacar
             {
                 int attackIndex = botChooseAttack(botMonster, playerMonster);
-                
-                // Adicionar à fila de ações
                 enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-                
-                // Mudar estado para executar as ações
-                battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
             }
             break;
             
@@ -749,7 +784,6 @@ void botChooseAction(void) {
                 PokeMonster* newMonster = botChooseMonster(battleSystem->opponentTeam, playerMonster);
                 
                 if (newMonster && newMonster != botMonster) {
-                    // Determinar o índice do monstro (simplificado)
                     int monsterIndex = 0;
                     PokeMonster* current = battleSystem->opponentTeam->first;
                     while (current != NULL && current != newMonster) {
@@ -757,43 +791,30 @@ void botChooseAction(void) {
                         current = current->next;
                     }
                     
-                    // Adicionar à fila de ações
                     enqueue(battleSystem->actionQueue, 1, monsterIndex, botMonster);
-                    
-                    // Mudar estado para executar as ações
-                    battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
                 } else {
-                    // Fallback para ataque se não puder trocar
                     int attackIndex = botChooseAttack(botMonster, playerMonster);
                     enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-                    battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
                 }
             }
             break;
             
         case 2: // Usar item
-            // O bot só pode usar o item se ainda não foi usado na batalha
             if (!battleSystem->itemUsed) {
                 enqueue(battleSystem->actionQueue, 2, 0, botMonster);
-                battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
             } else {
-                // Fallback para ataque
                 int attackIndex = botChooseAttack(botMonster, playerMonster);
                 enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-                battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
             }
             break;
             
         default:
-            // Fallback para ataque
             int attackIndex = botChooseAttack(botMonster, playerMonster);
             enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-            battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
             break;
     }
     
-    // Passar o turno para o jogador
-    battleSystem->playerTurn = true;
+    // NÃO alterar playerTurn aqui - isso é gerenciado pelo updateBattle()
 }
 
 // Faz o bot escolher um ataque

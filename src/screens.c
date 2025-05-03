@@ -565,62 +565,59 @@ void loadSounds(void) {
          
          // Desenhar interface de batalha baseada no estado atual
          switch (battleSystem->battleState) {
-             case BATTLE_SELECT_ACTION:
-                 // Mostrar opções de ação se for o turno do jogador
-                 if (battleSystem->playerTurn) {
-                     // Botões de ação
-                     Rectangle actionArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
-                     DrawRectangleRounded(actionArea, 0.2f, 10, LIGHTGRAY);
-                     
-                     // Dividir em 4 botões (Lutar, Monstros, Mochila, Desistir)
-                     int buttonWidth = (actionArea.width - 30) / 4;
-                     
-                     // Botão Lutar
-                     if (drawButton((Rectangle){ actionArea.x + 10, actionArea.y + 10, buttonWidth, 60 }, "Lutar", RED)) {
-                         PlaySound(selectSound);
-                         battleSystem->battleState = BATTLE_SELECT_ATTACK;
-                     }
-                     
-                     // Botão Monstros
-                     if (drawButton((Rectangle){ actionArea.x + 20 + buttonWidth, actionArea.y + 10, buttonWidth, 60 }, "Monstros", GREEN)) {
-                         PlaySound(selectSound);
-                         battleSystem->battleState = BATTLE_SELECT_MONSTER;
-                     }
-                     
-                     // Botão Mochila
-                     Color itemColor = battleSystem->itemUsed ? GRAY : BLUE;
-                     char itemName[32];
-                     switch (battleSystem->itemType) {
-                         case ITEM_POTION: strcpy(itemName, "Poção"); break;
-                         case ITEM_RED_CARD: strcpy(itemName, "Cartão Vermelho"); break;
-                         case ITEM_COIN: strcpy(itemName, "Moeda"); break;
-                         default: strcpy(itemName, "Item"); break;
-                     }
-                     
-                     if (!battleSystem->itemUsed && drawButton((Rectangle){ actionArea.x + 30 + buttonWidth * 2, actionArea.y + 10, buttonWidth, 60 }, itemName, itemColor)) {
-                         PlaySound(selectSound);
-                         battleSystem->battleState = BATTLE_ITEM_MENU;
-                     } else if (battleSystem->itemUsed) {
-                         // Item já usado, mostrar desabilitado
-                         DrawRectangleRounded((Rectangle){ actionArea.x + 30 + buttonWidth * 2, actionArea.y + 10, buttonWidth, 60 }, 0.2f, 10, itemColor);
-                         DrawText(itemName, actionArea.x + 40 + buttonWidth * 2, actionArea.y + 30, 20, WHITE);
-                     }
-                     
-                     // Botão Desistir
-                     if (drawButton((Rectangle){ actionArea.x + 40 + buttonWidth * 3, actionArea.y + 10, buttonWidth, 60 }, "Desistir", PURPLE)) {
-                         PlaySound(selectSound);
-                         battleSystem->battleState = BATTLE_CONFIRM_QUIT;
-                     }
-                 } else {
-                     // Se for o turno do bot, mostrar mensagem de espera
-                     Rectangle waitArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
-                     DrawRectangleRounded(waitArea, 0.2f, 10, LIGHTGRAY);
-                     DrawText("Aguardando ação do oponente...", waitArea.x + 20, waitArea.y + 30, 24, DARKGRAY);
-                     
-                     // No jogo real, o bot toma sua decisão e executa a ação
-                     updateBattle();
-                 }
-                 break;
+            case BATTLE_SELECT_ACTION:
+                // Mostrar opções de ação se for o turno do jogador
+                if (battleSystem->playerTurn) {
+                    // Botões de ação
+                    Rectangle actionArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
+                    DrawRectangleRounded(actionArea, 0.2f, 10, LIGHTGRAY);
+                    
+                    // Dividir em 4 botões (Lutar, Monstros, Mochila, Desistir)
+                    int buttonWidth = (actionArea.width - 30) / 4;
+                    
+                    // Botão Lutar
+                    if (drawButton((Rectangle){ actionArea.x + 10, actionArea.y + 10, buttonWidth, 60 }, "Lutar", RED)) {
+                        PlaySound(selectSound);
+                        battleSystem->battleState = BATTLE_SELECT_ATTACK;
+                    }
+                    
+                    // Botão Monstros
+                    if (drawButton((Rectangle){ actionArea.x + 20 + buttonWidth, actionArea.y + 10, buttonWidth, 60 }, "Monstros", GREEN)) {
+                        PlaySound(selectSound);
+                        battleSystem->battleState = BATTLE_SELECT_MONSTER;
+                    }
+                    
+                    // Botão Mochila
+                    Color itemColor = battleSystem->itemUsed ? GRAY : BLUE;
+                    char itemName[32];
+                    switch (battleSystem->itemType) {
+                        case ITEM_POTION: strcpy(itemName, "Poção"); break;
+                        case ITEM_RED_CARD: strcpy(itemName, "Cartão Vermelho"); break;
+                        case ITEM_COIN: strcpy(itemName, "Moeda"); break;
+                        default: strcpy(itemName, "Item"); break;
+                    }
+                    
+                    if (!battleSystem->itemUsed && drawButton((Rectangle){ actionArea.x + 30 + buttonWidth * 2, actionArea.y + 10, buttonWidth, 60 }, itemName, itemColor)) {
+                        PlaySound(selectSound);
+                        battleSystem->battleState = BATTLE_ITEM_MENU;
+                    } else if (battleSystem->itemUsed) {
+                        // Item já usado, mostrar desabilitado
+                        DrawRectangleRounded((Rectangle){ actionArea.x + 30 + buttonWidth * 2, actionArea.y + 10, buttonWidth, 60 }, 0.2f, 10, itemColor);
+                        DrawText(itemName, actionArea.x + 40 + buttonWidth * 2, actionArea.y + 30, 20, WHITE);
+                    }
+                    
+                    // Botão Desistir
+                    if (drawButton((Rectangle){ actionArea.x + 40 + buttonWidth * 3, actionArea.y + 10, buttonWidth, 60 }, "Desistir", PURPLE)) {
+                        PlaySound(selectSound);
+                        battleSystem->battleState = BATTLE_CONFIRM_QUIT;
+                    }
+                } else {
+                    // Se for o turno do bot, mostrar mensagem de espera
+                    Rectangle waitArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
+                    DrawRectangleRounded(waitArea, 0.2f, 10, LIGHTGRAY);
+                    DrawText("Aguardando ação do oponente...", waitArea.x + 20, waitArea.y + 30, 24, DARKGRAY);
+                }
+                break;
                  
              case BATTLE_SELECT_ATTACK:
                  if (battleSystem->playerTurn) {
@@ -765,38 +762,21 @@ void loadSounds(void) {
                  }
                  break;
              case BATTLE_RESULT_MESSAGE:
-                 // Aguardar confirmação do jogador para continuar
                  Rectangle messageArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
                  DrawRectangleRounded(messageArea, 0.2f, 10, LIGHTGRAY);
                  
-                 // A mensagem principal já está sendo desenhada acima
-                 // Adicionar apenas o texto de instrução
                  DrawText("Clique para continuar...", messageArea.x + 20, messageArea.y + 50, 20, DARKGRAY);
                  
-                 // Verificar clique em qualquer lugar da tela
                  if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
-                     // Verificar se precisa mudar de estado
                      if (!isQueueEmpty(battleSystem->actionQueue)) {
                          // Ainda há ações para executar
                          battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
                      } else {
-                         // Não há mais ações, verificar o que fazer
                          if (isBattleOver()) {
                              battleSystem->battleState = BATTLE_OVER;
                          } else {
-                             // Continuar a batalha
-                             battleSystem->battleState = BATTLE_SELECT_ACTION;
-                             
-                             // Se for a vez do bot, deixar ele jogar logo
-                             if (!battleSystem->playerTurn) {
-                                 // Adicionar um pequeno delay para parecer mais natural
-                                 static int botDelay = 0;
-                                 botDelay++;
-                                 if (botDelay > 60) { // ~1 segundo a 60 FPS
-                                     botChooseAction();
-                                     botDelay = 0;
-                                 }
-                             }
+                             // Fim do turno atual, updateBattle() vai começar o próximo turno
+                             battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
                          }
                      }
                  }
@@ -817,11 +797,31 @@ void loadSounds(void) {
  }
  
  void updateBattleScreen(void) {
-     // Atualização da lógica de batalha
-     if (battleSystem != NULL) {
-         processBattleInput();
-     }
- }
+    if (battleSystem != NULL) {
+        // Se for a vez do bot escolher
+        if (battleSystem->battleState == BATTLE_SELECT_ACTION && !battleSystem->playerTurn) {
+            // Dar um pequeno delay para parecer mais natural
+            static int botDelay = 0;
+            botDelay++;
+            
+            if (botDelay > 30) { // ~0.5 segundo a 60 FPS
+                // Bot escolhe sua ação
+                botChooseAction();
+                
+                // Ordenar ações por velocidade
+                determineAndExecuteTurnOrder();
+                
+                // Começar executando as ações
+                battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
+                
+                botDelay = 0;
+            }
+        }
+        
+        // Atualizar a lógica da batalha
+        updateBattle();
+    }
+}
  
  // Tabela de tipos
  void drawTypesTable(void) {
@@ -1015,7 +1015,7 @@ void loadSounds(void) {
          "Um jogo inspirado em Pokémon Stadium",
          "",
          "Desenvolvido por:",
-         "Julia Torres, Maria Claudia, Matheus Martins, Vinicius Jose - Abril/2025",
+         "Julia Torres, Fatima Beatriz, Maria Claudia, Matheus Martins, Vinicius Jose - 2025",
          "",
          "Projeto para a disciplina de",
          "Algoritmos e Estruturas de Dados",
@@ -1237,7 +1237,6 @@ void loadSounds(void) {
  
  // Desenha lista de ataques
  void drawAttackList(Rectangle bounds, PokeMonster* monster, int selectedAttack) {
-    // Dividir em 5 áreas: 4 ataques + botão voltar
     int attackWidth = (bounds.width - 130) / 4;
     
     for (int i = 0; i < 4; i++) {
@@ -1248,18 +1247,14 @@ void loadSounds(void) {
             60
         };
         
-        // Verificar PP restante para determinar cor
         Color attackColor = getTypeColor(monster->attacks[i].type);
         
-        // Escurecer se PP = 0
         if (monster->attacks[i].ppCurrent <= 0) {
             attackColor.r = attackColor.r / 2;
             attackColor.g = attackColor.g / 2;
             attackColor.b = attackColor.b / 2;
         }
         
-        // Desenhar botão de ataque
-         
         if (monster->attacks[i].ppCurrent > 0 && drawButton(attackBounds, monster->attacks[i].name, attackColor)) {
             PlaySound(selectSound);
             battleSystem->selectedAttack = i;
@@ -1267,20 +1262,10 @@ void loadSounds(void) {
             // Enfileirar ação de ataque
             enqueue(battleSystem->actionQueue, 0, i, battleSystem->playerTeam->current);
             
-            // CORREÇÃO: Mudar para o estado correto
-            battleSystem->battleState = BATTLE_RESULT_MESSAGE;
-            
-            // Executar o ataque imediatamente
-            executeAttack(battleSystem->playerTeam->current, 
-                         battleSystem->opponentTeam->current, 
-                         i);
-            
-            // Se não for mais o turno do jogador, deixar o bot jogar
-            if (!battleSystem->playerTurn) {
-                botChooseAction();
-            }
+            // Passar o turno para o bot escolher
+            battleSystem->playerTurn = false;
+            battleSystem->battleState = BATTLE_SELECT_ACTION;
         } else if (monster->attacks[i].ppCurrent <= 0) {
-            // Desenhar ataque desabilitado
             DrawRectangleRounded(attackBounds, 0.2f, 10, attackColor);
             DrawRectangleRoundedLines(attackBounds, 0.2f, 10, BLACK);
             
@@ -1290,12 +1275,10 @@ void loadSounds(void) {
                 attackBounds.y + 10
             }, 20, 1, WHITE);
             
-            // Mostrar PP
             char ppText[20];
             sprintf(ppText, "PP: %d/%d", monster->attacks[i].ppCurrent, monster->attacks[i].ppMax);
             DrawText(ppText, attackBounds.x + 10, attackBounds.y + 35, 15, WHITE);
         } else {
-            // Mostrar informação de PP para ataques disponíveis
             char ppText[20];
             sprintf(ppText, "PP: %d/%d", monster->attacks[i].ppCurrent, monster->attacks[i].ppMax);
             DrawText(ppText, attackBounds.x + 10, attackBounds.y + 35, 15, WHITE);
