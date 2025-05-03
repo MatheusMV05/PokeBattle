@@ -10,6 +10,7 @@
  #include <time.h>
  #include "raylib.h"
  #include "monsters.h"
+ #include "battle.h"
  
  // Banco de dados de monstros
  MonsterDatabase monsterDB;
@@ -81,8 +82,9 @@ void createMonsterDatabase(void) {
     monster->attack = 80;
     monster->defense = 120;
     monster->speed = 70;
-    monster->statusCondition = 0;
+    monster->statusCondition = STATUS_NONE;
     monster->statusCounter = 0;
+    monster->statusTurns = 0; 
     monster->next = NULL;
     monster->prev = NULL;
     
@@ -102,14 +104,15 @@ void createMonsterDatabase(void) {
     monster->attack = 95;
     monster->defense = 70;
     monster->speed = 100;
-    monster->statusCondition = 0;
+    monster->statusCondition = STATUS_NONE;
     monster->statusCounter = 0;
+    monster->statusTurns = 0; 
     monster->next = NULL;
     monster->prev = NULL;
     
     // Adicionar ataques (pelo menos um do tipo do monstro)
     addAttackToMonster(monster, 0, "Lança-Chamas", TYPE_FIRE, 90, 100, 15, 0, 0, 0);
-    addAttackToMonster(monster, 1, "Rugido de Fogo", TYPE_FIRE, 70, 95, 20, 1, 15, 30);
+    addAttackToMonster(monster, 1, "Chama Ardente", TYPE_FIRE, 65, 90, 15, STATUS_BURNING, 0, 30);
     addAttackToMonster(monster, 2, "Garras Afiadas", TYPE_FLYING, 65, 95, 20, 0, 0, 0);
     addAttackToMonster(monster, 3, "Rajada de Calor", TYPE_FIRE, 110, 80, 10, 0, 0, 0);
     
@@ -123,8 +126,9 @@ void createMonsterDatabase(void) {
     monster->attack = 80;
     monster->defense = 90;
     monster->speed = 80;
-    monster->statusCondition = 0;
+    monster->statusCondition = STATUS_NONE;
     monster->statusCounter = 0;
+    monster->statusTurns = 0; 
     monster->next = NULL;
     monster->prev = NULL;
     
@@ -144,13 +148,14 @@ void createMonsterDatabase(void) {
     monster->attack = 90;
     monster->defense = 65;
     monster->speed = 120;
-    monster->statusCondition = 0;
+    monster->statusCondition = STATUS_NONE;
     monster->statusCounter = 0;
+    monster->statusTurns = 0; 
     monster->next = NULL;
     monster->prev = NULL;
     
     // Adicionar ataques (pelo menos um do tipo do monstro)
-    addAttackToMonster(monster, 0, "Choque do Trovão", TYPE_ELECTRIC, 80, 100, 15, 4, 10, 30);
+    addAttackToMonster(monster, 0, "Choque do Trovão", TYPE_ELECTRIC, 75, 100, 15, STATUS_PARALYZED, 0, 30);
     addAttackToMonster(monster, 1, "Onda de Choque", TYPE_ELECTRIC, 60, 90, 20, 3, 20, 50);
     addAttackToMonster(monster, 2, "Investida Rápida", TYPE_FLYING, 40, 100, 30, 0, 0, 0);
     addAttackToMonster(monster, 3, "Trovão", TYPE_ELECTRIC, 110, 70, 10, 4, 20, 30);
@@ -165,14 +170,15 @@ void createMonsterDatabase(void) {
     monster->attack = 85;
     monster->defense = 85;
     monster->speed = 80;
-    monster->statusCondition = 0;
+    monster->statusCondition = STATUS_NONE;
     monster->statusCounter = 0;
+    monster->statusTurns = 0; 
     monster->next = NULL;
     monster->prev = NULL;
     
     // Adicionar ataques (pelo menos um do tipo do monstro)
     addAttackToMonster(monster, 0, "Chicote de Vinha", TYPE_GRASS, 75, 100, 15, 0, 0, 0);
-    addAttackToMonster(monster, 1, "Pó de Sono", TYPE_GRASS, 0, 75, 15, 5, 1, 100);
+    addAttackToMonster(monster, 1, "Pólen Sonífero", TYPE_GRASS, 0, 75, 15, STATUS_SLEEPING, 0, 80);
     addAttackToMonster(monster, 2, "Semente Bomba", TYPE_GRASS, 85, 90, 10, 0, 0, 0);
     addAttackToMonster(monster, 3, "Lâmina de Folha", TYPE_GRASS, 95, 85, 10, 2, 15, 30);
     
@@ -186,8 +192,9 @@ void createMonsterDatabase(void) {
     monster->attack = 100;
     monster->defense = 80;
     monster->speed = 95;
-    monster->statusCondition = 0;
+    monster->statusCondition = STATUS_NONE;
     monster->statusCounter = 0;
+    monster->statusTurns = 0; 
     monster->next = NULL;
     monster->prev = NULL;
     
@@ -207,8 +214,9 @@ void createMonsterDatabase(void) {
     monster->attack = 85;
     monster->defense = 75;
     monster->speed = 110;
-    monster->statusCondition = 0;
+    monster->statusCondition = STATUS_NONE;
     monster->statusCounter = 0;
+    monster->statusTurns = 0; 
     monster->next = NULL;
     monster->prev = NULL;
     
@@ -228,8 +236,9 @@ void createMonsterDatabase(void) {
     monster->attack = 85;
     monster->defense = 70;
     monster->speed = 115;
-    monster->statusCondition = 0;
+    monster->statusCondition = STATUS_NONE;
     monster->statusCounter = 0;
+    monster->statusTurns = 0; 
     monster->next = NULL;
     monster->prev = NULL;
     
@@ -249,8 +258,9 @@ void createMonsterDatabase(void) {
     monster->attack = 80;
     monster->defense = 85;
     monster->speed = 90;
-    monster->statusCondition = 0;
+    monster->statusCondition = STATUS_NONE;
     monster->statusCounter = 0;
+    monster->statusTurns = 0; 
     monster->next = NULL;
     monster->prev = NULL;
     
@@ -303,26 +313,31 @@ void createMonsterDatabase(void) {
      return monsterDB.count;
  }
  
- // Cria uma cópia de um monstro do banco de dados
- PokeMonster* createMonsterCopy(PokeMonster* source) {
-     if (source == NULL) {
-         return NULL;
-     }
-     
-     PokeMonster* copy = (PokeMonster*)malloc(sizeof(PokeMonster));
-     if (copy == NULL) {
-         return NULL;
-     }
-     
-     // Copiar todos os dados
-     memcpy(copy, source, sizeof(PokeMonster));
-     
-     // Resetar ponteiros da lista
-     copy->next = NULL;
-     copy->prev = NULL;
-     
-     return copy;
- }
+// Cria uma cópia de um monstro do banco de dados
+PokeMonster* createMonsterCopy(PokeMonster* source) {
+    if (source == NULL) {
+        return NULL;
+    }
+    
+    PokeMonster* copy = (PokeMonster*)malloc(sizeof(PokeMonster));
+    if (copy == NULL) {
+        return NULL;
+    }
+    
+    // Copiar todos os dados
+    memcpy(copy, source, sizeof(PokeMonster));
+    
+    // Resetar ponteiros da lista
+    copy->next = NULL;
+    copy->prev = NULL;
+    
+    // Inicializar os campos de status
+    copy->statusCondition = STATUS_NONE; // Garante que o monstro começa sem status
+    copy->statusCounter = 0;
+    copy->statusTurns = 0;
+    
+    return copy;
+}
  
  // Libera um monstro alocado dinamicamente
  void freeMonster(PokeMonster* monster) {

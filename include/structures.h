@@ -12,7 +12,7 @@
  // Tipos de PokeMonstros
  typedef enum {
      TYPE_NONE = -1,
-     TYPE_METAL = 0,   // Metal (antes era Pedra)
+     TYPE_METAL = 0,   // Metal 
      TYPE_FIRE,       // Fogo
      TYPE_WATER,      // Água
      TYPE_ELECTRIC,   // Elétrico
@@ -50,6 +50,7 @@
      Attack attacks[4];      // Lista de 4 ataques
      int statusCondition;    // Condição de status atual
      int statusCounter;      // Contador para efeitos de status temporários
+     int statusTurns;         // Duração restante do status (em turnos)
      Texture2D texture;      // Textura do monstro
      struct PokeMonster* next; // Próximo monstro (para lista encadeada)
      struct PokeMonster* prev; // Monstro anterior (para lista duplamente encadeada)

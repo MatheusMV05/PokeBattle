@@ -30,7 +30,17 @@
      ITEM_RED_CARD,        // Força o oponente a trocar de monstro
      ITEM_COIN             // 50% de chance de curar todo HP, 50% de morte instantânea
  } ItemType;
- 
+
+ // Tipos de status
+typedef enum {
+    STATUS_NONE = 0,
+    STATUS_ATK_DOWN = 1,    // Ataque reduzido
+    STATUS_DEF_DOWN = 2,    // Defesa reduzida
+    STATUS_SPD_DOWN = 3,    // Velocidade reduzida
+    STATUS_PARALYZED = 4,   // Paralisado: reduz velocidade e chance de não atacar
+    STATUS_SLEEPING = 5,    // Dormindo: não pode atacar
+    STATUS_BURNING = 6      // Em chamas: perde HP a cada turno
+} StatusType;
  // Protótipos das funções
  
  // Inicializa o sistema de batalha
@@ -95,7 +105,14 @@
  
  // Reinicia a batalha
  void resetBattle(void);
-
+ 
+ 
  int getAISuggestedActionSimple(PokeMonster* botMonster, PokeMonster* playerMonster);
+ 
+ bool canAttack(PokeMonster* monster);
+
+ void processStatusEffects(PokeMonster* monster);
+
+ void displayStatusMessage(const char* message);
  
  #endif // BATTLE_H

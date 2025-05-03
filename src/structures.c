@@ -46,9 +46,10 @@
  
  // Adiciona um monstro à lista
  void addMonster(MonsterList* list, PokeMonster* monster) {
-     if (list == NULL || monster == NULL) {
-         return;
-     }
+    if (list == NULL || monster == NULL) {
+        printf("Erro: lista ou monstro nulo em addMonster\n"); // Debug
+        return;
+    }
      
      // Configurar os ponteiros do novo monstro
      monster->next = NULL;
@@ -66,6 +67,7 @@
      }
      
      list->count++;
+     printf("Monstro %s adicionado. Total na lista: %d\n", monster->name, list->count); // Debug
  }
  
  // Remove um monstro da lista

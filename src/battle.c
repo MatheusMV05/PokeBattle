@@ -161,8 +161,11 @@ void startTurn(void) {
  // Inicia uma nova batalha
  void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     if (battleSystem == NULL || playerTeam == NULL || opponentTeam == NULL) {
+        printf("Erro: sistemas nulos em startNewBattle\n"); // Debug
         return;
     }
+
+    printf("Iniciando batalha: %d monstros do jogador vs %d monstros do oponente\n", playerTeam->count, opponentTeam->count); // Debug
     
     // Configurar os times
     battleSystem->playerTeam = playerTeam;
@@ -359,6 +362,19 @@ void startTurn(void) {
     if (attacker == NULL || defender == NULL || attackIndex < 0 || attackIndex >= 4) {
         return;
     }
+    // Verificar se o monstro pode atacar com base no status
+    if (attacker->statusCondition == STATUS_SLEEPING) {
+        sprintf(battleMessage, "%s está dormindo e não pode atacar!", attacker->name);
+        return;
+    }
+    
+    if (attacker->statusCondition == STATUS_PARALYZED) {
+        // 25% de chance de não conseguir atacar
+        if (rand() % 100 < 25) {
+            sprintf(battleMessage, "%s está paralisado e não conseguiu atacar!", attacker->name);
+            return;
+        }
+    }
     
     // Verificar se o ataque tem PP
     Attack* attack = &attacker->attacks[attackIndex];
@@ -367,6 +383,7 @@ void startTurn(void) {
                 attacker->name, attack->name);
         return;
     }
+    
     
     // Consumir PP
     attack->ppCurrent--;
@@ -516,66 +533,113 @@ void startTurn(void) {
  }
  
  // Aplica efeitos de status
- void applyStatusEffect(PokeMonster* target, int statusEffect, int statusPower, int duration) {
-     if (target == NULL || statusEffect <= 0 || battleSystem == NULL) {
-         return;
-     }
-     
-     // Salvar o efeito na pilha para poder desfazê-lo depois
-     push(battleSystem->effectStack, statusEffect, duration, statusPower, target);
-     
-     // Aplicar o efeito
-     switch (statusEffect) {
-         case 1: // Reduzir ataque
-             target->attack = (int)(target->attack * (100 - statusPower) / 100.0f);
-             break;
-         case 2: // Reduzir defesa
-             target->defense = (int)(target->defense * (100 - statusPower) / 100.0f);
-             break;
-         case 3: // Reduzir velocidade
-             target->speed = (int)(target->speed * (100 - statusPower) / 100.0f);
-             break;
-         case 4: // Paralisia (reduz velocidade e chance de não atacar)
-             target->speed = (int)(target->speed * 0.5f);
-             target->statusCondition = statusEffect;
-             target->statusCounter = duration;
-             break;
-         case 5: // Sono (não pode atacar)
-             target->statusCondition = statusEffect;
-             target->statusCounter = duration;
-             break;
-         default:
-             break;
-     }
- }
+void applyStatusEffect(PokeMonster* target, int statusEffect, int statusPower, int duration) {
+    if (target == NULL || statusEffect <= 0) {
+        return;
+    }
+    
+    printf("[DEBUG] Aplicando status %d a %s por %d turnos\n", 
+           statusEffect, target->name, duration);
+    
+    // Status principais não se sobrepõem
+    if (target->statusCondition > STATUS_SPD_DOWN && 
+        statusEffect > STATUS_SPD_DOWN && 
+        target->statusCondition != STATUS_NONE) {
+        printf("[DEBUG] %s já tem status %d, ignorando novo status\n", 
+               target->name, target->statusCondition);
+        return;
+    }
+    
+    // Aplicar o status
+    target->statusCondition = statusEffect;
+    target->statusTurns = duration;
+    
+    printf("[DEBUG] Status %d aplicado a %s por %d turnos\n", 
+           statusEffect, target->name, duration);
+    
+    // Aplicar o efeito imediato
+    switch (statusEffect) {
+        case STATUS_ATK_DOWN: // Reduzir ataque
+            target->attack = (int)(target->attack * (100 - statusPower) / 100.0f);
+            break;
+        case STATUS_DEF_DOWN: // Reduzir defesa
+            target->defense = (int)(target->defense * (100 - statusPower) / 100.0f);
+            break;
+        case STATUS_SPD_DOWN: // Reduzir velocidade
+            target->speed = (int)(target->speed * (100 - statusPower) / 100.0f);
+            break;
+        case STATUS_PARALYZED: // Paralisia (reduz velocidade)
+            target->speed = (int)(target->speed * 0.5f);
+            break;
+        case STATUS_SLEEPING: // Dormindo (nada extra a fazer)
+        case STATUS_BURNING:  // Em chamas (dano no final do turno)
+            break;
+        default:
+            break;
+    }
+    
+    // Salvar na pilha para processamento futuro (opcional, você já tem isso no código original)
+    push(battleSystem->effectStack, statusEffect, duration, statusPower, target);
+}
  
  // Processa o final do turno (efeitos de status, etc.)
  void processTurnEnd(void) {
-     if (battleSystem == NULL) {
-         return;
-     }
-     
-     // Processar efeitos de status ativos
-     // Reduzir contadores de status e remover os que expiraram
-     if (battleSystem->playerTeam && battleSystem->playerTeam->current) {
-         PokeMonster* player = battleSystem->playerTeam->current;
-         if (player->statusCounter > 0) {
-             player->statusCounter--;
-             if (player->statusCounter == 0) {
-                 player->statusCondition = 0;
-             }
-         }
-     }
-     
-     if (battleSystem->opponentTeam && battleSystem->opponentTeam->current) {
-         PokeMonster* opponent = battleSystem->opponentTeam->current;
-         if (opponent->statusCounter > 0) {
-             opponent->statusCounter--;
-             if (opponent->statusCounter == 0) {
-                 opponent->statusCondition = 0;
-             }
-         }
-     }
+    if (battleSystem == NULL) {
+        return;
+    }
+    
+    // Processar efeitos de status ativos para o jogador
+    if (battleSystem->playerTeam && battleSystem->playerTeam->current) {
+        processStatusEffects(battleSystem->playerTeam->current);
+        
+        // Verificar se o monstro desmaiou devido ao status
+        if (isMonsterFainted(battleSystem->playerTeam->current)) {
+            // Verificar se tem outro monstro disponível
+            PokeMonster* current = battleSystem->playerTeam->first;
+            bool hasAlivePokemon = false;
+            while (current != NULL) {
+                if (!isMonsterFainted(current)) {
+                    hasAlivePokemon = true;
+                    break;
+                }
+                current = current->next;
+            }
+            
+            if (hasAlivePokemon) {
+                // Forçar troca de monstro
+                battleSystem->battleState = BATTLE_FORCED_SWITCH;
+                battleSystem->playerTurn = true;
+                sprintf(battleMessage, "%s desmaiou! Escolha outro monstro!", 
+                       battleSystem->playerTeam->current->name);
+            }
+        }
+    }
+    
+    // Processar efeitos de status ativos para o oponente
+    if (battleSystem->opponentTeam && battleSystem->opponentTeam->current) {
+        processStatusEffects(battleSystem->opponentTeam->current);
+        
+        // Verificar se o monstro desmaiou devido ao status
+        if (isMonsterFainted(battleSystem->opponentTeam->current)) {
+            // Trocar automaticamente
+            PokeMonster* newMonster = NULL;
+            PokeMonster* current = battleSystem->opponentTeam->first;
+            while (current != NULL) {
+                if (!isMonsterFainted(current)) {
+                    newMonster = current;
+                    break;
+                }
+                current = current->next;
+            }
+            
+            if (newMonster != NULL) {
+                switchMonster(battleSystem->opponentTeam, newMonster);
+                char switchText[64];
+                sprintf(switchText, "Oponente enviou %s!", newMonster->name);
+                strncpy(battleMessage, switchText, sizeof(battleMessage) - 1);
+            }
+        }
+    }
      
      // Processar a pilha de efeitos
      // Remover efeitos que expiraram e restaurar os stats
@@ -787,6 +851,15 @@ void startTurn(void) {
     
     printf("[DEBUG] Bot escolhendo ação...\n");
     
+    // Se o bot está dormindo, ele ainda vai "tentar" atacar, mas será impedido depois
+    // Isso evita que o bot tente outras ações quando estiver dormindo
+    if (botMonster->statusCondition == STATUS_SLEEPING) {
+        printf("[DEBUG] Bot está dormindo, mas tentará atacar mesmo assim\n");
+        // Escolher um ataque qualquer - será bloqueado na função executeAttack
+        enqueue(battleSystem->actionQueue, 0, 0, botMonster);
+        return; // Importante: retornar aqui para não continuar a lógica normal
+    }
+    
     int action = getAISuggestedAction(botMonster, playerMonster);
     
     // Garantir que uma ação seja sempre enfileirada
@@ -986,4 +1059,100 @@ int getAISuggestedActionSimple(PokeMonster* botMonster, PokeMonster* playerMonst
     }
     
     return 0; // Atacar por padrão
+}
+
+// Verificar se o monstro pode atacar baseado no status
+bool canAttack(PokeMonster* monster) {
+    if (monster == NULL || isMonsterFainted(monster)) {
+        return false;
+    }
+    
+    // Verificar status que impedem ataque
+    if (monster->statusCondition == STATUS_SLEEPING) {
+        printf("[DEBUG] %s está dormindo e não pode atacar!\n", monster->name);
+        return false;
+    }
+    
+    if (monster->statusCondition == STATUS_PARALYZED) {
+        // Paralisado (25% de chance de não conseguir atacar)
+        if (rand() % 100 < 25) {
+            printf("[DEBUG] %s está paralisado e não conseguiu se mover!\n", monster->name);
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Processar efeitos de status no final do turno
+void processStatusEffects(PokeMonster* monster) {
+    if (monster == NULL || monster->statusCondition == STATUS_NONE) {
+        return;
+    }
+    
+    printf("[DEBUG] Processando status %d para %s, turnos restantes: %d\n", 
+           monster->statusCondition, monster->name, monster->statusTurns);
+    
+    // Processar efeitos que causam dano por turno
+    switch (monster->statusCondition) {
+        case STATUS_BURNING: // Em chamas
+            {
+                int damage = monster->maxHp / 8;
+                if (damage < 1) damage = 1;
+                monster->hp -= damage;
+                
+                if (monster->hp < 0) monster->hp = 0;
+                
+                sprintf(battleMessage, "%s sofreu %d de dano por estar em chamas!", 
+                       monster->name, damage);
+            }
+            break;
+            
+        case STATUS_SLEEPING: // Dormindo
+            // Atualizar contador de turnos
+            if (monster->statusTurns > 0) {
+                monster->statusTurns--;
+                printf("[DEBUG] %s continua dormindo. Turnos restantes: %d\n", 
+                       monster->name, monster->statusTurns);
+                
+                if (monster->statusTurns == 0) {
+                    // Acordou porque o tempo acabou
+                    monster->statusCondition = STATUS_NONE;
+                    sprintf(battleMessage, "%s acordou!", monster->name);
+                    printf("[DEBUG] %s acordou porque o tempo acabou\n", monster->name);
+                }
+            } else {
+                // Se por algum motivo não tiver contador, chance de acordar
+                if (rand() % 100 < 33) {
+                    monster->statusCondition = STATUS_NONE;
+                    sprintf(battleMessage, "%s acordou!", monster->name);
+                    printf("[DEBUG] %s acordou aleatoriamente\n", monster->name);
+                }
+            }
+            // Importante: Não fazemos o processamento genérico abaixo para sono
+            // pois já estamos processando aqui
+            return;
+            
+        default:
+            break;
+    }
+    
+    // Processamento genérico para outros status
+    if (monster->statusTurns > 0) {
+        monster->statusTurns--;
+        if (monster->statusTurns == 0) {
+            // Status expirou
+            monster->statusCondition = STATUS_NONE;
+            printf("[DEBUG] Status de %s expirou\n", monster->name);
+        }
+    }
+}
+
+// Função auxiliar para exibir mensagens de status
+void displayStatusMessage(const char* message) {
+    // Copiar a mensagem para a variável global de mensagem da batalha
+    strncpy(battleMessage, message, sizeof(battleMessage) - 1);
+    
+    // Garantir que a string termina com nulo
+    battleMessage[sizeof(battleMessage) - 1] = '\0';
 }

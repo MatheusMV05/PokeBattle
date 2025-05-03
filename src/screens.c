@@ -146,6 +146,35 @@ void drawMonsterInBattle(PokeMonster* monster, Rectangle bounds, bool isPlayer) 
     DrawText(monster->name, bounds.x + 10, bounds.y - 40, 20, WHITE);
     drawHealthBar((Rectangle){ bounds.x, bounds.y - 20, bounds.width, 10 },
                  monster->hp, monster->maxHp);
+
+    // Desenhar indicador de status
+    if (monster->statusCondition > STATUS_SPD_DOWN) {  // Só mostra para status "maiores"
+        Rectangle statusRect = { bounds.x, bounds.y - 60, 120, 20 };
+        Color statusColor;
+        const char* statusText;
+        
+        switch (monster->statusCondition) {
+            case STATUS_PARALYZED:
+                statusColor = YELLOW;
+                statusText = "PARALISADO";
+                break;
+            case STATUS_SLEEPING:
+                statusColor = DARKPURPLE;
+                statusText = "DORMINDO";
+                break;
+            case STATUS_BURNING:
+                statusColor = RED;
+                statusText = "QUEIMANDO";
+                break;
+            default:
+                statusColor = GRAY;
+                statusText = "";
+                break;
+        }
+        
+        DrawRectangleRounded(statusRect, 0.5f, 5, statusColor);
+        DrawText(statusText, statusRect.x + 5, statusRect.y + 2, 16, WHITE);
+    }
 }
 
  void drawBattleHUD(void) {
@@ -435,31 +464,37 @@ void loadSounds(void) {
                  // Desenhar botão de seleção (desabilitado se já selecionado)
                  Color selectColor = alreadySelected ? GRAY : GREEN;
                  if (!alreadySelected && drawButton(selectBounds, "Selecionar", selectColor)) {
-                     PlaySound(selectSound);
-                     
-                     // Adicionar monstro ao time apropriado
-                     PokeMonster* newMonster = createMonsterCopy(monster);
-                     
-                     if (teamSelectionCount == 0) {
-                         // Time do jogador 1
-                         addMonster(playerTeam, newMonster);
-                         
-                         // Se já selecionou 3 monstros
-                         if (playerTeam->count >= 3) {
-                             if (vsBot) {
-                                 // Gerar time do bot aleatoriamente
-                                 opponentTeam = generateRandomTeam(3);
-                                 
-                                 // Iniciar batalha
-                                 startNewBattle(playerTeam, opponentTeam);
-                                 currentScreen = BATTLE_SCREEN;
-                                 StopMusicStream(menuMusic);
-                                 PlayMusicStream(battleMusic);
-                             } else {
-                                 // Passar para a seleção do jogador 2
-                                 teamSelectionCount = 1;
-                             }
-                         }
+                    PlaySound(selectSound);
+                    
+                    // Adicionar monstro ao time apropriado
+                    PokeMonster* newMonster = createMonsterCopy(monster);
+                    printf("Criado novo monstro: %s\n", newMonster->name); // Debug
+                    
+                    if (teamSelectionCount == 0) {
+                        // Time do jogador 1
+                        addMonster(playerTeam, newMonster);
+                        printf("Monstros do jogador após adição: %d\n", playerTeam->count); // Debug
+                        
+                        // Se já selecionou 3 monstros
+                        if (playerTeam->count >= 3) {
+                            printf("3 monstros selecionados para o jogador!\n"); // Debug
+                            
+                            if (vsBot) {
+                                // Gerar time do bot aleatoriamente
+                                opponentTeam = generateRandomTeam(3);
+                                printf("Time do bot gerado: %d monstros\n", 
+                                        opponentTeam ? opponentTeam->count : 0); // Debug
+                                
+                                // Iniciar batalha
+                                startNewBattle(playerTeam, opponentTeam);
+                                currentScreen = BATTLE_SCREEN;
+                                StopMusicStream(menuMusic);
+                                PlayMusicStream(battleMusic);
+                            } else {
+                                // Passar para a seleção do jogador 2
+                                teamSelectionCount = 1;
+                            }
+                        }
                      } else {
                          // Time do jogador 2
                          addMonster(opponentTeam, newMonster);
