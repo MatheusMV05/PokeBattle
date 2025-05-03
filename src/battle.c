@@ -76,49 +76,6 @@
          return;
      }
  }
-
- void determineAndExecuteTurnOrder(void) {
-    if (battleSystem == NULL || isQueueEmpty(battleSystem->actionQueue)) {
-        return;
-    }
-    
-    // Criar dois arrays para armazenar as ações temporariamente
-    int actions[2];
-    int parameters[2];
-    PokeMonster* monsters[2];
-    int actionCount = 0;
-    
-    // Extrair as ações da fila
-    while (!isQueueEmpty(battleSystem->actionQueue) && actionCount < 2) {
-        dequeue(battleSystem->actionQueue, &actions[actionCount], 
-                &parameters[actionCount], &monsters[actionCount]);
-        actionCount++;
-    }
-    
-    // Ordenar ações por velocidade (do mais rápido para o mais lento)
-    if (actionCount == 2) {
-        // Verificar se precisa trocar a ordem
-        if (monsters[0]->speed < monsters[1]->speed) {
-            // Trocar as ações se o segundo for mais rápido
-            int tempAction = actions[0];
-            int tempParam = parameters[0];
-            PokeMonster* tempMonster = monsters[0];
-            
-            actions[0] = actions[1];
-            parameters[0] = parameters[1];
-            monsters[0] = monsters[1];
-            
-            actions[1] = tempAction;
-            parameters[1] = tempParam;
-            monsters[1] = tempMonster;
-        }
-    }
-    
-    // Colocar as ações de volta na fila na ordem correta
-    for (int i = 0; i < actionCount; i++) {
-        enqueue(battleSystem->actionQueue, actions[i], parameters[i], monsters[i]);
-    }
-}
  
  // Libera o sistema de batalha
  void freeBattleSystem(void) {
@@ -190,9 +147,6 @@
             break;
             
         case BATTLE_EXECUTING_ACTIONS:
-            // Determinar a ordem correta de execução baseada na velocidade
-            determineAndExecuteTurnOrder();
-            
             // Executar as ações na fila em ordem
             if (!isQueueEmpty(battleSystem->actionQueue)) {
                 int action, parameter;
@@ -262,20 +216,20 @@
                          break;
                  }
                  
-                 // Após executar uma ação, mostrar o resultado
-                 battleSystem->battleState = BATTLE_RESULT_MESSAGE;
-                } else {
-                    // Todas as ações foram executadas, preparar para o próximo turno
-                    processTurnEnd();
-                    battleSystem->turn++;
-                    determineTurnOrder();  // Determinar quem joga primeiro no próximo turno
-                    battleSystem->battleState = BATTLE_SELECT_ACTION;
-                    clearQueue(battleSystem->actionQueue);
-                }
-                break;
+                 // Passar para o próximo estado
+                battleSystem->battleState = BATTLE_RESULT_MESSAGE;
+            } else {
+                // Todas as ações foram executadas, processar fim do turno
+                processTurnEnd();
+                battleSystem->battleState = BATTLE_SELECT_ACTION;
+                battleSystem->turn++;
+                determineTurnOrder(); // Recalcular ordem de turno
+            }
+            break;
             
         case BATTLE_RESULT_MESSAGE:
-            // Aguarda o jogador clicar para continuar (via interface)
+            // Aguarda o jogador clicar para continuar
+            // A transição é feita no processBattleInput()
             break;
             
         default:
