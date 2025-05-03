@@ -206,6 +206,10 @@ void startTurn(void) {
             break;
             
         case BATTLE_EXECUTING_ACTIONS:
+            //Verifica se tem uma troca forçada pendente
+            if (battleSystem->battleState == BATTLE_FORCED_SWITCH) {
+                return; // Aguarda a troca do jogador
+            }
             // Executar as ações na fila em ordem
             if (!isQueueEmpty(battleSystem->actionQueue)) {
                 int action, parameter;
@@ -425,42 +429,50 @@ void startTurn(void) {
         char faintedText[50];
         sprintf(faintedText, " %s desmaiou!", defender->name);
         strncat(battleMessage, faintedText, sizeof(battleMessage) - strlen(battleMessage) - 1);
+    
+    // Se o monstro do jogador desmaiou
+    if (defender == battleSystem->playerTeam->current) {
+        // Verificar se tem outro monstro disponível
+        PokeMonster* current = battleSystem->playerTeam->first;
+        bool hasAlivePokemon = false;
+        while (current != NULL) {
+            if (!isMonsterFainted(current)) {
+                hasAlivePokemon = true;
+                break;
+            }
+            current = current->next;
+        }
         
-        // Verificar se o jogador ou oponente precisa trocar de monstro
-        if (defender == battleSystem->playerTeam->current) {
-            // Verificar se o jogador tem outro monstro disponível
-            PokeMonster* pokemonCurrent = battleSystem->playerTeam->first;
-            bool hasAlivePokemon = false;
-            while (pokemonCurrent != NULL) {
-                if (!isMonsterFainted(pokemonCurrent)) {
-                    hasAlivePokemon = true;
-                    break;
-                }
-                pokemonCurrent = pokemonCurrent->next;
-            }
+        if (hasAlivePokemon) {
+            // Forçar troca de monstro
+            battleSystem->battleState = BATTLE_FORCED_SWITCH;
+            battleSystem->playerTurn = true;
+            sprintf(battleMessage, "%s desmaiou! Escolha outro monstro!", defender->name);
             
-            if (hasAlivePokemon) {
-                // Mudar para o estado de seleção de monstro
-                battleSystem->battleState = BATTLE_SELECT_MONSTER;
-                battleSystem->playerTurn = true;
-                return;
-            }
-        } else if (defender == battleSystem->opponentTeam->current) {
-            // Bot escolhe automaticamente o próximo monstro
+            // IMPORTANTE: Limpar a fila de ações para evitar processamento adicional
+            clearQueue(battleSystem->actionQueue);
+            
+            // Interromper execução até a troca
+            return;
+        }
+    }
+        // Se o monstro do bot desmaiou
+        else if (defender == battleSystem->opponentTeam->current) {
+            // O bot troca automaticamente
             PokeMonster* newMonster = NULL;
-            PokeMonster* pokemonCurrent = battleSystem->opponentTeam->first;
-            while (pokemonCurrent != NULL) {
-                if (!isMonsterFainted(pokemonCurrent)) {
-                    newMonster = pokemonCurrent;
+            PokeMonster* current = battleSystem->opponentTeam->first;
+            while (current != NULL) {
+                if (!isMonsterFainted(current)) {
+                    newMonster = current;
                     break;
                 }
-                pokemonCurrent = pokemonCurrent->next;
+                current = current->next;
             }
             
             if (newMonster != NULL) {
                 switchMonster(battleSystem->opponentTeam, newMonster);
-                char switchText[50];
-                sprintf(switchText, " Oponente trocou para %s!", newMonster->name);
+                char switchText[64];
+                sprintf(switchText, " Oponente enviou %s!", newMonster->name);
                 strncat(battleMessage, switchText, sizeof(battleMessage) - strlen(battleMessage) - 1);
             }
         }

@@ -20,7 +20,8 @@
      BATTLE_ANIMATION,
      BATTLE_RESULT_MESSAGE,
      BATTLE_OVER,
-     BATTLE_CONFIRM_QUIT
+     BATTLE_CONFIRM_QUIT,
+     BATTLE_FORCED_SWITCH 
  } BattleState;
  
  // Tipos de itens

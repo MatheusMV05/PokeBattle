@@ -568,6 +568,11 @@ void loadSounds(void) {
             case BATTLE_SELECT_ACTION:
                 // Mostrar opções de ação se for o turno do jogador
                 if (battleSystem->playerTurn) {
+                    if (isMonsterFainted(battleSystem->playerTeam->current)) {
+                        // Forçar o estado de troca
+                        battleSystem->battleState = BATTLE_FORCED_SWITCH;
+                        return;
+                    }
                     // Botões de ação
                     Rectangle actionArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
                     DrawRectangleRounded(actionArea, 0.2f, 10, LIGHTGRAY);
@@ -783,6 +788,65 @@ void loadSounds(void) {
                  Rectangle executingArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
                  DrawRectangleRounded(executingArea, 0.2f, 10, LIGHTGRAY);
                  DrawText("Executando ações...", executingArea.x + 20, executingArea.y + 30, 24, DARKGRAY);
+                 break;
+                 case BATTLE_FORCED_SWITCH:
+                 // Mostrar lista de monstros para troca forçada
+                 if (battleSystem->playerTurn) {
+                     Rectangle monsterArea = { 50, GetScreenHeight() - 90, GetScreenWidth() - 100, 80 };
+                     DrawRectangleRounded(monsterArea, 0.2f, 10, LIGHTGRAY);
+                     
+                     // Título da seleção forçada
+                     DrawText("Escolha um monstro:", monsterArea.x + 20, monsterArea.y - 30, 24, WHITE);
+                     
+                     int count = 0;
+                     PokeMonster* current = battleSystem->playerTeam->first;
+                     
+                     while (current != NULL) {
+                         Rectangle monsterButton = {
+                             monsterArea.x + 10 + count * (monsterArea.width - 120) / 4,
+                             monsterArea.y + 10,
+                             (monsterArea.width - 120) / 4 - 10,
+                             60
+                         };
+                         
+                         Color buttonColor = BLUE;
+                         
+                         if (isMonsterFainted(current)) {
+                             buttonColor = GRAY;
+                         }
+                         
+                         // Só permitir clicar em monstros vivos
+                         if (!isMonsterFainted(current) && drawButton(monsterButton, current->name, buttonColor)) {
+                             PlaySound(selectSound);
+                             
+                             // Trocar para o monstro escolhido
+                             switchMonster(battleSystem->playerTeam, current);
+                             
+                             // Voltar ao estado de execução de ações
+                             // Se estava no meio de executar ações, continua
+                             if (!isQueueEmpty(battleSystem->actionQueue)) {
+                                 battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
+                             } else {
+                                 // Se não, volta para seleção de ação
+                                 battleSystem->battleState = BATTLE_SELECT_ACTION;
+                             }
+                         } else if (isMonsterFainted(current)) {
+                             // Mostrar botão desabilitado
+                             DrawRectangleRounded(monsterButton, 0.2f, 10, buttonColor);
+                             DrawText(current->name, monsterButton.x + 10, monsterButton.y + 20, 20, WHITE);
+                             DrawText("Desmaiado", monsterButton.x + 10, monsterButton.y + 40, 15, RED);
+                         }
+                         
+                         count++;
+                         current = current->next;
+                     }
+                     
+                     // Botão de desistir (único botão extra disponível)
+                     if (drawButton((Rectangle){ monsterArea.x + monsterArea.width - 110, monsterArea.y + 10, 100, 60 }, "Desistir", PURPLE)) {
+                         PlaySound(selectSound);
+                         battleSystem->battleState = BATTLE_CONFIRM_QUIT;
+                     }
+                 }
                  break;
                  
              default:
