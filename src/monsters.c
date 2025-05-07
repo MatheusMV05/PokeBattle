@@ -61,7 +61,6 @@
 }
  
  // Cria o banco de dados de monstros com monstros pré-definidos
- // Cria o banco de dados de monstros com monstros pré-definidos
 void createMonsterDatabase(void) {
     // Alocar espaço para 9 monstros (um para cada tipo)
     monsterDB.count = 9;

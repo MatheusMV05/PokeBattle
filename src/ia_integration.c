@@ -200,33 +200,44 @@
      return response_text;
  }
  
- // Gera uma descrição criativa para um ataque
+ // Gera uma descrição para um ataque
  char* generateAttackDescription(PokeMonster* attacker, PokeMonster* defender, Attack* attack) {
-     if (attacker == NULL || defender == NULL || attack == NULL) {
-         return strdup("Um ataque foi realizado!");
-     }
-     
-     // Formatar o prompt para a IA
-     char prompt[MAX_PROMPT_SIZE];
-     snprintf(prompt, MAX_PROMPT_SIZE,
-              "Descreva de forma breve e criativa (uma linha) um ataque de %s chamado '%s' do tipo %s contra um %s. Seja dramático!",
-              attacker->name, attack->name, getTypeName(attack->type), defender->name);
-     
-     // Consultar a IA
-     char* description = queryAI(prompt);
-     
-     // Se a consulta falhar, usar uma descrição padrão
-     if (description == NULL || strstr(description, "Erro:") == description) {
-         char* default_desc = (char*)malloc(200);
-         sprintf(default_desc, "%s usa %s contra %s!", 
-                 attacker->name, attack->name, defender->name);
-         
-         if (description) free(description);
-         return default_desc;
-     }
-     
-     return description;
- }
+    if (attacker == NULL || defender == NULL || attack == NULL) {
+        return strdup("Um ataque foi realizado!");
+    }
+    
+    // Buffer para a mensagem
+    char* description = (char*)malloc(256);
+    if (description == NULL) {
+        return strdup("Erro de memória!");
+    }
+    
+    // Escolher um formato de mensagem aleatoriamente
+    int format = rand() % 5;
+    
+    switch (format) {
+        case 0:
+            sprintf(description, "%s usou %s!", attacker->name, attack->name);
+            break;
+        case 1:
+            sprintf(description, "%s atacou com %s!", attacker->name, attack->name);
+            break;
+        case 2:
+            sprintf(description, "%s lançou %s contra %s!", attacker->name, attack->name, defender->name);
+            break;
+        case 3:
+            sprintf(description, "Um poderoso %s foi usado por %s!", attack->name, attacker->name);
+            break;
+        case 4:
+            sprintf(description, "%s executou %s com eficiência!", attacker->name, attack->name);
+            break;
+        default:
+            sprintf(description, "%s usou %s!", attacker->name, attack->name);
+            break;
+    }
+    
+    return description;
+}
  
  
  // Interpreta a resposta da API de IA para um número

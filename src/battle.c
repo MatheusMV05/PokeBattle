@@ -111,7 +111,28 @@ void startTurn(void) {
     }
     
     if (actionCount == 2) {
-        if (monsters[0]->speed < monsters[1]->speed) {
+        // NOVA LÓGICA: Itens têm prioridade sobre outros tipos de ação
+        if (actions[0] == 2 || actions[1] == 2) {  // 2 = usar item
+            // Se alguma ação for um item, ela deve ser executada primeiro
+            if (actions[1] == 2 && actions[0] != 2) {
+                // Trocar a ordem se o item estiver na segunda posição
+                int tempAction = actions[0];
+                int tempParam = parameters[0];
+                PokeMonster* tempMonster = monsters[0];
+                
+                actions[0] = actions[1];
+                parameters[0] = parameters[1];
+                monsters[0] = monsters[1];
+                
+                actions[1] = tempAction;
+                parameters[1] = tempParam;
+                monsters[1] = tempMonster;
+                
+                printf("[DEBUG] Item tem prioridade - ordem ajustada\n");
+            }
+        } 
+        // Se não for item, usar a lógica original de velocidade
+        else if (monsters[0]->speed < monsters[1]->speed) {
             printf("[DEBUG] Trocando ordem - %s mais rápido que %s\n", 
                    monsters[1]->name, monsters[0]->name);
             
@@ -748,52 +769,55 @@ void applyStatusEffect(PokeMonster* target, int statusEffect, int statusPower, i
  }
  
  // Usa um item
- void useItem(ItemType itemType, PokeMonster* target) {
-     if (target == NULL) {
-         return;
-     }
-     
-     switch (itemType) {
-         case ITEM_POTION:
-             // Restaura 20 de HP
-             target->hp += 20;
-             if (target->hp > target->maxHp) {
-                 target->hp = target->maxHp;
-             }
-             sprintf(battleMessage, "Poção usada! %s recuperou 20 de HP!", target->name);
-             break;
-             
-         case ITEM_RED_CARD:
-             // Força o oponente a trocar de monstro
-             if (target == battleSystem->playerTeam->current) {
-                 // Forçar troca do oponente
-                 PokeMonster* newMonster = botChooseMonster(battleSystem->opponentTeam, target);
-                 if (newMonster && newMonster != battleSystem->opponentTeam->current) {
-                     switchMonster(battleSystem->opponentTeam, newMonster);
-                     sprintf(battleMessage, "Cartão Vermelho usado! Oponente trocou para %s!", newMonster->name);
-                 } else {
-                     sprintf(battleMessage, "Cartão Vermelho usado, mas falhou!");
-                 }
-             } else {
-                 // Este item não deveria ser usado pelo bot, mas por precaução
-                 sprintf(battleMessage, "Cartão Vermelho usado, mas falhou!");
-             }
-             break;
-             
-         case ITEM_COIN:
-             // 50% de chance de curar todo HP, 50% de chance de morrer
-             if (rand() % 2 == 0) {
-                 // Cura total
-                 target->hp = target->maxHp;
-                 sprintf(battleMessage, "Moeda da Sorte: CARA! %s recuperou todo o HP!", target->name);
-             } else {
-                 // HP = 0
-                 target->hp = 0;
-                 sprintf(battleMessage, "Moeda da Sorte: COROA! %s desmaiou!", target->name);
-             }
-             break;
-     }
- }
+void useItem(ItemType itemType, PokeMonster* target) {
+    if (target == NULL) {
+        return;
+    }
+    
+    switch (itemType) {
+        case ITEM_POTION:
+            // Restaura 20 de HP
+            target->hp += 20;
+            if (target->hp > target->maxHp) {
+                target->hp = target->maxHp;
+            }
+            sprintf(battleMessage, "Poção usada! %s recuperou 20 de HP!", target->name);
+            break;
+            
+        case ITEM_RED_CARD:
+            // Força o oponente a trocar de monstro
+            if (target == battleSystem->playerTeam->current) {
+                // Forçar troca do oponente
+                PokeMonster* newMonster = botChooseMonster(battleSystem->opponentTeam, target);
+                if (newMonster && newMonster != battleSystem->opponentTeam->current) {
+                    switchMonster(battleSystem->opponentTeam, newMonster);
+                    sprintf(battleMessage, "Cartão Vermelho usado! Oponente trocou para %s!", newMonster->name);
+                    
+                    // NOVA LÓGICA: Limpar a fila de ações do bot para impedir ataques neste turno
+                    clearQueue(battleSystem->actionQueue);
+                } else {
+                    sprintf(battleMessage, "Cartão Vermelho usado, mas falhou!");
+                }
+            } else {
+                // Este item não deveria ser usado pelo bot, mas por precaução
+                sprintf(battleMessage, "Cartão Vermelho usado, mas falhou!");
+            }
+            break;
+            
+        case ITEM_COIN:
+            // 50% de chance de curar todo HP, 50% de chance de morrer
+            if (rand() % 2 == 0) {
+                // Cura total
+                target->hp = target->maxHp;
+                sprintf(battleMessage, "Moeda da Sorte: CARA! %s recuperou todo o HP!", target->name);
+            } else {
+                // HP = 0
+                target->hp = 0;
+                sprintf(battleMessage, "Moeda da Sorte: COROA! %s desmaiou!", target->name);
+            }
+            break;
+    }
+}
  
  // Verifica se um monstro está incapacitado
  bool isMonsterFainted(PokeMonster* monster) {

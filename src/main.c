@@ -1,6 +1,5 @@
 /**
  * PokeBattle - Um jogo de batalha por turnos inspirado em Pokémon
- * Autor: Claude
  * Data: Abril/2025
  * 
  * Este arquivo contém o ponto de entrada principal do jogo.
