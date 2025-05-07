@@ -108,6 +108,7 @@
               "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s",
               MODEL, API_KEY);
      
+              
      // Montar o payload JSON para a requisição
      char json_payload[MAX_PROMPT_SIZE + 256]; // +256 para os campos do JSON
      snprintf(json_payload, sizeof(json_payload),
