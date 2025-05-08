@@ -106,6 +106,9 @@
     
     // Inicializar estruturas de batalha
     initializeBattleSystem();
+
+    // Inicializar efeitos de batalha
+    initBattleEffects();
     
     // Inicializar recursos visuais
     loadTextures();

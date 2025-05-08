@@ -19,6 +19,8 @@
  // Mensagem de batalha atual
  static char battleMessage[256] = "";
 
+ void executeAttackWithEffects(PokeMonster* attacker, PokeMonster* defender, int attackIndex);
+
  // No início de cada turno 
 void startTurn(void) {
     // Limpar a fila de ações anterior
@@ -244,9 +246,9 @@ void startTurn(void) {
                 switch (action) {
                     case 0: // Ataque
                         if (monster == battleSystem->playerTeam->current) {
-                            executeAttack(monster, battleSystem->opponentTeam->current, parameter);
+                            executeAttackWithEffects(monster, battleSystem->opponentTeam->current, parameter);
                         } else {
-                            executeAttack(monster, battleSystem->playerTeam->current, parameter);
+                            executeAttackWithEffects(monster, battleSystem->playerTeam->current, parameter);
                         }
                         break;
                         
