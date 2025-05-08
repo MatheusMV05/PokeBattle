@@ -10,13 +10,13 @@
 // Estados do jogo
 typedef enum {
     MAIN_MENU = 0,
-    OPPONENT_SELECTION,
-    MONSTER_SELECTION,
-    BATTLE_SCREEN,
-    TYPES_TABLE,
-    SETTINGS,
-    CREDITS,
-    EXIT
+    OPPONENT_SELECTION = 1,
+    MONSTER_SELECTION = 2,
+    BATTLE_SCREEN = 3,
+    TYPES_TABLE = 4,
+    SETTINGS = 5,
+    CREDITS = 6,
+    EXIT = 7
 } GameState;
 
 // Declaração de variáveis externas

@@ -66,6 +66,32 @@ extern float typeEffectiveness[TYPE_COUNT][TYPE_COUNT];
  void drawConfirmationDialog(const char* message, const char* yesText, const char* noText);
  void drawMonsterInBattle(PokeMonster* monster, Rectangle bounds, bool isPlayer);
  
+ static int currentResolutionIndex = 0;  
+static int pendingResolutionIndex = 0;  
+static bool hasUnsavedChanges = false;  
+
+// Configurações pendentes
+static float pendingMusicVolume = 0.7f;
+static float pendingSoundVolume = 0.8f;
+static bool pendingFullscreen = false;
+static int pendingDifficultyIndex = 1;
+static int pendingAnimSpeedIndex = 1;
+
+// Estrutura para resoluções
+typedef struct {
+    int width;
+    int height;
+    const char* description;
+} Resolution;
+
+static Resolution availableResolutions[] = {
+    { 1920, 1080, "1920x1080" },
+    { 1600, 900,  "1600x900" },
+    { 1366, 768,  "1366x768" },
+    { 1280, 720,  "1280x720" },
+    { 1024, 768,  "1024x768" }
+};
+static int numResolutions = 5;
  // Carrega texturas, fontes e recursos visuais
  void loadTextures(void) {
      // Carregar fonte
@@ -319,9 +345,14 @@ void loadSounds(void) {
  }
  
  // Menu principal
- void drawMainMenu(void) {
+void drawMainMenu(void) {
     // Atualizar música do menu
     UpdateMusicStream(menuMusic);
+    
+    // Calcular escala baseada em 1920x1080
+    float scaleX = GetScreenWidth() / 1920.0f;
+    float scaleY = GetScreenHeight() / 1080.0f;
+    float scale = fmin(scaleX, scaleY);
     
     // Cores principais do tema
     Color primaryColor = (Color){ 255, 51, 51, 255 };      // Vermelho Fire Red
@@ -336,7 +367,6 @@ void loadSounds(void) {
     // Desenhar fundo gradiente dinâmico
     for (int i = 0; i < GetScreenHeight(); i += 5) {
         float factor = (float)i / GetScreenHeight();
-        // float offset = sinf(bgTimer + factor * 5.0f) * 0.05f; // Removido pois não estava sendo usado
         
         Color lineColor = (Color){
             (unsigned char)(bgColor.r * (1.0f - factor) + secondaryColor.r * factor),
@@ -350,43 +380,59 @@ void loadSounds(void) {
     
     // Título principal estilo Pokémon
     const char* title = "PokeBattle";
+    int titleFontSize = (int)(110 * scale); // Aumentado proporcionalmente
     
     // Título - Sombra
-    Vector2 titleShadowPos = { GetScreenWidth()/2 - MeasureText(title, 70)/2 + 3, 53 };
-    DrawText(title, titleShadowPos.x, titleShadowPos.y, 70, (Color){ 40, 40, 40, 200 });
+    Vector2 titleShadowPos = { 
+        GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2 + (int)(3 * scale), 
+        (int)(83 * scale) 
+    };
+    DrawText(title, titleShadowPos.x, titleShadowPos.y, titleFontSize, (Color){ 40, 40, 40, 200 });
     
     // Título - Contorno
-    Vector2 titleOutlinePos = { GetScreenWidth()/2 - MeasureText(title, 70)/2, 50 };
-    DrawText(title, titleOutlinePos.x - 2, titleOutlinePos.y - 2, 70, BLACK);
-    DrawText(title, titleOutlinePos.x + 2, titleOutlinePos.y - 2, 70, BLACK);
-    DrawText(title, titleOutlinePos.x - 2, titleOutlinePos.y + 2, 70, BLACK);
-    DrawText(title, titleOutlinePos.x + 2, titleOutlinePos.y + 2, 70, BLACK);
+    Vector2 titleOutlinePos = { 
+        GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2, 
+        (int)(80 * scale) 
+    };
+    
+    // Desenhar contorno
+    int outlineOffset = (int)(3 * scale);
+    DrawText(title, titleOutlinePos.x - outlineOffset, titleOutlinePos.y - outlineOffset, titleFontSize, BLACK);
+    DrawText(title, titleOutlinePos.x + outlineOffset, titleOutlinePos.y - outlineOffset, titleFontSize, BLACK);
+    DrawText(title, titleOutlinePos.x - outlineOffset, titleOutlinePos.y + outlineOffset, titleFontSize, BLACK);
+    DrawText(title, titleOutlinePos.x + outlineOffset, titleOutlinePos.y + outlineOffset, titleFontSize, BLACK);
     
     // Título - Texto principal
-    DrawText(title, titleOutlinePos.x, titleOutlinePos.y, 70, primaryColor);
+    DrawText(title, titleOutlinePos.x, titleOutlinePos.y, titleFontSize, primaryColor);
     
     // Subtítulo
     const char* subtitle = "Uma aventura de monstros de batalha";
-    Vector2 subtitlePos = { GetScreenWidth()/2 - MeasureText(subtitle, 20)/2, 125 };
-    DrawText(subtitle, subtitlePos.x, subtitlePos.y, 20, DARKGRAY);
+    int subtitleFontSize = (int)(32 * scale);
+    Vector2 subtitlePos = { 
+        GetScreenWidth()/2 - MeasureText(subtitle, subtitleFontSize)/2, 
+        (int)(200 * scale) 
+    };
+    DrawText(subtitle, subtitlePos.x, subtitlePos.y, subtitleFontSize, DARKGRAY);
     
     // Desenhar PokeBall decorativa
-    int pokeballSize = 40;
+    int pokeballSize = (int)(64 * scale); // Proporcional ao tamanho da tela
     int pokeballX = GetScreenWidth()/2;
-    int pokeballY = subtitlePos.y + 40;
+    int pokeballY = subtitlePos.y + (int)(64 * scale);
     
     DrawCircle(pokeballX, pokeballY, pokeballSize, RED);
-    DrawCircle(pokeballX, pokeballY, pokeballSize - 5, WHITE);
+    DrawCircle(pokeballX, pokeballY, pokeballSize - (int)(8 * scale), WHITE);
     DrawCircle(pokeballX, pokeballY, pokeballSize/4, WHITE);
-    DrawCircle(pokeballX, pokeballY, pokeballSize/4 - 2, DARKGRAY);
+    DrawCircle(pokeballX, pokeballY, pokeballSize/4 - (int)(3 * scale), DARKGRAY);
     DrawLine(pokeballX - pokeballSize, pokeballY, pokeballX + pokeballSize, pokeballY, BLACK);
     
     // Área de menu
+    int menuWidth = (int)(800 * scale); // Aumentado proporcionalmente
+    int menuHeight = (int)(512 * scale); // Aumentado proporcionalmente
     Rectangle menuArea = {
-        GetScreenWidth()/2 - 250,
-        pokeballY + pokeballSize + 30,
-        500,
-        320
+        GetScreenWidth()/2 - menuWidth/2,
+        pokeballY + pokeballSize + (int)(48 * scale),
+        menuWidth,
+        menuHeight
     };
     
     // Painel do menu com efeito decorativo
@@ -394,19 +440,22 @@ void loadSounds(void) {
     DrawRectangleRoundedLines(menuArea, 0.05f, 8, DARKGRAY);
     
     // Desenhar decoração na borda do menu
-    for (int i = 0; i < menuArea.width - 16; i += 8) {
-        DrawRectangle(menuArea.x + 8 + i, menuArea.y + 8, 4, 4, 
-                       (i % 16 == 0) ? primaryColor : secondaryColor);
+    int decorSize = (int)(4 * scale);
+    int decorSpacing = (int)(8 * scale);
+    
+    for (int i = 0; i < menuArea.width - (int)(16 * scale); i += decorSpacing) {
+        DrawRectangle(menuArea.x + decorSpacing + i, menuArea.y + decorSpacing, decorSize, decorSize, 
+                       (i % (decorSpacing * 2) == 0) ? primaryColor : secondaryColor);
         
-        DrawRectangle(menuArea.x + 8 + i, menuArea.y + menuArea.height - 12, 4, 4, 
-                       (i % 16 == 0) ? primaryColor : secondaryColor);
+        DrawRectangle(menuArea.x + decorSpacing + i, menuArea.y + menuArea.height - (int)(12 * scale), decorSize, decorSize, 
+                       (i % (decorSpacing * 2) == 0) ? primaryColor : secondaryColor);
     }
     
     // Desenhar botões do menu
-    int buttonWidth = 300;
-    int buttonHeight = 50;
-    int buttonSpacing = 15;
-    int startY = menuArea.y + 30;
+    int buttonWidth = (int)(480 * scale); // Aumentado proporcionalmente
+    int buttonHeight = (int)(80 * scale); // Aumentado proporcionalmente
+    int buttonSpacing = (int)(24 * scale); // Aumentado proporcionalmente
+    int startY = menuArea.y + (int)(48 * scale);
     
     // Opções do menu principal
     const char* menuOptions[] = {
@@ -442,17 +491,19 @@ void loadSounds(void) {
         Color currentColor = menuColors[i];
         if (isHovering) {
             // Brilho ao passar o mouse
-            // Substituindo Clamp() por uma solução simples
             currentColor.r = (currentColor.r + 30) > 255 ? 255 : (currentColor.r + 30);
             currentColor.g = (currentColor.g + 30) > 255 ? 255 : (currentColor.g + 30);
             currentColor.b = (currentColor.b + 30) > 255 ? 255 : (currentColor.b + 30);
             
             // Destacar com linha pontilhada
             float time = GetTime() * 10.0f;
-            for (int j = 0; j < buttonBounds.width; j += 4) {
-                if ((int)(j + time) % 8 < 4) {
-                    DrawRectangle(buttonBounds.x + j, buttonBounds.y - 5, 2, 2, WHITE);
-                    DrawRectangle(buttonBounds.x + j, buttonBounds.y + buttonBounds.height + 3, 2, 2, WHITE);
+            int dotSize = (int)(2 * scale);
+            int dotSpacing = (int)(4 * scale);
+            
+            for (int j = 0; j < buttonBounds.width; j += dotSpacing) {
+                if ((int)(j + time) % (dotSpacing * 2) < dotSpacing) {
+                    DrawRectangle(buttonBounds.x + j, buttonBounds.y - (int)(5 * scale), dotSize, dotSize, WHITE);
+                    DrawRectangle(buttonBounds.x + j, buttonBounds.y + buttonBounds.height + (int)(3 * scale), dotSize, dotSize, WHITE);
                 }
             }
         }
@@ -460,59 +511,68 @@ void loadSounds(void) {
         // Desenhar botão com efeito de profundidade
         DrawRectangleRounded(buttonBounds, 0.2f, 8, currentColor);
         
-        // Sombra na parte inferior - substitui DrawRectangleRoundedEx
+        // Sombra na parte inferior
         DrawRectangleRounded(
-            (Rectangle){ buttonBounds.x, buttonBounds.y + buttonBounds.height - 5, buttonBounds.width, 5 },
+            (Rectangle){ buttonBounds.x, buttonBounds.y + buttonBounds.height - (int)(8 * scale), buttonBounds.width, (int)(8 * scale) },
             0.2f, 8, ColorAlpha(BLACK, 0.3f)
         );
         
-        // Brilho na parte superior - substitui DrawRectangleRoundedEx
+        // Brilho na parte superior
         DrawRectangleRounded(
-            (Rectangle){ buttonBounds.x, buttonBounds.y, buttonBounds.width, 5 },
+            (Rectangle){ buttonBounds.x, buttonBounds.y, buttonBounds.width, (int)(8 * scale) },
             0.2f, 8, ColorAlpha(WHITE, 0.3f)
         );
         
         // Desenhar ícone para cada botão
-        Rectangle iconRect = { buttonBounds.x + 15, buttonBounds.y + buttonBounds.height/2 - 15, 30, 30 };
+        int iconSize = (int)(30 * scale);
+        Rectangle iconRect = { 
+            buttonBounds.x + (int)(24 * scale), 
+            buttonBounds.y + buttonBounds.height/2 - iconSize/2, 
+            iconSize, 
+            iconSize 
+        };
+        
         switch (i) {
             case 0: // Jogar - Triângulo (Play)
-                DrawPoly((Vector2){iconRect.x + 15, iconRect.y + 15}, 3, 15, 0, WHITE);
+                DrawPoly((Vector2){iconRect.x + iconSize/2, iconRect.y + iconSize/2}, 3, iconSize/2, 0, WHITE);
                 break;
             case 1: // Configurações - Engrenagem
-                DrawCircle(iconRect.x + 15, iconRect.y + 15, 13, WHITE);
-                DrawCircle(iconRect.x + 15, iconRect.y + 15, 7, currentColor);
+                DrawCircle(iconRect.x + iconSize/2, iconRect.y + iconSize/2, (int)(13 * scale), WHITE);
+                DrawCircle(iconRect.x + iconSize/2, iconRect.y + iconSize/2, (int)(7 * scale), currentColor);
                 for (int j = 0; j < 8; j++) {
                     float angle = j * PI / 4.0f;
                     DrawLine(
-                        iconRect.x + 15 + cosf(angle) * 12,
-                        iconRect.y + 15 + sinf(angle) * 12,
-                        iconRect.x + 15 + cosf(angle) * 20,
-                        iconRect.y + 15 + sinf(angle) * 20,
+                        iconRect.x + iconSize/2 + cosf(angle) * (int)(12 * scale),
+                        iconRect.y + iconSize/2 + sinf(angle) * (int)(12 * scale),
+                        iconRect.x + iconSize/2 + cosf(angle) * (int)(20 * scale),
+                        iconRect.y + iconSize/2 + sinf(angle) * (int)(20 * scale),
                         WHITE
                     );
                 }
                 break;
             case 2: // Tabela - Grid
-                DrawRectangleLines(iconRect.x, iconRect.y, 30, 30, WHITE);
-                DrawLine(iconRect.x, iconRect.y + 10, iconRect.x + 30, iconRect.y + 10, WHITE);
-                DrawLine(iconRect.x, iconRect.y + 20, iconRect.x + 30, iconRect.y + 20, WHITE);
-                DrawLine(iconRect.x + 10, iconRect.y, iconRect.x + 10, iconRect.y + 30, WHITE);
-                DrawLine(iconRect.x + 20, iconRect.y, iconRect.x + 20, iconRect.y + 30, WHITE);
+                DrawRectangleLines(iconRect.x, iconRect.y, iconSize, iconSize, WHITE);
+                DrawLine(iconRect.x, iconRect.y + iconSize/3, iconRect.x + iconSize, iconRect.y + iconSize/3, WHITE);
+                DrawLine(iconRect.x, iconRect.y + iconSize*2/3, iconRect.x + iconSize, iconRect.y + iconSize*2/3, WHITE);
+                DrawLine(iconRect.x + iconSize/3, iconRect.y, iconRect.x + iconSize/3, iconRect.y + iconSize, WHITE);
+                DrawLine(iconRect.x + iconSize*2/3, iconRect.y, iconRect.x + iconSize*2/3, iconRect.y + iconSize, WHITE);
                 break;
             case 3: // Créditos - Estrela
-                DrawPoly((Vector2){iconRect.x + 15, iconRect.y + 15}, 5, 15, 0, WHITE);
+                DrawPoly((Vector2){iconRect.x + iconSize/2, iconRect.y + iconSize/2}, 5, iconSize/2, 0, WHITE);
                 break;
             case 4: // Sair - X
-                DrawLine(iconRect.x + 5, iconRect.y + 5, iconRect.x + 25, iconRect.y + 25, WHITE);
-                DrawLine(iconRect.x + 25, iconRect.y + 5, iconRect.x + 5, iconRect.y + 25, WHITE);
+                DrawLine(iconRect.x + (int)(5 * scale), iconRect.y + (int)(5 * scale), 
+                        iconRect.x + iconSize - (int)(5 * scale), iconRect.y + iconSize - (int)(5 * scale), WHITE);
+                DrawLine(iconRect.x + iconSize - (int)(5 * scale), iconRect.y + (int)(5 * scale), 
+                        iconRect.x + (int)(5 * scale), iconRect.y + iconSize - (int)(5 * scale), WHITE);
                 break;
         }
         
         // Texto do botão
-        int fontSize = 24;
+        int fontSize = (int)(38 * scale); // Aumentado proporcionalmente
         DrawText(
             menuOptions[i], 
-            buttonBounds.x + 60, 
+            buttonBounds.x + (int)(96 * scale), 
             buttonBounds.y + buttonBounds.height/2 - fontSize/2, 
             fontSize, 
             WHITE
@@ -537,10 +597,11 @@ void loadSounds(void) {
     
     // Rodapé com versão do jogo
     const char* version = "v1.0.0 (2025)";
+    int versionFontSize = (int)(25 * scale);
     DrawText(version, 
-             GetScreenWidth() - MeasureText(version, 16) - 10, 
-             GetScreenHeight() - 25, 
-             16, 
+             GetScreenWidth() - MeasureText(version, versionFontSize) - (int)(16 * scale), 
+             GetScreenHeight() - (int)(40 * scale), 
+             versionFontSize, 
              DARKGRAY);
              
     // Desenhar efeitos de partículas (pequenos pontos flutuando)
@@ -549,16 +610,20 @@ void loadSounds(void) {
     
     for (int i = 0; i < 20; i++) {
         float x = sinf(particleTimer * 0.5f + i * 0.3f) * GetScreenWidth() * 0.4f + GetScreenWidth() * 0.5f;
-        float y = cosf(particleTimer * 0.2f + i * 0.7f) * 100.0f + GetScreenHeight() * 0.2f;
-        float size = sinf(particleTimer + i) * 2.0f + 3.0f;
+        float y = cosf(particleTimer * 0.2f + i * 0.7f) * (int)(160 * scale) + GetScreenHeight() * 0.2f;
+        float size = sinf(particleTimer + i) * (int)(3 * scale) + (int)(5 * scale);
         
         DrawCircle(x, y, size, ColorAlpha(accentColor, 0.7f));
     }
 }
  
- void updateMainMenu(void) {
-     // Atualização da lógica do menu principal, se necessário
- }
+void updateMainMenu(void) {
+    // Adicionar suporte para F11 (tela cheia)
+    if (IsKeyPressed(KEY_F11)) {
+        pendingFullscreen = !pendingFullscreen;
+        applySettings();
+    }
+}
  
  // Seleção de adversário
  void drawOpponentSelection(void) {
@@ -1867,86 +1932,661 @@ void updateBattleScreen(void) {
  void updateTypesTable(void) {
      // Atualização da lógica da tabela de tipos, se necessário
  }
- 
- // Configurações
- void drawSettings(void) {
-     // Desenhar fundo
-     ClearBackground(DARKBLUE);
-     
-     // Desenhar título
-     const char* title = "Configurações";
-     Vector2 titleSize = MeasureTextEx(gameFont, title, 40, 2);
-     DrawTextEx(gameFont, title, (Vector2){ GetScreenWidth()/2 - titleSize.x/2, 50 }, 40, 2, WHITE);
-     
-     // Área de configurações
-     Rectangle settingsArea = { GetScreenWidth()/2 - 200, 120, 400, 300 };
-     DrawRectangleRounded(settingsArea, 0.2f, 10, LIGHTGRAY);
-     
-     // Volume da música
-     DrawText("Volume da Música", settingsArea.x + 20, settingsArea.y + 30, 20, BLACK);
-     
-     // Slider para volume da música
-     Rectangle musicSlider = { settingsArea.x + 20, settingsArea.y + 60, 360, 30 };
-     DrawRectangleRec(musicSlider, DARKGRAY);
-     DrawRectangleRec((Rectangle){ musicSlider.x, musicSlider.y, musicSlider.width * musicVolume, musicSlider.height }, GREEN);
-     
-     // Verificar interação com o slider
-     if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-         Vector2 mousePos = GetMousePosition();
-         if (CheckCollisionPointRec(mousePos, musicSlider)) {
-             musicVolume = (mousePos.x - musicSlider.x) / musicSlider.width;
-             
-             if (musicVolume < 0.0f) musicVolume = 0.0f;
-             if (musicVolume > 1.0f) musicVolume = 1.0f;
-             
-             // Aplicar volume
-             SetMusicVolume(menuMusic, musicVolume);
-             SetMusicVolume(battleMusic, musicVolume);
-         }
-     }
-     
-     // Volume dos efeitos sonoros
-     DrawText("Volume dos Efeitos", settingsArea.x + 20, settingsArea.y + 110, 20, BLACK);
-     
-     // Slider para volume dos efeitos
-     Rectangle soundSlider = { settingsArea.x + 20, settingsArea.y + 140, 360, 30 };
-     DrawRectangleRec(soundSlider, DARKGRAY);
-     DrawRectangleRec((Rectangle){ soundSlider.x, soundSlider.y, soundSlider.width * soundVolume, soundSlider.height }, BLUE);
-     
-     // Verificar interação com o slider
-     if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-         Vector2 mousePos = GetMousePosition();
-         if (CheckCollisionPointRec(mousePos, soundSlider)) {
-             soundVolume = (mousePos.x - soundSlider.x) / soundSlider.width;
-             
-             if (soundVolume < 0.0f) soundVolume = 0.0f;
-             if (soundVolume > 1.0f) soundVolume = 1.0f;
-             
-             // Aplicar volume
-             SetSoundVolume(selectSound, soundVolume);
-             SetSoundVolume(attackSound, soundVolume);
-             SetSoundVolume(hitSound, soundVolume);
-             SetSoundVolume(faintSound, soundVolume);
-         }
-     }
-     
-     // Opção de tela cheia
-     DrawText("Modo Tela Cheia", settingsArea.x + 20, settingsArea.y + 190, 20, BLACK);
-     
-     // Botão de alternar tela cheia
-     Rectangle fullscreenButton = { settingsArea.x + 200, settingsArea.y + 190, 180, 30 };
-     if (drawButton(fullscreenButton, fullscreen ? "Desativar" : "Ativar", fullscreen ? RED : GREEN)) {
-         PlaySound(selectSound);
-         fullscreen = !fullscreen;
-         ToggleFullscreen();
-     }
-     
-     // Botão de voltar
-     if (drawButton((Rectangle){ settingsArea.x + 125, settingsArea.y + 240, 150, 40 }, "Salvar e Voltar", BLUE)) {
-         PlaySound(selectSound);
-         currentScreen = MAIN_MENU;
-     }
- }
+
+// Função para desenhar a tela de configurações
+void drawSettings(void) {
+    // Calcular escala baseada em 1920x1080
+    float scaleX = GetScreenWidth() / 1920.0f;
+    float scaleY = GetScreenHeight() / 1080.0f;
+    float scale = fmin(scaleX, scaleY);
+    
+    // Cores do tema (mantendo consistência com o menu principal)
+    Color primaryColor = (Color){ 255, 51, 51, 255 };      
+    Color secondaryColor = (Color){ 51, 153, 255, 255 };   
+    Color bgColor = (Color){ 245, 245, 245, 255 };         
+    Color accentColor = (Color){ 255, 204, 0, 255 };       
+    
+    // Fundo gradiente similar ao menu principal
+    static float bgTimer = 0.0f;
+    bgTimer += GetFrameTime() * 0.5f;
+    
+    // Desenhar fundo gradiente dinâmico
+    for (int i = 0; i < GetScreenHeight(); i += 5) {
+        float factor = (float)i / GetScreenHeight();
+        
+        Color lineColor = (Color){
+            (unsigned char)(bgColor.r * (1.0f - factor) + secondaryColor.r * factor),
+            (unsigned char)(bgColor.g * (1.0f - factor) + secondaryColor.g * factor),
+            (unsigned char)(bgColor.b * (1.0f - factor) + secondaryColor.b * factor),
+            255
+        };
+        
+        DrawRectangle(0, i, GetScreenWidth(), 5, lineColor);
+    }
+    
+    // Título principal
+    const char* title = "Configurações";
+    int titleFontSize = (int)(90 * scale);
+    
+    // Título - Sombra
+    Vector2 titleShadowPos = { 
+        GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2 + (int)(3 * scale), 
+        (int)(83 * scale) 
+    };
+    DrawText(title, titleShadowPos.x, titleShadowPos.y, titleFontSize, (Color){ 40, 40, 40, 200 });
+    
+    // Título - Contorno
+    Vector2 titleOutlinePos = { 
+        GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2, 
+        (int)(80 * scale) 
+    };
+    
+    int outlineOffset = (int)(3 * scale);
+    DrawText(title, titleOutlinePos.x - outlineOffset, titleOutlinePos.y - outlineOffset, titleFontSize, BLACK);
+    DrawText(title, titleOutlinePos.x + outlineOffset, titleOutlinePos.y - outlineOffset, titleFontSize, BLACK);
+    DrawText(title, titleOutlinePos.x - outlineOffset, titleOutlinePos.y + outlineOffset, titleFontSize, BLACK);
+    DrawText(title, titleOutlinePos.x + outlineOffset, titleOutlinePos.y + outlineOffset, titleFontSize, BLACK);
+    
+    // Título - Texto principal
+    DrawText(title, titleOutlinePos.x, titleOutlinePos.y, titleFontSize, primaryColor);
+    
+    // Área principal de configurações
+    int settingsWidth = (int)(900 * scale);
+    int settingsHeight = (int)(700 * scale);
+    Rectangle settingsArea = {
+        GetScreenWidth()/2 - settingsWidth/2,
+        (int)(220 * scale),
+        settingsWidth,
+        settingsHeight
+    };
+    
+    // Painel de configurações
+    DrawRectangleRounded(settingsArea, 0.05f, 8, ColorAlpha(WHITE, 0.95f));
+    DrawRectangleRoundedLines(settingsArea, 0.05f, 8, DARKGRAY);
+    
+    // Desenhar categorias de configuração em abas
+    const char* tabs[] = { "ÁUDIO", "VÍDEO", "CONTROLES", "JOGO" };
+    static int activeTab = 0;
+    
+    int tabWidth = settingsWidth / 4;
+    int tabHeight = (int)(60 * scale);
+    
+    for (int i = 0; i < 4; i++) {
+        Rectangle tabRect = {
+            settingsArea.x + i * tabWidth,
+            settingsArea.y,
+            tabWidth,
+            tabHeight
+        };
+        
+        Color tabColor = (activeTab == i) ? primaryColor : LIGHTGRAY;
+        if (activeTab == i) {
+            DrawRectangleRounded(tabRect, 0.2f, 8, tabColor);
+        } else {
+            DrawRectangleRec(tabRect, tabColor);
+        }
+        
+        // Hover effect
+        if (CheckCollisionPointRec(GetMousePosition(), tabRect) && activeTab != i) {
+            DrawRectangleRec(tabRect, ColorAlpha(primaryColor, 0.3f));
+            
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                activeTab = i;
+                PlaySound(selectSound);
+            }
+        }
+        
+        int tabFontSize = (int)(30 * scale);
+        Color textColor = (activeTab == i) ? WHITE : DARKGRAY;
+        DrawText(tabs[i], 
+                tabRect.x + tabRect.width/2 - MeasureText(tabs[i], tabFontSize)/2,
+                tabRect.y + tabRect.height/2 - tabFontSize/2,
+                tabFontSize,
+                textColor);
+    }
+    
+    // Conteúdo da aba ativa
+    Rectangle contentArea = {
+        settingsArea.x + (int)(50 * scale),
+        settingsArea.y + tabHeight + (int)(50 * scale),
+        settingsArea.width - (int)(100 * scale),
+        settingsArea.height - tabHeight - (int)(150 * scale)
+    };
+    
+    switch (activeTab) {
+        case 0: // ÁUDIO
+            {
+                int yOffset = contentArea.y;
+                int itemSpacing = (int)(100 * scale);
+                
+                // Volume da Música
+                int labelFontSize = (int)(32 * scale);
+                DrawText("Volume da Música", contentArea.x, yOffset, labelFontSize, BLACK);
+                
+                // Slider para volume da música
+                Rectangle musicSlider = { 
+                    contentArea.x, 
+                    yOffset + (int)(40 * scale), 
+                    contentArea.width - (int)(100 * scale), // Espaço para o texto da porcentagem
+                    (int)(40 * scale) 
+                };
+                
+                // Fundo do slider
+                DrawRectangleRounded(musicSlider, 0.5f, 8, LIGHTGRAY);
+                
+                // Preenchimento do slider
+                Rectangle musicFill = {
+                    musicSlider.x,
+                    musicSlider.y,
+                    musicSlider.width * pendingMusicVolume,
+                    musicSlider.height
+                };
+                DrawRectangleRounded(musicFill, 0.5f, 8, secondaryColor);
+                
+                // Controle deslizante (thumb)
+                int thumbRadius = (int)(20 * scale);
+                float thumbX = musicSlider.x + musicSlider.width * pendingMusicVolume;
+                float thumbY = musicSlider.y + musicSlider.height/2;
+                
+                DrawCircle(thumbX, thumbY, thumbRadius, WHITE);
+                DrawCircleLines(thumbX, thumbY, thumbRadius, DARKGRAY);
+                
+                // Valor atual
+                char volumeText[10];
+                sprintf(volumeText, "%.0f%%", pendingMusicVolume * 100);
+                DrawText(volumeText, 
+                        musicSlider.x + musicSlider.width + (int)(20 * scale), 
+                        musicSlider.y + (int)(5 * scale), 
+                        (int)(28 * scale), 
+                        BLACK);
+                
+                // Interação com o slider de música
+                if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+                    Vector2 mousePos = GetMousePosition();
+                    Rectangle expandedSlider = {
+                        musicSlider.x - thumbRadius,
+                        musicSlider.y - thumbRadius,
+                        musicSlider.width + thumbRadius * 2,
+                        musicSlider.height + thumbRadius * 2
+                    };
+                    
+                    if (CheckCollisionPointRec(mousePos, expandedSlider)) {
+                        pendingMusicVolume = (mousePos.x - musicSlider.x) / musicSlider.width;
+                        pendingMusicVolume = pendingMusicVolume < 0 ? 0 : (pendingMusicVolume > 1 ? 1 : pendingMusicVolume);
+                        hasUnsavedChanges = true;
+                    }
+                }
+                
+                yOffset += itemSpacing;
+                
+                // Volume dos Efeitos
+                DrawText("Volume dos Efeitos", contentArea.x, yOffset, labelFontSize, BLACK);
+                
+                // Slider para volume dos efeitos
+                Rectangle soundSlider = { 
+                    contentArea.x, 
+                    yOffset + (int)(40 * scale), 
+                    contentArea.width - (int)(100 * scale),
+                    (int)(40 * scale) 
+                };
+                
+                DrawRectangleRounded(soundSlider, 0.5f, 8, LIGHTGRAY);
+                
+                Rectangle soundFill = {
+                    soundSlider.x,
+                    soundSlider.y,
+                    soundSlider.width * pendingSoundVolume,
+                    soundSlider.height
+                };
+                DrawRectangleRounded(soundFill, 0.5f, 8, secondaryColor);
+                
+                // Controle deslizante
+                thumbX = soundSlider.x + soundSlider.width * pendingSoundVolume;
+                thumbY = soundSlider.y + soundSlider.height/2;
+                
+                DrawCircle(thumbX, thumbY, thumbRadius, WHITE);
+                DrawCircleLines(thumbX, thumbY, thumbRadius, DARKGRAY);
+                
+                // Valor atual
+                sprintf(volumeText, "%.0f%%", pendingSoundVolume * 100);
+                DrawText(volumeText, 
+                        soundSlider.x + soundSlider.width + (int)(20 * scale), 
+                        soundSlider.y + (int)(5 * scale), 
+                        (int)(28 * scale), 
+                        BLACK);
+                
+                // Interação com o slider de som
+                if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+                    Vector2 mousePos = GetMousePosition();
+                    Rectangle expandedSlider = {
+                        soundSlider.x - thumbRadius,
+                        soundSlider.y - thumbRadius,
+                        soundSlider.width + thumbRadius * 2,
+                        soundSlider.height + thumbRadius * 2
+                    };
+                    
+                    if (CheckCollisionPointRec(mousePos, expandedSlider)) {
+                        pendingSoundVolume = (mousePos.x - soundSlider.x) / soundSlider.width;
+                        pendingSoundVolume = pendingSoundVolume < 0 ? 0 : (pendingSoundVolume > 1 ? 1 : pendingSoundVolume);
+                        hasUnsavedChanges = true;
+                    }
+                }
+                
+                yOffset += itemSpacing;
+                
+                // Opção Mute
+                static bool muteAll = false;
+                Rectangle muteButton = {
+                    contentArea.x,
+                    yOffset,
+                    (int)(300 * scale),
+                    (int)(60 * scale)
+                };
+                
+                Color muteColor = muteAll ? primaryColor : LIGHTGRAY;
+                DrawRectangleRounded(muteButton, 0.3f, 8, muteColor);
+                DrawRectangleRoundedLines(muteButton, 0.3f, 8, DARKGRAY);
+                
+                const char* muteText = muteAll ? "SOM DESLIGADO" : "SOM LIGADO";
+                DrawText(muteText,
+                        muteButton.x + muteButton.width/2 - MeasureText(muteText, (int)(28 * scale))/2,
+                        muteButton.y + muteButton.height/2 - (int)(14 * scale),
+                        (int)(28 * scale),
+                        muteAll ? WHITE : BLACK);
+                
+                if (CheckCollisionPointRec(GetMousePosition(), muteButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    muteAll = !muteAll;
+                    PlaySound(selectSound);
+                    
+                    if (muteAll) {
+                        SetMasterVolume(0.0f);
+                    } else {
+                        SetMasterVolume(1.0f);
+                    }
+                }
+            }
+            break;
+            
+        case 1: // VÍDEO
+            {
+                int yOffset = contentArea.y;
+                int itemSpacing = (int)(100 * scale);
+                int labelFontSize = (int)(32 * scale);
+                
+                // Tela cheia
+                DrawText("Modo Tela Cheia", contentArea.x, yOffset, labelFontSize, BLACK);
+                
+                Rectangle fullscreenButton = {
+                    contentArea.x,
+                    yOffset + (int)(40 * scale),
+                    (int)(300 * scale),
+                    (int)(60 * scale)
+                };
+                
+                Color fullscreenColor = pendingFullscreen ? primaryColor : LIGHTGRAY;
+                DrawRectangleRounded(fullscreenButton, 0.3f, 8, fullscreenColor);
+                DrawRectangleRoundedLines(fullscreenButton, 0.3f, 8, DARKGRAY);
+                
+                const char* fullscreenText = pendingFullscreen ? "ATIVADO" : "DESATIVADO";
+                DrawText(fullscreenText,
+                        fullscreenButton.x + fullscreenButton.width/2 - MeasureText(fullscreenText, (int)(28 * scale))/2,
+                        fullscreenButton.y + fullscreenButton.height/2 - (int)(14 * scale),
+                        (int)(28 * scale),
+                        pendingFullscreen ? WHITE : BLACK);
+                
+                if (CheckCollisionPointRec(GetMousePosition(), fullscreenButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    pendingFullscreen = !pendingFullscreen;
+                    PlaySound(selectSound);
+                    hasUnsavedChanges = true;
+                }
+                
+                yOffset += itemSpacing;
+                
+                // Resolução
+                DrawText("Resolução", contentArea.x, yOffset, labelFontSize, BLACK);
+                
+                // Botão anterior
+                Rectangle prevButton = {
+                    contentArea.x,
+                    yOffset + (int)(40 * scale),
+                    (int)(60 * scale),
+                    (int)(60 * scale)
+                };
+                
+                DrawRectangleRounded(prevButton, 0.3f, 8, primaryColor);
+                DrawText("<",
+                        prevButton.x + prevButton.width/2 - MeasureText("<", (int)(32 * scale))/2,
+                        prevButton.y + prevButton.height/2 - (int)(16 * scale),
+                        (int)(32 * scale),
+                        WHITE);
+                
+                // Display da resolução atual
+                Rectangle resolutionDisplay = {
+                    prevButton.x + prevButton.width + (int)(20 * scale),
+                    yOffset + (int)(40 * scale),
+                    (int)(200 * scale),
+                    (int)(60 * scale)
+                };
+                
+                DrawRectangleRounded(resolutionDisplay, 0.3f, 8, LIGHTGRAY);
+                
+                // Mostrar resolução atual e pendente se diferentes
+                if (pendingResolutionIndex != currentResolutionIndex) {
+                    DrawText(availableResolutions[pendingResolutionIndex].description,
+                            resolutionDisplay.x + resolutionDisplay.width/2 - MeasureText(availableResolutions[pendingResolutionIndex].description, (int)(24 * scale))/2,
+                            resolutionDisplay.y + resolutionDisplay.height/2 - (int)(20 * scale),
+                            (int)(24 * scale),
+                            secondaryColor);
+                    
+                    // Mostrar resolução atual abaixo em menor tamanho
+                    char currentText[32];
+                    sprintf(currentText, "(atual: %s)", availableResolutions[currentResolutionIndex].description);
+                    DrawText(currentText,
+                            resolutionDisplay.x + resolutionDisplay.width/2 - MeasureText(currentText, (int)(16 * scale))/2,
+                            resolutionDisplay.y + resolutionDisplay.height/2 + (int)(5 * scale),
+                            (int)(16 * scale),
+                            GRAY);
+                } else {
+                    DrawText(availableResolutions[pendingResolutionIndex].description,
+                            resolutionDisplay.x + resolutionDisplay.width/2 - MeasureText(availableResolutions[pendingResolutionIndex].description, (int)(28 * scale))/2,
+                            resolutionDisplay.y + resolutionDisplay.height/2 - (int)(14 * scale),
+                            (int)(28 * scale),
+                            BLACK);
+                }
+                
+                // Botão próximo
+                Rectangle nextButton = {
+                    resolutionDisplay.x + resolutionDisplay.width + (int)(20 * scale),
+                    yOffset + (int)(40 * scale),
+                    (int)(60 * scale),
+                    (int)(60 * scale)
+                };
+                
+                DrawRectangleRounded(nextButton, 0.3f, 8, primaryColor);
+                DrawText(">",
+                        nextButton.x + nextButton.width/2 - MeasureText(">", (int)(32 * scale))/2,
+                        nextButton.y + nextButton.height/2 - (int)(16 * scale),
+                        (int)(32 * scale),
+                        WHITE);
+                
+                // Interação com botões de resolução
+                if (CheckCollisionPointRec(GetMousePosition(), prevButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    pendingResolutionIndex = (pendingResolutionIndex - 1 + numResolutions) % numResolutions;
+                    PlaySound(selectSound);
+                    hasUnsavedChanges = true;
+                }
+                
+                if (CheckCollisionPointRec(GetMousePosition(), nextButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    pendingResolutionIndex = (pendingResolutionIndex + 1) % numResolutions;
+                    PlaySound(selectSound);
+                    hasUnsavedChanges = true;
+                }
+            }
+            break;
+            
+        case 2: // CONTROLES
+            {
+                int yOffset = contentArea.y;
+                int labelFontSize = (int)(32 * scale);
+                
+                DrawText("Controles de Batalha", contentArea.x, yOffset, labelFontSize, BLACK);
+                
+                yOffset += (int)(60 * scale);
+                
+                // Lista de controles
+                const char* controls[] = {
+                    "Selecionar Ação: Clique do Mouse / Enter",
+                    "Navegar Menu: Setas / Mouse",
+                    "Cancelar: ESC / Botão Voltar",
+                    "Confirmar: Espaço / Enter / Clique",
+                    "Alternar Tela Cheia: F11"
+                };
+                
+                for (int i = 0; i < 5; i++) {
+                    DrawText(controls[i], 
+                            contentArea.x + (int)(20 * scale), 
+                            yOffset + i * (int)(50 * scale), 
+                            (int)(26 * scale), 
+                            DARKGRAY);
+                }
+            }
+            break;
+            
+        case 3: // JOGO
+            {
+                int yOffset = contentArea.y;
+                int itemSpacing = (int)(100 * scale);
+                int labelFontSize = (int)(32 * scale);
+                
+                // Dificuldade
+                DrawText("Dificuldade", contentArea.x, yOffset, labelFontSize, BLACK);
+                
+                const char* difficulties[] = { "FÁCIL", "NORMAL", "DIFÍCIL" };
+                Color difficultyColors[] = { GREEN, BLUE, RED };
+                
+                for (int i = 0; i < 3; i++) {
+                    Rectangle diffButton = {
+                        contentArea.x + i * (int)(220 * scale),
+                        yOffset + (int)(40 * scale),
+                        (int)(200 * scale),
+                        (int)(60 * scale)
+                    };
+                    
+                    Color buttonColor = (pendingDifficultyIndex == i) ? difficultyColors[i] : LIGHTGRAY;
+                    DrawRectangleRounded(diffButton, 0.3f, 8, buttonColor);
+                    DrawRectangleRoundedLines(diffButton, 0.3f, 8, DARKGRAY);
+                    
+                    DrawText(difficulties[i],
+                            diffButton.x + diffButton.width/2 - MeasureText(difficulties[i], (int)(28 * scale))/2,
+                            diffButton.y + diffButton.height/2 - (int)(14 * scale),
+                            (int)(28 * scale),
+                            (pendingDifficultyIndex == i) ? WHITE : BLACK);
+                    
+                    if (CheckCollisionPointRec(GetMousePosition(), diffButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                        pendingDifficultyIndex = i;
+                        PlaySound(selectSound);
+                        hasUnsavedChanges = true;
+                    }
+                }
+                
+                yOffset += itemSpacing;
+                
+                // Velocidade de Animação
+                DrawText("Velocidade de Animação", contentArea.x, yOffset, labelFontSize, BLACK);
+                
+                const char* animSpeeds[] = { "LENTA", "NORMAL", "RÁPIDA" };
+                
+                for (int i = 0; i < 3; i++) {
+                    Rectangle speedButton = {
+                        contentArea.x + i * (int)(220 * scale),
+                        yOffset + (int)(40 * scale),
+                        (int)(200 * scale),
+                        (int)(60 * scale)
+                    };
+                    
+                    Color buttonColor = (pendingAnimSpeedIndex == i) ? secondaryColor : LIGHTGRAY;
+                    DrawRectangleRounded(speedButton, 0.3f, 8, buttonColor);
+                    DrawRectangleRoundedLines(speedButton, 0.3f, 8, DARKGRAY);
+                    
+                    DrawText(animSpeeds[i],
+                            speedButton.x + speedButton.width/2 - MeasureText(animSpeeds[i], (int)(28 * scale))/2,
+                            speedButton.y + speedButton.height/2 - (int)(14 * scale),
+                            (int)(28 * scale),
+                            (pendingAnimSpeedIndex == i) ? WHITE : BLACK);
+                    
+                    if (CheckCollisionPointRec(GetMousePosition(), speedButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                        pendingAnimSpeedIndex = i;
+                        PlaySound(selectSound);
+                        hasUnsavedChanges = true;
+                    }
+                }
+            }
+            break;
+    }
+    
+    // Botões de ação na parte inferior
+    int buttonWidth = (int)(220 * scale);
+    int buttonHeight = (int)(60 * scale);
+    int buttonSpacing = (int)(20 * scale);
+    int bottomY = settingsArea.y + settingsArea.height - (int)(80 * scale);
+    
+    // Botão Aplicar (só aparece se houver mudanças)
+    if (hasUnsavedChanges) {
+        Rectangle applyButton = {
+            settingsArea.x + settingsArea.width/2 - buttonWidth - buttonSpacing/2,
+            bottomY,
+            buttonWidth,
+            buttonHeight
+        };
+        
+        Color applyButtonColor = CheckCollisionPointRec(GetMousePosition(), applyButton) ? 
+                               ColorAlpha(GREEN, 0.8f) : GREEN;
+        
+        DrawRectangleRounded(applyButton, 0.3f, 8, applyButtonColor);
+        DrawRectangleRoundedLines(applyButton, 0.3f, 8, DARKGRAY);
+        
+        const char* applyText = "APLICAR";
+        int applyFontSize = (int)(32 * scale);
+        DrawText(applyText,
+                applyButton.x + applyButton.width/2 - MeasureText(applyText, applyFontSize)/2,
+                applyButton.y + applyButton.height/2 - applyFontSize/2,
+                applyFontSize,
+                WHITE);
+        
+        if (CheckCollisionPointRec(GetMousePosition(), applyButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            PlaySound(selectSound);
+            applySettings();
+        }
+    }
+    
+    // Botão Voltar/Cancelar
+    Rectangle backButton = {
+        hasUnsavedChanges ? 
+            settingsArea.x + settingsArea.width/2 + buttonSpacing/2 :
+            settingsArea.x + settingsArea.width/2 - buttonWidth/2,
+        bottomY,
+        buttonWidth,
+        buttonHeight
+    };
+    
+    Color backButtonColor = CheckCollisionPointRec(GetMousePosition(), backButton) ? 
+                           ColorAlpha(primaryColor, 0.8f) : primaryColor;
+    
+    DrawRectangleRounded(backButton, 0.3f, 8, backButtonColor);
+    DrawRectangleRoundedLines(backButton, 0.3f, 8, DARKGRAY);
+    
+    const char* backText = hasUnsavedChanges ? "CANCELAR" : "VOLTAR";
+    int backFontSize = (int)(32 * scale);
+    DrawText(backText,
+            backButton.x + backButton.width/2 - MeasureText(backText, backFontSize)/2,
+            backButton.y + backButton.height/2 - backFontSize/2,
+            backFontSize,
+            WHITE);
+    
+            if (CheckCollisionPointRec(GetMousePosition(), backButton) && IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+                PlaySound(selectSound);
+                
+                // Se houver mudanças não salvas, reverter para os valores atuais
+                if (hasUnsavedChanges) {
+                    pendingMusicVolume = musicVolume;
+                    pendingSoundVolume = soundVolume;
+                    pendingFullscreen = fullscreen;
+                    pendingResolutionIndex = currentResolutionIndex;
+                    pendingDifficultyIndex = 1;
+                    pendingAnimSpeedIndex = 1;
+                    hasUnsavedChanges = false;
+                }
+                
+                currentScreen = MAIN_MENU;
+            }
+    
+    // Indicador de mudanças não salvas
+    if (hasUnsavedChanges) {
+        const char* unsavedText = "* Mudanças não salvas";
+        int unsavedFontSize = (int)(20 * scale);
+        DrawText(unsavedText,
+                settingsArea.x + (int)(20 * scale),
+                bottomY + (int)(10 * scale),
+                unsavedFontSize,
+                ORANGE);
+    }
+    
+    // Efeitos decorativos
+    static float particleTimer = 0.0f;
+    particleTimer += GetFrameTime();
+    
+    // Partículas flutuantes (similar ao menu principal)
+    for (int i = 0; i < 15; i++) {
+        float x = sinf(particleTimer * 0.3f + i * 0.4f) * GetScreenWidth() * 0.3f + GetScreenWidth() * 0.5f;
+        float y = cosf(particleTimer * 0.2f + i * 0.5f) * (int)(120 * scale) + GetScreenHeight() * 0.15f;
+        float size = sinf(particleTimer + i) * (int)(2 * scale) + (int)(3 * scale);
+        
+        DrawCircle(x, y, size, ColorAlpha(accentColor, 0.5f));
+    }
+}
+
+// Funções auxiliares que precisam ser adicionadas:
+
+void applySettings(void) {
+    // Aplicar resolução se mudou
+    if (pendingResolutionIndex != currentResolutionIndex) {
+        SetWindowSize(availableResolutions[pendingResolutionIndex].width, 
+                     availableResolutions[pendingResolutionIndex].height);
+        
+        // Centralizar a janela na tela
+        int monitorWidth = GetMonitorWidth(GetCurrentMonitor());
+        int monitorHeight = GetMonitorHeight(GetCurrentMonitor());
+        int windowWidth = availableResolutions[pendingResolutionIndex].width;
+        int windowHeight = availableResolutions[pendingResolutionIndex].height;
+        
+        SetWindowPosition((monitorWidth - windowWidth) / 2, 
+                         (monitorHeight - windowHeight) / 2);
+        
+        currentResolutionIndex = pendingResolutionIndex;
+    }
+    
+    // Aplicar modo tela cheia
+    if (pendingFullscreen != fullscreen) {
+        fullscreen = pendingFullscreen;
+        ToggleFullscreen();
+    }
+    
+    // Aplicar volumes
+    musicVolume = pendingMusicVolume;
+    soundVolume = pendingSoundVolume;
+    SetMusicVolume(menuMusic, musicVolume);
+    SetMusicVolume(battleMusic, musicVolume);
+    SetSoundVolume(selectSound, soundVolume);
+    SetSoundVolume(attackSound, soundVolume);
+    SetSoundVolume(hitSound, soundVolume);
+    SetSoundVolume(faintSound, soundVolume);
+   
+   hasUnsavedChanges = false;
+}
+
+void detectCurrentResolution(void) {
+   int currentWidth = GetScreenWidth();
+   int currentHeight = GetScreenHeight();
+   
+   for (int i = 0; i < numResolutions; i++) {
+       if (availableResolutions[i].width == currentWidth && 
+           availableResolutions[i].height == currentHeight) {
+           currentResolutionIndex = i;
+           pendingResolutionIndex = i;
+           break;
+       }
+   }
+}
+
+void initializeSettings(void) {
+   detectCurrentResolution();
+   pendingMusicVolume = musicVolume;
+   pendingSoundVolume = soundVolume;
+   pendingFullscreen = fullscreen;
+   pendingDifficultyIndex = 1; // Normal por padrão
+   pendingAnimSpeedIndex = 1;  // Normal por padrão
+   hasUnsavedChanges = false;
+}
  
  void updateSettings(void) {
      // Atualização da lógica de configurações, se necessário

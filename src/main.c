@@ -14,18 +14,8 @@
  #include "battle.h"
  #include "ia_integration.h"
  #include "screens.h"
+ #include "game_state.h"
  
- // Estados do jogo
- typedef enum {
-     MAIN_MENU = 0,
-     OPPONENT_SELECTION,
-     MONSTER_SELECTION,
-     BATTLE_SCREEN,
-     TYPES_TABLE,
-     SETTINGS,
-     CREDITS,
-     EXIT
- } GameState;
  
  // Variáveis globais
  GameState currentScreen = MAIN_MENU;
@@ -37,8 +27,10 @@
  // Função principal
  int main(void) {
      // Inicialização do Raylib
-     const int screenWidth = 800;
-     const int screenHeight = 600;
+     const int screenWidth = 1920;
+     const int screenHeight =  1080;
+
+     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
      
      InitWindow(screenWidth, screenHeight, "PokeBattle");
      InitAudioDevice();
@@ -52,43 +44,51 @@
      
      // Loop principal do jogo
      while (!WindowShouldClose() && gameRunning) {
-         // Atualização
-         updateGame();
-         
-         // Renderização
-         BeginDrawing();
-         ClearBackground(RAYWHITE);
-         
-         // Renderizar a tela atual
-         switch (currentScreen) {
-             case MAIN_MENU:
-                 drawMainMenu();
-                 break;
-             case OPPONENT_SELECTION:
-                 drawOpponentSelection();
-                 break;
-             case MONSTER_SELECTION:
-                 drawMonsterSelection();
-                 break;
-             case BATTLE_SCREEN:
-                 drawBattleScreen();
-                 break;
-             case TYPES_TABLE:
-                 drawTypesTable();
-                 break;
-             case SETTINGS:
-                 drawSettings();
-                 break;
-             case CREDITS:
-                 drawCredits();
-                 break;
-             case EXIT:
-                 gameRunning = false;
-                 break;
-         }
-         
-         EndDrawing();
-     }
+        // Atualização
+        updateGame();
+        
+        // Renderização
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        
+        // Debug para verificar o estado atual
+        if (currentScreen == EXIT) {
+            printf("[DEBUG] currentScreen é EXIT, saindo do jogo\n");
+        }
+        
+        // Renderizar a tela atual
+        switch (currentScreen) {
+            case MAIN_MENU:
+                drawMainMenu();
+                break;
+            case OPPONENT_SELECTION:
+                drawOpponentSelection();
+                break;
+            case MONSTER_SELECTION:
+                drawMonsterSelection();
+                break;
+            case BATTLE_SCREEN:
+                drawBattleScreen();
+                break;
+            case TYPES_TABLE:
+                drawTypesTable();
+                break;
+            case SETTINGS:
+                drawSettings();
+                break;
+            case CREDITS:
+                drawCredits();
+                break;
+            case EXIT:
+                gameRunning = false;
+                break;
+            default:
+                printf("[DEBUG] Estado desconhecido: %d\n", currentScreen);
+                break;
+        }
+        
+        EndDrawing();
+    }
      
      // Limpeza e encerramento
      cleanupGame();
@@ -108,6 +108,9 @@
 
     // Inicializar efeitos de batalha
     initBattleEffects();
+
+    //Inicializar o menu de configurações
+    initializeSettings(); 
     
     // Inicializar recursos visuais
     loadTextures();

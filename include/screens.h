@@ -50,6 +50,11 @@
  void loadSounds(void);
  void unloadSounds(void);
  
+ // Carrega o menu de configurações
+ void initializeSettings(void);
+ void applySettings(void);
+ void detectCurrentResolution(void);
+ 
  // Funções para desenhar elementos de interface
  bool drawButton(Rectangle bounds, const char* text, Color color);
  void drawMonsterCard(Rectangle bounds, PokeMonster* monster, bool selected);
