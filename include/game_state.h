@@ -1,3 +1,9 @@
+/**
+ * PokeBattle - Sistema de game states
+ * 
+ * Este arquivo contém as declarações para o sistema de gamestates.
+ */
+
 #ifndef GAME_STATE_H
 #define GAME_STATE_H
 

@@ -1,5 +1,3 @@
-# Makefile para o jogo PokeBattle com estrutura de diretórios organizada
-
 # Compilador
 CC = gcc
 
