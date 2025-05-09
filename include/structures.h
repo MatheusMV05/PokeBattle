@@ -134,4 +134,6 @@
  bool pop(EffectStack* stack, int* type, int* duration, int* value, PokeMonster** target);
  void clearStack(EffectStack* stack);
  
+ void freeMonster(PokeMonster* monster);
+ 
  #endif // STRUCTURES_H

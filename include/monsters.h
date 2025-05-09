@@ -62,5 +62,8 @@
  
  // Obtém a cor correspondente ao tipo do monstro
  Color getTypeColor(MonsterType type);
+
+ void loadMonsterTextures(void);
+ void unloadMonsterTextures(void);
  
  #endif // MONSTERS_H

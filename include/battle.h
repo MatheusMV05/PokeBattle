@@ -114,5 +114,7 @@ typedef enum {
  void processStatusEffects(PokeMonster* monster);
 
  void displayStatusMessage(const char* message);
+
+ void determineAndExecuteTurnOrder(void);
  
  #endif // BATTLE_H

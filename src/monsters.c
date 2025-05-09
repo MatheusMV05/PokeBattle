@@ -12,6 +12,8 @@
  #include "monsters.h"
  #include "battle.h"
  
+ static void createMonsterDatabase(void);
+
  // Banco de dados de monstros
  MonsterDatabase monsterDB;
  

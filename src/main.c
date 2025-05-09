@@ -15,14 +15,25 @@
  #include "ia_integration.h"
  #include "screens.h"
  #include "game_state.h"
+ #include "main.h"
  
  
  // Variáveis globais
- GameState currentScreen = MAIN_MENU;
- bool gameRunning = true;
- bool vsBot = true;
- bool playerTurn = true;
- bool gameInitialized = false;
+    GameState currentScreen = MAIN_MENU;
+    bool gameRunning = true;
+    bool vsBot = true;
+    bool playerTurn = true;
+    bool gameInitialized = false;
+
+ // Declarações das funções
+    void initializeGame(void);
+    void updateGame(void);
+    void cleanupGame(void);
+    void changeScreen(GameState newScreen);
+    void loadMonsterTextures(void);
+    void unloadMonsterTextures(void);
+    void initBattleEffects(void);
+    bool testAIConnection(void);
  
  // Função principal
  int main(void) {

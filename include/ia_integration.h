@@ -60,6 +60,8 @@ extern CURL* curl_handle;
  // Interpreta a resposta da API de IA
  int interpretAIResponse(const char* response);
 
+ bool testAIConnection(void);
+
  
  
  #endif // AI_INTEGRATION_H
