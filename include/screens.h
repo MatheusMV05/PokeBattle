@@ -47,7 +47,6 @@
  void unloadTextures(void);
  
  // Carrega sons e música
- void loadSounds(void);
  void unloadSounds(void);
  
  // Carrega o menu de configurações

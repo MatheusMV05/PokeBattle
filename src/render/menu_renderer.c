@@ -1,3 +1,9 @@
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI
+#define NOUSER
+#endif
+
 #include "menu_renderer.h"
 #include "hud_elements.h"
 #include "resources.h"

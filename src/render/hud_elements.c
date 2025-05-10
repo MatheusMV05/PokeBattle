@@ -1,3 +1,9 @@
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI
+#define NOUSER
+#endif
+
 #include "hud_elements.h"
 #include "resources.h"
 #include "../monsters.h"
