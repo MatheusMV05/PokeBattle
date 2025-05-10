@@ -10,13 +10,16 @@
     #define NOUSER
 #endif
 
- #include <stdio.h>
- #include <stdlib.h>
- #include <string.h>
- #include <curl/curl.h>
- #include "ia_integration.h"
- #include "structures.h"
- #include "monsters.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <curl/curl.h>
+#include "ia_integration.h"
+#include "structures.h"
+#include "monsters.h"
+#include "battle.h"
+
+extern BattleSystem* battleSystem;
  
  // Variáveis globais
  CURL* curl_handle = NULL;

@@ -17,20 +17,34 @@
  #include "battle.h"
  #include "monsters.h"
  #include "ia_integration.h"
- 
- // Sistema de batalha global
- BattleSystem* battleSystem = NULL;
- 
+
+ char battleMessage[256] = "";
+ BattleMessage currentMessage = {0};
+ BattleAnimation currentAnimation = {0};
+ bool actionQueueReady = false;
+ float stateTransitionDelay = 0.0f;
+
+
+
  // Mensagem de batalha atual
- static char battleMessage[256] = "";
 
- void executeAttackWithEffects(PokeMonster* attacker, PokeMonster* defender, int attackIndex);
+void displayBattleMessage(const char* message, float duration, bool waitForInput, bool autoAdvance);
+void startAttackAnimation(PokeMonster* attacker, PokeMonster* defender, int attackIndex);
+void executeMonsterSwitch(PokeMonster* monster, int targetIndex);
+void executeItemUse(PokeMonster* user, ItemType itemType);
+void messageDisplayComplete(void);
+void executeAttackWithEffects(PokeMonster* attacker, PokeMonster* defender, int attackIndex);
 
+// Sistema de batalha global
+BattleSystem* battleSystem = NULL;
  // No início de cada turno 
 void startTurn(void) {
     // Limpar a fila de ações anterior
     clearQueue(battleSystem->actionQueue);
     
+    // Resetar flags
+    actionQueueReady = false;
+
     // O jogador sempre começa escolhendo sua ação
     battleSystem->playerTurn = true;
     battleSystem->battleState = BATTLE_SELECT_ACTION;
@@ -58,6 +72,14 @@ void startTurn(void) {
         battleSystem->playerTurn = true;
     } else {
         battleSystem->playerTurn = false;
+    }
+}
+
+void checkBothPlayersReady(void) {
+    // Se ambos escolheram (2 ações na fila), podemos processar
+    if (battleSystem->actionQueue != NULL && battleSystem->actionQueue->count >= 2) {
+        actionQueueReady = true;
+        battleSystem->battleState = BATTLE_PREPARING_ACTIONS;
     }
 }
  
@@ -100,68 +122,89 @@ void startTurn(void) {
     printf("[DEBUG] Ordenando ações. Contagem atual na fila: %d\n", battleSystem->actionQueue->count);
     
     if (battleSystem == NULL || isQueueEmpty(battleSystem->actionQueue)) {
-        printf("[DEBUG] Fila vazia ou battleSystem nulo\n");
         return;
     }
-    
+
     int actions[2];
     int parameters[2];
     PokeMonster* monsters[2];
     int actionCount = 0;
-    
+
+    // Retirar todas as ações da fila
     while (!isQueueEmpty(battleSystem->actionQueue) && actionCount < 2) {
-        dequeue(battleSystem->actionQueue, &actions[actionCount], 
+        dequeue(battleSystem->actionQueue, &actions[actionCount],
                 &parameters[actionCount], &monsters[actionCount]);
-        printf("[DEBUG] Ação %d: tipo=%d, parâmetro=%d, monstro=%s\n", 
-               actionCount, actions[actionCount], parameters[actionCount], monsters[actionCount]->name);
         actionCount++;
     }
-    
+
     if (actionCount == 2) {
-        // NOVA LÓGICA: Itens têm prioridade sobre outros tipos de ação
-        if (actions[0] == 2 || actions[1] == 2) {  // 2 = usar item
-            // Se alguma ação for um item, ela deve ser executada primeiro
-            if (actions[1] == 2 && actions[0] != 2) {
-                // Trocar a ordem se o item estiver na segunda posição
-                int tempAction = actions[0];
-                int tempParam = parameters[0];
-                PokeMonster* tempMonster = monsters[0];
-                
-                actions[0] = actions[1];
-                parameters[0] = parameters[1];
-                monsters[0] = monsters[1];
-                
-                actions[1] = tempAction;
-                parameters[1] = tempParam;
-                monsters[1] = tempMonster;
-                
-                printf("[DEBUG] Item tem prioridade - ordem ajustada\n");
-            }
-        } 
-        // Se não for item, usar a lógica original de velocidade
-        else if (monsters[0]->speed < monsters[1]->speed) {
-            printf("[DEBUG] Trocando ordem - %s mais rápido que %s\n", 
-                   monsters[1]->name, monsters[0]->name);
-            
+        // Ordem de prioridade:
+        // 1. Trocas (action = 1) - SEMPRE primeiro
+        // 2. Itens (action = 2)
+        // 3. Ataques (action = 0) ordenados por velocidade
+
+        // Se o segundo é troca e o primeiro não é, inverter
+        if (actions[1] == 1 && actions[0] != 1) {
+            // Swap
             int tempAction = actions[0];
             int tempParam = parameters[0];
             PokeMonster* tempMonster = monsters[0];
-            
+
             actions[0] = actions[1];
             parameters[0] = parameters[1];
             monsters[0] = monsters[1];
-            
+
             actions[1] = tempAction;
             parameters[1] = tempParam;
             monsters[1] = tempMonster;
+
+            printf("[DEBUG] Troca tem prioridade máxima - ordem ajustada\n");
+        }
+        // Se ambos não são trocas, verificar itens
+        else if (actions[0] != 1 && actions[1] != 1) {
+            // Se o segundo é item e o primeiro é ataque, inverter
+            if (actions[1] == 2 && actions[0] == 0) {
+                // Swap
+                int tempAction = actions[0];
+                int tempParam = parameters[0];
+                PokeMonster* tempMonster = monsters[0];
+
+                actions[0] = actions[1];
+                parameters[0] = parameters[1];
+                monsters[0] = monsters[1];
+
+                actions[1] = tempAction;
+                parameters[1] = tempParam;
+                monsters[1] = tempMonster;
+
+                printf("[DEBUG] Item tem prioridade sobre ataque - ordem ajustada\n");
+            }
+            // Se ambos são ataques, ordenar por velocidade
+            else if (actions[0] == 0 && actions[1] == 0) {
+                if (monsters[0]->speed < monsters[1]->speed) {
+                    // Swap
+                    int tempAction = actions[0];
+                    int tempParam = parameters[0];
+                    PokeMonster* tempMonster = monsters[0];
+
+                    actions[0] = actions[1];
+                    parameters[0] = parameters[1];
+                    monsters[0] = monsters[1];
+
+                    actions[1] = tempAction;
+                    parameters[1] = tempParam;
+                    monsters[1] = tempMonster;
+
+                    printf("[DEBUG] Ordenado por velocidade\n");
+                }
+            }
         }
     }
-    
+
+    // Recolocar na fila na ordem correta
     for (int i = 0; i < actionCount; i++) {
         enqueue(battleSystem->actionQueue, actions[i], parameters[i], monsters[i]);
     }
-    
-    printf("[DEBUG] Ações reordenadas. Nova contagem: %d\n", battleSystem->actionQueue->count);
 }
  
  // Libera o sistema de batalha
@@ -187,143 +230,224 @@ void startTurn(void) {
  }
  
  // Inicia uma nova batalha
- void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
+void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     if (battleSystem == NULL || playerTeam == NULL || opponentTeam == NULL) {
-        printf("Erro: sistemas nulos em startNewBattle\n"); // Debug
         return;
     }
 
-    printf("Iniciando batalha: %d monstros do jogador vs %d monstros do oponente\n", playerTeam->count, opponentTeam->count); // Debug
-    
     // Configurar os times
     battleSystem->playerTeam = playerTeam;
     battleSystem->opponentTeam = opponentTeam;
-    
+
     // Resetar contadores e estado
     battleSystem->turn = 1;
-    battleSystem->battleState = BATTLE_SELECT_ACTION;
-    battleSystem->playerTurn = true; // CRUCIAL: Jogador sempre começa
+    battleSystem->battleState = BATTLE_INTRO;
+    battleSystem->playerTurn = true; // Jogador sempre começa
     battleSystem->itemUsed = false;
     battleSystem->selectedAttack = 0;
     battleSystem->selectedAction = 0;
-    
+
     // Escolher um item aleatório para a batalha
     battleSystem->itemType = rollRandomItem();
-    
+
     // Limpar estruturas de dados
     clearQueue(battleSystem->actionQueue);
     clearStack(battleSystem->effectStack);
-    
-    // Mensagem inicial
-    sprintf(battleMessage, "Turno %d - Escolha sua ação!", battleSystem->turn);
+    actionQueueReady = false;
+
+    // Resetar mensagens e animações
+    memset(&currentMessage, 0, sizeof(currentMessage));
+    memset(&currentAnimation, 0, sizeof(currentAnimation));
+    actionQueueReady = false;
+    stateTransitionDelay = 0.0f;
 }
  
  // Atualiza o estado da batalha
  void updateBattle(void) {
-    if (battleSystem == NULL) {
-        return;
-    }
-    
+    if (battleSystem == NULL) return;
+
+    // Atualizar timers globais
+    float deltaTime = GetFrameTime();
+
     // Verificar se a batalha acabou
-    if (isBattleOver()) {
+    if (isBattleOver() && battleSystem->battleState != BATTLE_OVER &&
+        battleSystem->battleState != BATTLE_MESSAGE_DISPLAY) {
         battleSystem->battleState = BATTLE_OVER;
         return;
     }
-    
+
+    // Atualizar estado atual
     switch (battleSystem->battleState) {
+        case BATTLE_INTRO:
+            // Animação de entrada na batalha
+            stateTransitionDelay += deltaTime;
+            if (stateTransitionDelay >= 1.5f) {
+                stateTransitionDelay = 0.0f;
+                // Garantir que o jogador começe escolhendo
+                battleSystem->playerTurn = true;
+                displayBattleMessage("Uma batalha selvagem começou!", 1.5f, false, true);
+            }
+            break;
+
         case BATTLE_SELECT_ACTION:
             // Aguardando seleção do jogador ou bot
-            // A seleção é tratada na interface
-            break;
-            
-        case BATTLE_EXECUTING_ACTIONS:
-            //Verifica se tem uma troca forçada pendente
-            if (battleSystem->battleState == BATTLE_FORCED_SWITCH) {
-                return; // Aguarda a troca do jogador
+            if (battleSystem->playerTurn) {
+                // Jogador está selecionando - NÃO FAZER NADA AQUI
+                // A interface é quem vai mudar o estado quando o jogador escolher
+            } else {
+                // Bot deve escolher
+                stateTransitionDelay += deltaTime;
+                if (stateTransitionDelay >= 0.5f) {
+                    stateTransitionDelay = 0.0f;
+                    botChooseAction();
+
+                    // IMPORTANTE: Só mudar para PREPARING quando AMBOS escolheram
+                    if (actionQueueReady) {
+                        battleSystem->battleState = BATTLE_PREPARING_ACTIONS;
+                    }
+                }
             }
-            // Executar as ações na fila em ordem
+            break;
+
+        case BATTLE_PREPARING_ACTIONS:
+            // Ordenar ações por velocidade
+            determineAndExecuteTurnOrder();
+            battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
+            break;
+
+        case BATTLE_EXECUTING_ACTIONS:
+            // Executar próxima ação da fila
             if (!isQueueEmpty(battleSystem->actionQueue)) {
                 int action, parameter;
                 PokeMonster* monster;
-                
+
                 dequeue(battleSystem->actionQueue, &action, &parameter, &monster);
-                
+                printf("[DEBUG] Executando ação: tipo=%d, param=%d\n", action, parameter);
+
                 switch (action) {
                     case 0: // Ataque
-                        if (monster == battleSystem->playerTeam->current) {
-                            executeAttackWithEffects(monster, battleSystem->opponentTeam->current, parameter);
-                        } else {
-                            executeAttackWithEffects(monster, battleSystem->playerTeam->current, parameter);
-                        }
+                    {
+                        PokeMonster* target = (monster == battleSystem->playerTeam->current) ?
+                                              battleSystem->opponentTeam->current :
+                                              battleSystem->playerTeam->current;
+
+                        // Executar o ataque (mesmo que falhe por status)
+                        executeAttack(monster, target, parameter);
+
+                        // Mostrar mensagem do resultado
+                        displayBattleMessage(battleMessage, 1.5f, false, true);
+                    }
                         break;
-                        
-                    case 1: // Troca de monstro
-                        {
-                            PokeMonster* current = NULL;
-                            int count = 0;
-                            
-                            if (monster == battleSystem->playerTeam->current) {
-                                // Troca do time do jogador
-                                current = battleSystem->playerTeam->first;
-                                while (current != NULL && count < parameter) {
-                                    current = current->next;
-                                    count++;
-                                }
-                                
-                                if (current != NULL && !isMonsterFainted(current)) {
-                                    switchMonster(battleSystem->playerTeam, current);
-                                    sprintf(battleMessage, "Você trocou para %s!", current->name);
-                                }
-                            } else {
-                                // Troca do time do oponente
-                                current = battleSystem->opponentTeam->first;
-                                while (current != NULL && count < parameter) {
-                                    current = current->next;
-                                    count++;
-                                }
-                                
-                                if (current != NULL && !isMonsterFainted(current)) {
-                                    switchMonster(battleSystem->opponentTeam, current);
-                                    sprintf(battleMessage, "Oponente trocou para %s!", current->name);
-                                }
-                            }
-                        }
+
+                    case 1: // Troca
+                        executeMonsterSwitch(monster, parameter);
                         break;
-                        
-                    case 2: // Usar item
-                        if (monster == battleSystem->playerTeam->current) {
-                            useItem(battleSystem->itemType, battleSystem->playerTeam->current);
-                            battleSystem->itemUsed = true;
-                        } else {
-                            useItem(battleSystem->itemType, battleSystem->opponentTeam->current);
-                            battleSystem->itemUsed = true;
-                        }
+
+                    case 2: // Item
+                        executeItemUse(monster, battleSystem->itemType);
                         break;
                 }
-                
-                battleSystem->battleState = BATTLE_RESULT_MESSAGE;
             } else {
-                // Todas as ações foram executadas, preparar para o próximo turno
-                processTurnEnd();
-                battleSystem->turn++;
-                
-                // CRUCIAL: Sempre começar novo turno com o jogador
-                battleSystem->battleState = BATTLE_SELECT_ACTION;
-                battleSystem->playerTurn = true;
-                
-                // Limpar a fila para o novo turno
-                clearQueue(battleSystem->actionQueue);
-                
-                sprintf(battleMessage, "Turno %d - Escolha sua ação!", battleSystem->turn);
+                // Todas ações executadas, fim de turno
+                printf("[DEBUG] Fila vazia, indo para BATTLE_TURN_END\n");
+                battleSystem->battleState = BATTLE_TURN_END;
             }
             break;
-            
-        case BATTLE_RESULT_MESSAGE:
-            // Estado gerenciado pela interface
+
+        case BATTLE_ATTACK_ANIMATION:
+            // Atualizar animação de ataque
+            currentAnimation.elapsedTime += deltaTime;
+            if (currentAnimation.elapsedTime >= currentAnimation.animationTime) {
+                // Animação concluída, executar o ataque
+                currentAnimation.isAnimating = false;
+
+                // Executar dano
+                executeAttack(currentAnimation.source, currentAnimation.target, currentAnimation.animationType);
+
+                // Iniciar animação de dano
+                battleSystem->battleState = BATTLE_DAMAGE_ANIMATION;
+                stateTransitionDelay = 0.0f;
+            }
             break;
-            
-        default:
+
+        case BATTLE_DAMAGE_ANIMATION:
+            // Pequeno delay para mostrar o dano
+            stateTransitionDelay += deltaTime;
+            if (stateTransitionDelay >= 0.5f) {
+                stateTransitionDelay = 0.0f;
+
+                // Exibir mensagem do ataque
+                displayBattleMessage(battleMessage, 2.0f, false, true);
+            }
             break;
+
+        case BATTLE_MESSAGE_DISPLAY:
+            // Atualizar mensagem atual
+            currentMessage.elapsedTime += deltaTime;
+
+            if (currentMessage.autoAdvance &&
+                currentMessage.elapsedTime >= currentMessage.displayTime) {
+                // Avançar automaticamente
+                messageDisplayComplete();
+                } else if (currentMessage.waitingForInput &&
+                           currentMessage.elapsedTime > 0.5f &&  // Dar tempo para ler
+                           (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
+                            IsKeyPressed(KEY_SPACE) ||
+                            IsKeyPressed(KEY_ENTER))) {
+                    // Avançar com input do jogador
+                    messageDisplayComplete();
+                            }
+            break;
+
+        case BATTLE_TURN_END:
+            // Processar fim de turno
+            processTurnEnd();
+            battleSystem->turn++;
+
+            // Resetar para o novo turno
+            clearQueue(battleSystem->actionQueue);
+            actionQueueReady = false;
+            battleSystem->playerTurn = true;
+            battleSystem->battleState = BATTLE_SELECT_ACTION;
+
+            sprintf(battleMessage, "Turno %d - Escolha sua ação!", battleSystem->turn);
+            displayBattleMessage(battleMessage, 1.0f, false, true);
+            break;
+
+        case BATTLE_FORCED_SWITCH:
+            // Esperar jogador escolher novo monstro
+            // Interface cuida disso
+            break;
+
+        case BATTLE_OVER:
+            // Batalha finalizada
+            // Mostrar resultado
+            break;
+    }
+}
+
+// Nova função para quando a mensagem termina
+void messageDisplayComplete(void) {
+    // Verificar se estamos vindo da introdução
+    if (battleSystem->battleState == BATTLE_MESSAGE_DISPLAY &&
+        battleSystem->turn == 1 &&
+        isQueueEmpty(battleSystem->actionQueue)) {
+        // Se for a primeira mensagem da batalha, ir para seleção de ação
+        battleSystem->battleState = BATTLE_SELECT_ACTION;
+        battleSystem->playerTurn = true;
+        return;
+        }
+
+    // Voltar para execução de ações ou próxima etapa
+    if (!isQueueEmpty(battleSystem->actionQueue)) {
+        battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
+    } else if (battleSystem->battleState == BATTLE_MESSAGE_DISPLAY) {
+        // Decidir próximo estado baseado no contexto
+        if (isBattleOver()) {
+            battleSystem->battleState = BATTLE_OVER;
+        } else {
+            battleSystem->battleState = BATTLE_TURN_END;
+        }
     }
 }
  
@@ -390,16 +514,24 @@ void startTurn(void) {
     if (attacker == NULL || defender == NULL || attackIndex < 0 || attackIndex >= 4) {
         return;
     }
+    if (!canAttack(attacker)) {
+        // A mensagem já foi definida pela função canAttack
+        return;
+    }
     // Verificar se o monstro pode atacar com base no status
     if (attacker->statusCondition == STATUS_SLEEPING) {
         sprintf(battleMessage, "%s está dormindo e não pode atacar!", attacker->name);
+        printf("[DEBUG] %s está dormindo e não pode atacar!\n", attacker->name);
+        // IMPORTANTE: Não retornar aqui! O turno deve continuar!
+        // Em vez disso, apenas definir a mensagem e deixar o fluxo continuar
         return;
     }
-    
+
     if (attacker->statusCondition == STATUS_PARALYZED) {
         // 25% de chance de não conseguir atacar
         if (rand() % 100 < 25) {
             sprintf(battleMessage, "%s está paralisado e não conseguiu atacar!", attacker->name);
+            printf("[DEBUG] %s está paralisado e não conseguiu atacar!\n", attacker->name);
             return;
         }
     }
@@ -565,26 +697,50 @@ void applyStatusEffect(PokeMonster* target, int statusEffect, int statusPower, i
     if (target == NULL || statusEffect <= 0) {
         return;
     }
-    
-    printf("[DEBUG] Aplicando status %d a %s por %d turnos\n", 
-           statusEffect, target->name, duration);
-    
+
+    // Se duration não foi especificado, usar valores padrão
+    if (duration <= 0) {
+        switch (statusEffect) {
+            case STATUS_SLEEPING:
+                duration = 2 + rand() % 2; // 2-3 turnos
+                break;
+            case STATUS_BURNING:
+                duration = 3 + rand() % 3; // 3-5 turnos
+                break;
+            case STATUS_PARALYZED:
+                duration = 2 + rand() % 2; // 2-3 turnos
+                break;
+            default:
+                duration = 3; // Padrão 3 turnos
+                break;
+        }
+    }
+
+    printf("\n[DEBUG APPLY] === APLICANDO STATUS ===\n");
+    printf("[DEBUG APPLY] Alvo: %s\n", target->name);
+    printf("[DEBUG APPLY] Status: %d\n", statusEffect);
+    printf("[DEBUG APPLY] Duração: %d turnos\n", duration);
+
     // Status principais não se sobrepõem
-    if (target->statusCondition > STATUS_SPD_DOWN && 
-        statusEffect > STATUS_SPD_DOWN && 
+    if (target->statusCondition > STATUS_SPD_DOWN &&
+        statusEffect > STATUS_SPD_DOWN &&
         target->statusCondition != STATUS_NONE) {
-        printf("[DEBUG] %s já tem status %d, ignorando novo status\n", 
+        printf("[DEBUG APPLY] BLOQUEADO: %s já tem status %d\n",
                target->name, target->statusCondition);
         return;
-    }
-    
+        }
+
     // Aplicar o status
     target->statusCondition = statusEffect;
     target->statusTurns = duration;
-    
-    printf("[DEBUG] Status %d aplicado a %s por %d turnos\n", 
+    target->statusCounter = 0; // Resetar contador
+
+    printf("[DEBUG APPLY] Status aplicado com sucesso!\n");
+    printf("[DEBUG APPLY] =========================\n\n");
+
+    printf("[DEBUG] Status %d aplicado a %s por %d turnos\n",
            statusEffect, target->name, duration);
-    
+
     // Aplicar o efeito imediato
     switch (statusEffect) {
         case STATUS_ATK_DOWN: // Reduzir ataque
@@ -605,92 +761,36 @@ void applyStatusEffect(PokeMonster* target, int statusEffect, int statusPower, i
         default:
             break;
     }
-    
-    // Salvar na pilha para processamento futuro (opcional, você já tem isso no código original)
+
+    // Salvar na pilha para processamento futuro
     push(battleSystem->effectStack, statusEffect, duration, statusPower, target);
 }
  
  // Processa o final do turno (efeitos de status, etc.)
- void processTurnEnd(void) {
+void processTurnEnd(void) {
     if (battleSystem == NULL) {
         return;
     }
-    
+
+    printf("\n[DEBUG TURN] === PROCESSANDO FIM DE TURNO %d ===\n", battleSystem->turn);
+
+    // Resetar flag de item usado para o próximo turno
+    battleSystem->itemUsed = false;
+
     // Processar efeitos de status ativos para o jogador
     if (battleSystem->playerTeam && battleSystem->playerTeam->current) {
+        printf("[DEBUG TURN] Processando status do jogador...\n");
         processStatusEffects(battleSystem->playerTeam->current);
-        
-        // Verificar se o monstro desmaiou devido ao status
-        if (isMonsterFainted(battleSystem->playerTeam->current)) {
-            // Verificar se tem outro monstro disponível
-            PokeMonster* current = battleSystem->playerTeam->first;
-            bool hasAlivePokemon = false;
-            while (current != NULL) {
-                if (!isMonsterFainted(current)) {
-                    hasAlivePokemon = true;
-                    break;
-                }
-                current = current->next;
-            }
-            
-            if (hasAlivePokemon) {
-                // Forçar troca de monstro
-                battleSystem->battleState = BATTLE_FORCED_SWITCH;
-                battleSystem->playerTurn = true;
-                sprintf(battleMessage, "%s desmaiou! Escolha outro monstro!", 
-                       battleSystem->playerTeam->current->name);
-            }
-        }
     }
-    
+
     // Processar efeitos de status ativos para o oponente
     if (battleSystem->opponentTeam && battleSystem->opponentTeam->current) {
+        printf("[DEBUG TURN] Processando status do oponente...\n");
         processStatusEffects(battleSystem->opponentTeam->current);
-        
-        // Verificar se o monstro desmaiou devido ao status
-        if (isMonsterFainted(battleSystem->opponentTeam->current)) {
-            // Trocar automaticamente
-            PokeMonster* newMonster = NULL;
-            PokeMonster* current = battleSystem->opponentTeam->first;
-            while (current != NULL) {
-                if (!isMonsterFainted(current)) {
-                    newMonster = current;
-                    break;
-                }
-                current = current->next;
-            }
-            
-            if (newMonster != NULL) {
-                switchMonster(battleSystem->opponentTeam, newMonster);
-                char switchText[64];
-                sprintf(switchText, "Oponente enviou %s!", newMonster->name);
-                strncpy(battleMessage, switchText, sizeof(battleMessage) - 1);
-            }
-        }
     }
-     
-     // Processar a pilha de efeitos
-     // Remover efeitos que expiraram e restaurar os stats
-     if (!isStackEmpty(battleSystem->effectStack)) {
-         EffectStack* stack = battleSystem->effectStack;
-         
-         for (int i = 0; i <= stack->top; i++) {
-             stack->durations[i]--;
-         }
-         
-         // Verificar de trás para frente e remover os expirados
-         while (!isStackEmpty(stack) && stack->durations[stack->top] <= 0) {
-             int type, duration, value;
-             PokeMonster* target;
-             
-             pop(stack, &type, &duration, &value, &target);
-             
-             // Restaurar o stat modificado (simplificado)
-             // Em um jogo real, seria necessário armazenar os valores originais
-             // e restaurá-los corretamente
-         }
-     }
- }
+
+    printf("[DEBUG TURN] ==============================\n\n");
+}
  
  // Verifica se a batalha acabou
  bool isBattleOver(void) {
@@ -880,36 +980,31 @@ void useItem(ItemType itemType, PokeMonster* target) {
     PokeMonster* botMonster = battleSystem->opponentTeam->current;
     PokeMonster* playerMonster = battleSystem->playerTeam->current;
     
-    printf("[DEBUG] Bot escolhendo ação...\n");
-    
-    // Se o bot está dormindo, ele ainda vai "tentar" atacar, mas será impedido depois
-    // Isso evita que o bot tente outras ações quando estiver dormindo
+    // Se está dormindo, apenas enfileira um ataque que será bloqueado
     if (botMonster->statusCondition == STATUS_SLEEPING) {
-        printf("[DEBUG] Bot está dormindo, mas tentará atacar mesmo assim\n");
-        // Escolher um ataque qualquer - será bloqueado na função executeAttack
         enqueue(battleSystem->actionQueue, 0, 0, botMonster);
-        return; // Importante: retornar aqui para não continuar a lógica normal
+        if (battleSystem->actionQueue->count >= 2) {
+            actionQueueReady = true;
+        }
+        actionQueueReady = true;
+        return;
     }
-    
+
+    // Obter sugestão da IA
     int action = getAISuggestedAction(botMonster, playerMonster);
-    
-    // Garantir que uma ação seja sempre enfileirada
-    bool actionQueued = false;
-    
+
     switch (action) {
         case 0: // Atacar
             {
                 int attackIndex = botChooseAttack(botMonster, playerMonster);
                 enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-                actionQueued = true;
-                printf("[DEBUG] Bot escolheu atacar com ataque %d\n", attackIndex);
             }
             break;
-            
+
         case 1: // Trocar
             {
                 PokeMonster* newMonster = botChooseMonster(battleSystem->opponentTeam, playerMonster);
-                
+
                 if (newMonster && newMonster != botMonster) {
                     int monsterIndex = 0;
                     PokeMonster* current = battleSystem->opponentTeam->first;
@@ -917,29 +1012,36 @@ void useItem(ItemType itemType, PokeMonster* target) {
                         monsterIndex++;
                         current = current->next;
                     }
-                    
+
                     enqueue(battleSystem->actionQueue, 1, monsterIndex, botMonster);
-                    actionQueued = true;
-                    printf("[DEBUG] Bot escolheu trocar para %s\n", newMonster->name);
+                } else {
+                    // Se não pode trocar, atacar
+                    int attackIndex = botChooseAttack(botMonster, playerMonster);
+                    enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
                 }
             }
             break;
-            
+
         case 2: // Usar item
             if (!battleSystem->itemUsed) {
                 enqueue(battleSystem->actionQueue, 2, 0, botMonster);
-                actionQueued = true;
-                printf("[DEBUG] Bot escolheu usar item\n");
+            } else {
+                // Se não pode usar item, atacar
+                int attackIndex = botChooseAttack(botMonster, playerMonster);
+                enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+            }
+            break;
+
+        default:
+            // Fallback: atacar
+            {
+                int attackIndex = botChooseAttack(botMonster, playerMonster);
+                enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
             }
             break;
     }
-    
-    // Se por algum motivo nenhuma ação foi enfileirada, atacar como fallback
-    if (!actionQueued) {
-        printf("[DEBUG] Nenhuma ação do bot foi enfileirada, forçando ataque\n");
-        int attackIndex = botChooseAttack(botMonster, playerMonster);
-        enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-    }
+
+    actionQueueReady = true;
 }
 
 // Faz o bot escolher um ataque
@@ -1101,13 +1203,15 @@ bool canAttack(PokeMonster* monster) {
     // Verificar status que impedem ataque
     if (monster->statusCondition == STATUS_SLEEPING) {
         printf("[DEBUG] %s está dormindo e não pode atacar!\n", monster->name);
+        sprintf(battleMessage, "%s está dormindo!", monster->name);
         return false;
     }
-    
+
     if (monster->statusCondition == STATUS_PARALYZED) {
-        // Paralisado (25% de chance de não conseguir atacar)
+        // Paralisado tem 25% de chance de não conseguir atacar
         if (rand() % 100 < 25) {
             printf("[DEBUG] %s está paralisado e não conseguiu se mover!\n", monster->name);
+            sprintf(battleMessage, "%s está paralisado e não conseguiu se mover!", monster->name);
             return false;
         }
     }
@@ -1121,62 +1225,68 @@ void processStatusEffects(PokeMonster* monster) {
         return;
     }
     
-    printf("[DEBUG] Processando status %d para %s, turnos restantes: %d\n", 
-           monster->statusCondition, monster->name, monster->statusTurns);
-    
-    // Processar efeitos que causam dano por turno
+    printf("\n[DEBUG STATUS] === Processando Status ===\n");
+    printf("[DEBUG STATUS] Monstro: %s\n", monster->name);
+    printf("[DEBUG STATUS] Status atual: %d\n", monster->statusCondition);
+    printf("[DEBUG STATUS] Turnos restantes ANTES: %d\n", monster->statusTurns);
+
+    // Primeiro, aplicar efeitos do status atual
     switch (monster->statusCondition) {
-        case STATUS_BURNING: // Em chamas
+        case STATUS_BURNING:
             {
                 int damage = monster->maxHp / 8;
                 if (damage < 1) damage = 1;
                 monster->hp -= damage;
-                
+
                 if (monster->hp < 0) monster->hp = 0;
-                
-                sprintf(battleMessage, "%s sofreu %d de dano por estar em chamas!", 
+
+                sprintf(battleMessage, "%s sofreu %d de dano por estar em chamas!",
                        monster->name, damage);
             }
             break;
-            
-        case STATUS_SLEEPING: // Dormindo
-            // Atualizar contador de turnos
-            if (monster->statusTurns > 0) {
-                monster->statusTurns--;
-                printf("[DEBUG] %s continua dormindo. Turnos restantes: %d\n", 
-                       monster->name, monster->statusTurns);
-                
-                if (monster->statusTurns == 0) {
-                    // Acordou porque o tempo acabou
-                    monster->statusCondition = STATUS_NONE;
-                    sprintf(battleMessage, "%s acordou!", monster->name);
-                    printf("[DEBUG] %s acordou porque o tempo acabou\n", monster->name);
-                }
-            } else {
-                // Se por algum motivo não tiver contador, chance de acordar
-                if (rand() % 100 < 33) {
-                    monster->statusCondition = STATUS_NONE;
-                    sprintf(battleMessage, "%s acordou!", monster->name);
-                    printf("[DEBUG] %s acordou aleatoriamente\n", monster->name);
-                }
-            }
-            // Importante: Não fazemos o processamento genérico abaixo para sono
-            // pois já estamos processando aqui
-            return;
-            
-        default:
+
+        case STATUS_SLEEPING:
+            printf("[DEBUG STATUS] %s está dormindo (não pode atacar)\n", monster->name);
+            break;
+
+        case STATUS_PARALYZED:
+            printf("[DEBUG STATUS] %s está paralisado\n", monster->name);
             break;
     }
-    
-    // Processamento genérico para outros status
+
+    // Decrementar turnos restantes
     if (monster->statusTurns > 0) {
         monster->statusTurns--;
+        printf("[DEBUG STATUS] Turnos restantes DEPOIS do decremento: %d\n", monster->statusTurns);
+
+        // Se chegou a 0, remover o status
         if (monster->statusTurns == 0) {
-            // Status expirou
+            printf("[DEBUG STATUS] *** STATUS DEVE EXPIRAR AGORA ***\n");
+
+            // Mensagem específica para cada status
+            switch (monster->statusCondition) {
+                case STATUS_SLEEPING:
+                    sprintf(battleMessage, "%s acordou!", monster->name);
+                    printf("[DEBUG STATUS] ACORDANDO %s\n", monster->name);
+                    break;
+                case STATUS_PARALYZED:
+                    sprintf(battleMessage, "%s não está mais paralisado!", monster->name);
+                    monster->speed *= 2;
+                    break;
+                case STATUS_BURNING:
+                    sprintf(battleMessage, "%s não está mais em chamas!", monster->name);
+                    break;
+                default:
+                    sprintf(battleMessage, "O status de %s acabou!", monster->name);
+                    break;
+            }
+
+            // Remover o status
             monster->statusCondition = STATUS_NONE;
-            printf("[DEBUG] Status de %s expirou\n", monster->name);
+            printf("[DEBUG STATUS] Status removido! Novo status: %d\n", monster->statusCondition);
         }
     }
+    printf("[DEBUG STATUS] ===========================\n\n");
 }
 
 // Função auxiliar para exibir mensagens de status
@@ -1186,4 +1296,25 @@ void displayStatusMessage(const char* message) {
     
     // Garantir que a string termina com nulo
     battleMessage[sizeof(battleMessage) - 1] = '\0';
+}
+
+// Nova função para exibir mensagens suavemente
+void displayBattleMessage(const char* message, float duration, bool waitForInput, bool autoAdvance) {
+    strncpy(currentMessage.message, message, sizeof(currentMessage.message) - 1);
+    currentMessage.displayTime = duration;
+    currentMessage.elapsedTime = 0.0f;
+    currentMessage.waitingForInput = waitForInput;
+    currentMessage.autoAdvance = autoAdvance;
+    battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
+}
+
+// Nova função para iniciar animação de ataque
+void startAttackAnimation(PokeMonster* attacker, PokeMonster* defender, int attackIndex) {
+    currentAnimation.isAnimating = true;
+    currentAnimation.animationTime = 1.0f; // 1 segundo de animação
+    currentAnimation.elapsedTime = 0.0f;
+    currentAnimation.animationType = attackIndex;
+    currentAnimation.source = attacker;
+    currentAnimation.target = defender;
+    battleSystem->battleState = BATTLE_ATTACK_ANIMATION;
 }

@@ -14,7 +14,7 @@
  #include <string.h>
  #include <time.h>
  #include "raylib.h"
- #include "structures.h"
+#include "render/resources.h"
  #include "monsters.h"
  #include "battle.h"
  #include "ia_integration.h"
@@ -29,6 +29,8 @@
     bool vsBot = true;
     bool playerTurn = true;
     bool gameInitialized = false;
+    extern float musicVolume;
+    extern float soundVolume;
 
  // Declarações das funções
     void initializeGame(void);
@@ -130,7 +132,7 @@
     
     // Inicializar recursos visuais
     loadTextures();
-    loadSounds();
+     loadSounds(musicVolume, soundVolume);
     
     // Carregar texturas dos monstros
     loadMonsterTextures();

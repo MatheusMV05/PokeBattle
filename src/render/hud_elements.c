@@ -328,53 +328,53 @@ void drawMonsterStats(Rectangle bounds, PokeMonster* monster) {
 
 // Desenha lista de ataques
 void drawAttackList(Rectangle bounds, PokeMonster* monster, int selectedAttack) {
-   int attackWidth = (bounds.width - 130) / 4;
-   
-   for (int i = 0; i < 4; i++) {
-       Rectangle attackBounds = {
-           bounds.x + 10 + i * (attackWidth + 10),
-           bounds.y + 10,
-           attackWidth,
-           60
-       };
-       
-       Color attackColor = getTypeColor(monster->attacks[i].type);
-       
-       if (monster->attacks[i].ppCurrent <= 0) {
-           attackColor.r = attackColor.r / 2;
-           attackColor.g = attackColor.g / 2;
-           attackColor.b = attackColor.b / 2;
-       }
-       
-       if (monster->attacks[i].ppCurrent > 0 && drawButton(attackBounds, monster->attacks[i].name, attackColor)) {
-           PlaySound(selectSound);
-           battleSystem->selectedAttack = i;
-           
-           // Enfileirar ação de ataque
-           enqueue(battleSystem->actionQueue, 0, i, battleSystem->playerTeam->current);
-           
-           // Passar o turno para o bot escolher
-           battleSystem->playerTurn = false;
-           battleSystem->battleState = BATTLE_SELECT_ACTION;
-       } else if (monster->attacks[i].ppCurrent <= 0) {
-           DrawRectangleRounded(attackBounds, 0.2f, 10, attackColor);
-           DrawRectangleRoundedLines(attackBounds, 0.2f, 10, BLACK);
-           
-           Vector2 textSize = MeasureTextEx(gameFont, monster->attacks[i].name, 20, 1);
-           DrawTextEx(gameFont, monster->attacks[i].name, (Vector2){ 
-               attackBounds.x + attackBounds.width/2 - textSize.x/2,
-               attackBounds.y + 10
-           }, 20, 1, WHITE);
-           
-           char ppText[20];
-           sprintf(ppText, "PP: %d/%d", monster->attacks[i].ppCurrent, monster->attacks[i].ppMax);
-           DrawText(ppText, attackBounds.x + 10, attackBounds.y + 35, 15, WHITE);
-       } else {
-           char ppText[20];
-           sprintf(ppText, "PP: %d/%d", monster->attacks[i].ppCurrent, monster->attacks[i].ppMax);
-           DrawText(ppText, attackBounds.x + 10, attackBounds.y + 35, 15, WHITE);
-       }
-   }
+    int attackWidth = (bounds.width - 130) / 4;
+
+    for (int i = 0; i < 4; i++) {
+        Rectangle attackBounds = {
+            bounds.x + 10 + i * (attackWidth + 10),
+            bounds.y + 10,
+            attackWidth,
+            60
+        };
+
+        Color attackColor = getTypeColor(monster->attacks[i].type);
+
+        if (monster->attacks[i].ppCurrent <= 0) {
+            attackColor.r = attackColor.r / 2;
+            attackColor.g = attackColor.g / 2;
+            attackColor.b = attackColor.b / 2;
+        }
+
+        if (monster->attacks[i].ppCurrent > 0 && drawButton(attackBounds, monster->attacks[i].name, attackColor)) {
+            PlaySound(selectSound);
+            battleSystem->selectedAttack = i;
+
+            // Enfileirar ação de ataque
+            enqueue(battleSystem->actionQueue, 0, i, battleSystem->playerTeam->current);
+
+            // Passar o turno para o bot escolher
+            battleSystem->playerTurn = false;
+            battleSystem->battleState = BATTLE_SELECT_ACTION;
+        } else if (monster->attacks[i].ppCurrent <= 0) {
+            DrawRectangleRounded(attackBounds, 0.2f, 10, attackColor);
+            DrawRectangleRoundedLines(attackBounds, 0.2f, 10, BLACK);
+
+            Vector2 textSize = MeasureTextEx(gameFont, monster->attacks[i].name, 20, 1);
+            DrawTextEx(gameFont, monster->attacks[i].name, (Vector2){
+                attackBounds.x + attackBounds.width/2 - textSize.x/2,
+                attackBounds.y + 10
+            }, 20, 1, WHITE);
+
+            char ppText[20];
+            sprintf(ppText, "PP: %d/%d", monster->attacks[i].ppCurrent, monster->attacks[i].ppMax);
+            DrawText(ppText, attackBounds.x + 10, attackBounds.y + 35, 15, WHITE);
+        } else {
+            char ppText[20];
+            sprintf(ppText, "PP: %d/%d", monster->attacks[i].ppCurrent, monster->attacks[i].ppMax);
+            DrawText(ppText, attackBounds.x + 10, attackBounds.y + 35, 15, WHITE);
+        }
+    }
 }
 
 // Desenha caixa de mensagem
