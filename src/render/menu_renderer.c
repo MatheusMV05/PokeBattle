@@ -10,6 +10,7 @@
 #include "../game_state.h"
 #include <math.h>
 #include "screens.h"
+#include "structures.h"
 
 static float pendingMusicVolume = 0.7f;
 static float pendingSoundVolume = 0.8f;

@@ -10,6 +10,7 @@
 #include "../game_state.h"
 #include <math.h>
 #include <stdio.h>
+#include "structures.h"
 
 // Variáveis estáticas e estruturas que devem ir junto:
 static bool fullscreen = false;
@@ -24,12 +25,6 @@ static bool pendingFullscreen = false;
 static int pendingDifficultyIndex = 1;
 static int pendingAnimSpeedIndex = 1;
 
-// Estrutura Resolution também vai aqui:
-typedef struct {
-    int width;
-    int height;
-    const char* description;
-} Resolution;
 
 static Resolution availableResolutions[] = {
     { 1920, 1080, "1920x1080" },

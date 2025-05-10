@@ -7,7 +7,9 @@
  #ifndef STRUCTURES_H
  #define STRUCTURES_H
  
- #include "raylib.h"
+#include <stddef.h>
+#include "raylib.h"
+
  
  // Tipos de PokeMonstros
  typedef enum {
@@ -63,7 +65,49 @@
      PokeMonster* current;   // Monstro atual em campo
      int count;              // Quantidade de monstros na lista
  } MonsterList;
- 
+
+// Estrutura para armazenar a resposta da API
+typedef struct {
+    char* buffer;
+    size_t size;
+} MemoryStruct;
+
+// Estrutura para efeitos visuais na batalha
+typedef struct {
+    bool active;
+    float timer;
+    float duration;
+    int type;
+    Rectangle bounds;
+    Color color;
+    Vector2 origin;
+    Vector2 target;
+} BattleEffect;
+
+// Variáveis para efeitos
+#define MAX_EFFECTS 10
+static BattleEffect effects[MAX_EFFECTS] = {0};
+
+// Tipos de efeito
+enum {
+    EFFECT_NONE = 0,
+    EFFECT_FLASH,
+    EFFECT_SHAKE,
+    EFFECT_PARTICLES,
+    EFFECT_SLASH,
+    EFFECT_FIRE,
+    EFFECT_WATER,
+    EFFECT_ELECTRIC,
+    EFFECT_NATURE
+};
+
+// Estrutura para resoluções
+typedef struct {
+    int width;
+    int height;
+    const char* description;
+} Resolution;
+
  // Estrutura para a fila de ações
  typedef struct {
      int* actions;           // Array de ações (0 = ataque, 1 = troca, 2 = item)

@@ -83,41 +83,7 @@ static bool pendingFullscreen = false;
 static int pendingDifficultyIndex = 1;
 static int pendingAnimSpeedIndex = 1;
 
-// Estrutura para efeitos visuais na batalha
-typedef struct {
-    bool active;
-    float timer;
-    float duration;
-    int type;
-    Rectangle bounds;
-    Color color;
-    Vector2 origin;
-    Vector2 target;
-} BattleEffect;
 
-// Variáveis para efeitos
-#define MAX_EFFECTS 10
-static BattleEffect effects[MAX_EFFECTS] = {0};
-
-// Tipos de efeito
-enum {
-    EFFECT_NONE = 0,
-    EFFECT_FLASH,
-    EFFECT_SHAKE,
-    EFFECT_PARTICLES,
-    EFFECT_SLASH,
-    EFFECT_FIRE,
-    EFFECT_WATER,
-    EFFECT_ELECTRIC,
-    EFFECT_NATURE
-};
-
-// Estrutura para resoluções
-typedef struct {
-    int width;
-    int height;
-    const char* description;
-} Resolution;
 
 static Resolution availableResolutions[] = {
     { 1920, 1080, "1920x1080" },

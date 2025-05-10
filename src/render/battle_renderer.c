@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static BattleEffect effects[MAX_EFFECTS] = {0};
+
 
 extern BattleSystem* battleSystem;
 extern void determineAndExecuteTurnOrder(void);
