@@ -91,7 +91,7 @@ void drawMainMenu(void) {
     // Desenhar PokeBall decorativa
     int pokeballSize = (int)(64 * scale); // Proporcional ao tamanho da tela
     int pokeballX = GetScreenWidth()/2;
-    int pokeballY = subtitlePos.y + (int)(64 * scale);
+    int pokeballY = subtitlePos.y + (int)(128 * scale);
     
     DrawCircle(pokeballX, pokeballY, pokeballSize, RED);
     DrawCircle(pokeballX, pokeballY, pokeballSize - (int)(8 * scale), WHITE);
@@ -101,7 +101,7 @@ void drawMainMenu(void) {
     
     // Área de menu
     int menuWidth = (int)(800 * scale); // Aumentado proporcionalmente
-    int menuHeight = (int)(512 * scale); // Aumentado proporcionalmente
+    int menuHeight = (int)(590 * scale); // Aumentado proporcionalmente
     Rectangle menuArea = {
         GetScreenWidth()/2 - menuWidth/2,
         pokeballY + pokeballSize + (int)(48 * scale),
