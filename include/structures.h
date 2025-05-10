@@ -7,7 +7,8 @@
  #ifndef STRUCTURES_H
  #define STRUCTURES_H
  
- #include "raylib.h"
+#include "raylib.h"
+#include "battle.h"
  
  // Tipos de PokeMonstros
  typedef enum {
@@ -25,17 +26,23 @@
  } MonsterType;
  
  // Estrutura para os ataques
- typedef struct {
-     char name[32];          // Nome do ataque
-     MonsterType type;       // Tipo do ataque
-     int power;              // Poder do ataque (0 para ataques de status)
-     int accuracy;           // Precisão do ataque (0-100)
-     int ppMax;              // Pontos de poder máximos
-     int ppCurrent;          // Pontos de poder atuais
-     int statusEffect;       // Efeito de status (0 = nenhum, 1 = ataque-, 2 = defesa-, etc.)
-     int statusPower;        // Poder do efeito de status
-     int statusChance;       // Chance do efeito de status (0-100)
- } Attack;
+typedef struct {
+    char name[32];
+    MonsterType type;
+    int power;              // Poder do ataque (0 para ataques de status)
+    int accuracy;           // Precisão (0-100)
+    int ppMax;              // PP máximo
+    int ppCurrent;          // PP atual
+    bool isPhysical;        // Se é físico ou especial (para cálculo de dano)
+    int priority;           // Prioridade do ataque (-1 a +1, padrão 0)
+    int critRate;           // Taxa de crítico (0-100)
+    int effectChance;       // Chance do efeito secundário (0-100)
+    StatusType statusEffect;// Efeito de status que pode causar
+    int statChange[4];      // Mudanças de stats [ATK, DEF, SPD, ACC]
+    int selfStatChange[4];  // Mudanças de stats no usuário
+    bool hitsAll;           // Se atinge todos os oponentes
+    bool makesContact;      // Se faz contato físico
+} Attack;
  
  // Estrutura para um PokeMonstro
  typedef struct PokeMonster {
@@ -105,7 +112,32 @@
      bool itemUsed;               // Se o item já foi usado
      int itemType;                // Tipo do item disponível
  } BattleSystem;
- 
+
+// Estrutura para armazenar a resposta da API
+typedef struct {
+    char* buffer;
+    size_t size;
+} MemoryStruct;
+
+// Estrutura para efeitos visuais na batalha
+typedef struct {
+    bool active;
+    float timer;
+    float duration;
+    int type;
+    Rectangle bounds;
+    Color color;
+    Vector2 origin;
+    Vector2 target;
+} BattleEffect;
+
+// Estrutura para resoluções
+typedef struct {
+    int width;
+    int height;
+    const char* description;
+} Resolution;
+
  // Protótipos de funções para manipulação das estruturas de dados
  
  // Funções para a lista duplamente encadeada

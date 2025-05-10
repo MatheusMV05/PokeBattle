@@ -28,13 +28,8 @@
  
  // Modelo a ser usado
  static const char* MODEL = "gemini-1.5-flash-latest";
- 
- // Estrutura para armazenar a resposta da API
- typedef struct {
-     char* buffer;
-     size_t size;
- } MemoryStruct;
- 
+
+
  // Função de callback para escrever os dados recebidos na memória
  static size_t WriteMemoryCallback(void* contents, size_t size, size_t nmemb, void* userp) {
      size_t realsize = size * nmemb;
