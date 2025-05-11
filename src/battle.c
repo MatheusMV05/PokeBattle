@@ -283,46 +283,47 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
             stateTransitionDelay += deltaTime;
             if (stateTransitionDelay >= 1.5f) {
                 stateTransitionDelay = 0.0f;
-                // Garantir que o jogador começe escolhendo
                 battleSystem->playerTurn = true;
-                displayBattleMessage("Uma batalha selvagem começou!", 1.5f, false, true);
+                battleSystem->battleState = BATTLE_SELECT_ACTION;
+                sprintf(battleMessage, "Uma batalha selvagem começou!");
             }
             break;
 
         case BATTLE_SELECT_ACTION:
             // Aguardando seleção do jogador ou bot
             if (battleSystem->playerTurn) {
-                // Jogador está selecionando - NÃO FAZER NADA AQUI
-                // A interface é quem vai mudar o estado quando o jogador escolher
+                // Jogador está selecionando - Interface cuida disso
             } else {
-                // Bot deve escolher
+                // Dar um pequeno delay antes do bot escolher
                 stateTransitionDelay += deltaTime;
                 if (stateTransitionDelay >= 0.5f) {
                     stateTransitionDelay = 0.0f;
+                    printf("[DEBUG] Bot está escolhendo ação...\n");
                     botChooseAction();
-
-                    // IMPORTANTE: Só mudar para PREPARING quando AMBOS escolheram
-                    if (actionQueueReady) {
-                        battleSystem->battleState = BATTLE_PREPARING_ACTIONS;
-                    }
                 }
             }
             break;
 
         case BATTLE_PREPARING_ACTIONS:
             // Ordenar ações por velocidade
+            printf("[DEBUG] Preparando ações...\n");
             determineAndExecuteTurnOrder();
             battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
             break;
 
         case BATTLE_EXECUTING_ACTIONS:
+            // Se estamos mostrando uma mensagem, esperar
+            if (battleSystem->battleState == BATTLE_MESSAGE_DISPLAY) {
+                break;
+            }
+
             // Executar próxima ação da fila
             if (!isQueueEmpty(battleSystem->actionQueue)) {
                 int action, parameter;
                 PokeMonster* monster;
 
                 dequeue(battleSystem->actionQueue, &action, &parameter, &monster);
-                printf("[DEBUG] Executando ação: tipo=%d, param=%d\n", action, parameter);
+                printf("[DEBUG] Dequeue executando ação: tipo=%d, param=%d\n", action, parameter);
 
                 switch (action) {
                     case 0: // Ataque
@@ -331,11 +332,16 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
                                               battleSystem->opponentTeam->current :
                                               battleSystem->playerTeam->current;
 
-                        // Executar o ataque (mesmo que falhe por status)
                         executeAttack(monster, target, parameter);
 
-                        // Mostrar mensagem do resultado
-                        displayBattleMessage(battleMessage, 1.5f, false, true);
+                        // IMPORTANTE: Aguardar um frame antes de mostrar mensagem
+                        if (strlen(battleMessage) > 0) {
+                            displayBattleMessage(battleMessage, 1.5f, false, true);
+                        } else {
+                            // Se não houver mensagem, continuar
+                            sprintf(battleMessage, "%s usou um ataque!", monster->name);
+                            displayBattleMessage(battleMessage, 1.0f, false, true);
+                        }
                     }
                         break;
 
@@ -354,33 +360,6 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
             }
             break;
 
-        case BATTLE_ATTACK_ANIMATION:
-            // Atualizar animação de ataque
-            currentAnimation.elapsedTime += deltaTime;
-            if (currentAnimation.elapsedTime >= currentAnimation.animationTime) {
-                // Animação concluída, executar o ataque
-                currentAnimation.isAnimating = false;
-
-                // Executar dano
-                executeAttack(currentAnimation.source, currentAnimation.target, currentAnimation.animationType);
-
-                // Iniciar animação de dano
-                battleSystem->battleState = BATTLE_DAMAGE_ANIMATION;
-                stateTransitionDelay = 0.0f;
-            }
-            break;
-
-        case BATTLE_DAMAGE_ANIMATION:
-            // Pequeno delay para mostrar o dano
-            stateTransitionDelay += deltaTime;
-            if (stateTransitionDelay >= 0.5f) {
-                stateTransitionDelay = 0.0f;
-
-                // Exibir mensagem do ataque
-                displayBattleMessage(battleMessage, 2.0f, false, true);
-            }
-            break;
-
         case BATTLE_MESSAGE_DISPLAY:
             // Atualizar mensagem atual
             currentMessage.elapsedTime += deltaTime;
@@ -388,19 +367,22 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
             if (currentMessage.autoAdvance &&
                 currentMessage.elapsedTime >= currentMessage.displayTime) {
                 // Avançar automaticamente
+                printf("[DEBUG] Mensagem completada automaticamente\n");
                 messageDisplayComplete();
-                } else if (currentMessage.waitingForInput &&
-                           currentMessage.elapsedTime > 0.5f &&  // Dar tempo para ler
-                           (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
-                            IsKeyPressed(KEY_SPACE) ||
-                            IsKeyPressed(KEY_ENTER))) {
-                    // Avançar com input do jogador
-                    messageDisplayComplete();
-                            }
+            } else if (currentMessage.waitingForInput &&
+                       currentMessage.elapsedTime > 0.5f &&
+                       (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
+                        IsKeyPressed(KEY_SPACE) ||
+                        IsKeyPressed(KEY_ENTER))) {
+                // Avançar com input do jogador
+                printf("[DEBUG] Mensagem completada por input\n");
+                messageDisplayComplete();
+            }
             break;
 
         case BATTLE_TURN_END:
             // Processar fim de turno
+            printf("[DEBUG TURN END] Processando fim de turno %d\n", battleSystem->turn);
             processTurnEnd();
             battleSystem->turn++;
 
@@ -411,43 +393,36 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
             battleSystem->battleState = BATTLE_SELECT_ACTION;
 
             sprintf(battleMessage, "Turno %d - Escolha sua ação!", battleSystem->turn);
-            displayBattleMessage(battleMessage, 1.0f, false, true);
+            printf("[DEBUG TURN END] Iniciando turno %d\n", battleSystem->turn);
             break;
 
         case BATTLE_FORCED_SWITCH:
             // Esperar jogador escolher novo monstro
-            // Interface cuida disso
             break;
 
         case BATTLE_OVER:
             // Batalha finalizada
-            // Mostrar resultado
+            break;
+
+        default:
             break;
     }
 }
 
 // Nova função para quando a mensagem termina
 void messageDisplayComplete(void) {
-    // Verificar se estamos vindo da introdução
-    if (battleSystem->battleState == BATTLE_MESSAGE_DISPLAY &&
-        battleSystem->turn == 1 &&
-        isQueueEmpty(battleSystem->actionQueue)) {
-        // Se for a primeira mensagem da batalha, ir para seleção de ação
-        battleSystem->battleState = BATTLE_SELECT_ACTION;
-        battleSystem->playerTurn = true;
-        return;
-        }
+    printf("[DEBUG] messageDisplayComplete chamada\n");
+
+    // Limpar a mensagem atual
+    memset(&currentMessage, 0, sizeof(currentMessage));
 
     // Voltar para execução de ações ou próxima etapa
     if (!isQueueEmpty(battleSystem->actionQueue)) {
+        printf("[DEBUG] Ainda há ações na fila, voltando para EXECUTING_ACTIONS\n");
         battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
-    } else if (battleSystem->battleState == BATTLE_MESSAGE_DISPLAY) {
-        // Decidir próximo estado baseado no contexto
-        if (isBattleOver()) {
-            battleSystem->battleState = BATTLE_OVER;
-        } else {
-            battleSystem->battleState = BATTLE_TURN_END;
-        }
+    } else {
+        printf("[DEBUG] Fila vazia, indo para BATTLE_TURN_END\n");
+        battleSystem->battleState = BATTLE_TURN_END;
     }
 }
  
@@ -514,17 +489,12 @@ void messageDisplayComplete(void) {
     if (attacker == NULL || defender == NULL || attackIndex < 0 || attackIndex >= 4) {
         return;
     }
-    if (!canAttack(attacker)) {
-        // A mensagem já foi definida pela função canAttack
-        return;
-    }
-    // Verificar se o monstro pode atacar com base no status
+
+    // Verificar se o monstro pode atacar
     if (attacker->statusCondition == STATUS_SLEEPING) {
         sprintf(battleMessage, "%s está dormindo e não pode atacar!", attacker->name);
         printf("[DEBUG] %s está dormindo e não pode atacar!\n", attacker->name);
-        // IMPORTANTE: Não retornar aqui! O turno deve continuar!
-        // Em vez disso, apenas definir a mensagem e deixar o fluxo continuar
-        return;
+        return; // IMPORTANTE: não mudar o estado aqui
     }
 
     if (attacker->statusCondition == STATUS_PARALYZED) {
@@ -532,7 +502,7 @@ void messageDisplayComplete(void) {
         if (rand() % 100 < 25) {
             sprintf(battleMessage, "%s está paralisado e não conseguiu atacar!", attacker->name);
             printf("[DEBUG] %s está paralisado e não conseguiu atacar!\n", attacker->name);
-            return;
+            return; // IMPORTANTE: não mudar o estado aqui
         }
     }
     
@@ -970,78 +940,35 @@ void useItem(ItemType itemType, PokeMonster* target) {
 
 
  // Faz o bot escolher uma ação
- void botChooseAction(void) {
-    if (battleSystem == NULL || 
+void botChooseAction(void) {
+    if (battleSystem == NULL ||
         battleSystem->opponentTeam == NULL || battleSystem->opponentTeam->current == NULL ||
         battleSystem->playerTeam == NULL || battleSystem->playerTeam->current == NULL) {
+        printf("[DEBUG BOT] Erro: ponteiros inválidos\n");
         return;
-    }
-    
+        }
+
     PokeMonster* botMonster = battleSystem->opponentTeam->current;
     PokeMonster* playerMonster = battleSystem->playerTeam->current;
-    
-    // Se está dormindo, apenas enfileira um ataque que será bloqueado
-    if (botMonster->statusCondition == STATUS_SLEEPING) {
-        enqueue(battleSystem->actionQueue, 0, 0, botMonster);
-        if (battleSystem->actionQueue->count >= 2) {
-            actionQueueReady = true;
-        }
-        actionQueueReady = true;
-        return;
-    }
+
+    printf("[DEBUG BOT] Bot escolhendo ação...\n");
 
     // Obter sugestão da IA
     int action = getAISuggestedAction(botMonster, playerMonster);
+    printf("[DEBUG BOT] IA sugeriu ação: %d\n", action);
 
-    switch (action) {
-        case 0: // Atacar
-            {
-                int attackIndex = botChooseAttack(botMonster, playerMonster);
-                enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-            }
-            break;
+    // Sempre atacar se não puder fazer outra coisa
+    int attackIndex = botChooseAttack(botMonster, playerMonster);
+    enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+    printf("[DEBUG BOT] Bot enfileirou ataque %d\n", attackIndex);
 
-        case 1: // Trocar
-            {
-                PokeMonster* newMonster = botChooseMonster(battleSystem->opponentTeam, playerMonster);
-
-                if (newMonster && newMonster != botMonster) {
-                    int monsterIndex = 0;
-                    PokeMonster* current = battleSystem->opponentTeam->first;
-                    while (current != NULL && current != newMonster) {
-                        monsterIndex++;
-                        current = current->next;
-                    }
-
-                    enqueue(battleSystem->actionQueue, 1, monsterIndex, botMonster);
-                } else {
-                    // Se não pode trocar, atacar
-                    int attackIndex = botChooseAttack(botMonster, playerMonster);
-                    enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-                }
-            }
-            break;
-
-        case 2: // Usar item
-            if (!battleSystem->itemUsed) {
-                enqueue(battleSystem->actionQueue, 2, 0, botMonster);
-            } else {
-                // Se não pode usar item, atacar
-                int attackIndex = botChooseAttack(botMonster, playerMonster);
-                enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-            }
-            break;
-
-        default:
-            // Fallback: atacar
-            {
-                int attackIndex = botChooseAttack(botMonster, playerMonster);
-                enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-            }
-            break;
+    // Verificar se ambos jogadores fizeram suas escolhas
+    printf("[DEBUG BOT] Ações na fila: %d\n", battleSystem->actionQueue->count);
+    if (battleSystem->actionQueue->count >= 2) {
+        actionQueueReady = true;
+        battleSystem->battleState = BATTLE_PREPARING_ACTIONS;
+        printf("[DEBUG BOT] Ambos jogadores escolheram, indo para PREPARING_ACTIONS\n");
     }
-
-    actionQueueReady = true;
 }
 
 // Faz o bot escolher um ataque
@@ -1300,7 +1227,15 @@ void displayStatusMessage(const char* message) {
 
 // Nova função para exibir mensagens suavemente
 void displayBattleMessage(const char* message, float duration, bool waitForInput, bool autoAdvance) {
+    if (message == NULL || strlen(message) == 0) {
+        printf("[DEBUG] Tentativa de mostrar mensagem vazia\n");
+        return;
+    }
+
+    printf("[DEBUG] Exibindo mensagem: '%s' (duração: %.1f)\n", message, duration);
+
     strncpy(currentMessage.message, message, sizeof(currentMessage.message) - 1);
+    currentMessage.message[sizeof(currentMessage.message) - 1] = '\0';
     currentMessage.displayTime = duration;
     currentMessage.elapsedTime = 0.0f;
     currentMessage.waitingForInput = waitForInput;
