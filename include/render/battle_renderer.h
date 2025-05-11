@@ -22,5 +22,9 @@ void drawBattleEffects(void);
 void createBattleEffect(int type, Rectangle bounds, Color color, Vector2 origin, Vector2 target, float duration);
 void createAttackEffect(MonsterType attackType, Vector2 origin, Vector2 target);
 void executeAttackWithEffects(PokeMonster* attacker, PokeMonster* defender, int attackIndex);
-
+void startTypewriter(const char* text, bool waitForInput);
+void updateTypewriter(void);
+bool isTypewriterComplete(void);
+bool isTypewriterWaitingInput(void);
+void drawTypewriterText(Vector2 position, float fontSize, Color color);
 #endif

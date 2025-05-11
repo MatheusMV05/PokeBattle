@@ -96,5 +96,5 @@ bool canAttack(PokeMonster* monster);
 void processStatusEffects(PokeMonster* monster);
 void displayStatusMessage(const char* message);
 void determineAndExecuteTurnOrder(void);
-
+void messageDisplayComplete(void);
 #endif // BATTLE_H

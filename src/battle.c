@@ -244,7 +244,7 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     battleSystem->turn = 1;
     battleSystem->battleState = BATTLE_INTRO;
     battleSystem->playerTurn = true;
-    battleSystem->itemUsed = false;
+    battleSystem->itemUsed = false; // Garantir que está false no início
     battleSystem->selectedAttack = 0;
     battleSystem->selectedAction = 0;
 
@@ -858,12 +858,24 @@ void useItem(ItemType itemType, PokeMonster* target) {
     
     switch (itemType) {
         case ITEM_POTION:
-            // Restaura 20 de HP
-            target->hp += 20;
-            if (target->hp > target->maxHp) {
-                target->hp = target->maxHp;
+            // Calcular quanto de HP pode ser curado
+            int hpToHeal = 20; // Máximo que a poção pode curar
+            int hpMissing = target->maxHp - target->hp; // Quanto de HP está faltando
+
+            // Curar apenas o necessário (o menor entre 20 e o HP faltante)
+            if (hpMissing < hpToHeal) {
+                hpToHeal = hpMissing;
             }
-            sprintf(battleMessage, "Poção usada! %s recuperou 20 de HP!", target->name);
+
+            // Aplicar a cura
+            target->hp += hpToHeal;
+
+            // Mensagem informando quanto foi curado
+            if (hpToHeal > 0) {
+                sprintf(battleMessage, "Poção usada! %s recuperou %d de HP!", target->name, hpToHeal);
+            } else {
+                sprintf(battleMessage, "Poção usada! %s já está com HP máximo!", target->name);
+            }
             break;
             
         case ITEM_RED_CARD:
@@ -899,6 +911,7 @@ void useItem(ItemType itemType, PokeMonster* target) {
             }
             break;
     }
+    battleSystem->itemUsed = true;
 }
  
  // Verifica se um monstro está incapacitado
