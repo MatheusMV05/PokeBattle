@@ -5,15 +5,15 @@
 #endif
 
 #include "resources.h"
-#include "../structures.h"
-#include "../monsters.h"
-#include "../game_state.h"
+#include "structures.h"
+#include "monsters.h"
 #include <stdio.h>
-#include <string.h> 
 
 
 
 // Definições das variáveis globais de recursos
+Texture2D battleBackgrounds[BATTLE_BACKGROUNDS_COUNT];
+int currentBattleBackground = 0;
 Font gameFont;
 Texture2D backgroundTexture;
 Texture2D menuBackground;
@@ -47,6 +47,20 @@ void loadTextures(void) {
         sprintf(filename, "resources/type_%s.png", getTypeName(i));
         typeIcons[i] = LoadTexture(filename);
     }
+    // Carregar backgrounds de batalha
+    printf("Carregando backgrounds de batalha...\n");
+
+    for (int i = 0; i < BATTLE_BACKGROUNDS_COUNT; i++) {
+        char filename[256];
+        sprintf(filename, "resources/bg_%d.png", i);
+        battleBackgrounds[i] = LoadTexture(filename);
+
+        if (battleBackgrounds[i].id == 0) {
+            printf("Aviso: Falha ao carregar background %s\n", filename);
+        } else {
+            printf("Background %d carregado com sucesso!\n", i);
+        }
+    }
 }
 
 void unloadTextures(void) {
@@ -62,6 +76,13 @@ void unloadTextures(void) {
     // Descarregar ícones de tipo
     for (int i = 0; i < TYPE_COUNT; i++) {
         UnloadTexture(typeIcons[i]);
+    }
+
+    // Descarregar backgrounds de batalha
+    for (int i = 0; i < BATTLE_BACKGROUNDS_COUNT; i++) {
+        if (battleBackgrounds[i].id != 0) {
+            UnloadTexture(battleBackgrounds[i]);
+        }
     }
 }
 

@@ -7,9 +7,9 @@
 #include "battle_renderer.h"
 #include "hud_elements.h"
 #include "resources.h"
-#include "../monsters.h"
-#include "../game_state.h"
-#include "../ia_integration.h"
+#include "monsters.h"
+#include "game_state.h"
+#include "ia_integration.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -82,21 +82,38 @@ void drawBattleScreen(void) {
     // Atualizar música da batalha
     UpdateMusicStream(battleMusic);
 
-    // Desenhar fundo (cor de céu azul claro típico de Pokémon)
-    ClearBackground((Color){ 120, 200, 255, 255 });
+    // Desenhar background selecionado
+    if (currentBattleBackground >= 0 &&
+        currentBattleBackground < BATTLE_BACKGROUNDS_COUNT &&
+        battleBackgrounds[currentBattleBackground].id != 0) {
 
-    // Desenhar grama/campo de batalha
-    DrawRectangle(0, GetScreenHeight()/2, GetScreenWidth(), GetScreenHeight()/2, (Color){ 120, 180, 100, 255 });
+        // Desenhar o background em tela cheia
+        Rectangle source = {
+            0, 0,
+            (float)battleBackgrounds[currentBattleBackground].width,
+            (float)battleBackgrounds[currentBattleBackground].height
+        };
 
-    // Plataformas de batalha (estilo Fire Red)
-    Color platformColor = (Color){ 210, 180, 140, 255 }; // Cor terra/areia
+        Rectangle dest = {
+            0, 0,
+            (float)GetScreenWidth(),
+            (float)GetScreenHeight()
+        };
 
-    // Plataforma do oponente (mais alta)
-    DrawEllipse(GetScreenWidth()/4, GetScreenHeight()/2 - 40, 120, 30, platformColor);
-
-    // Plataforma do jogador (mais baixa)
-    DrawEllipse(GetScreenWidth() - GetScreenWidth()/4, GetScreenHeight()/2 + 40, 120, 30, platformColor);
-
+        DrawTexturePro(
+            battleBackgrounds[currentBattleBackground],
+            source,
+            dest,
+            (Vector2){ 0, 0 },
+            0.0f,
+            WHITE
+        );
+        } else {
+            // Fallback caso o background não carregue
+            ClearBackground((Color){ 120, 200, 255, 255 });
+            DrawRectangle(0, GetScreenHeight()/2, GetScreenWidth(), GetScreenHeight()/2,
+                          (Color){ 120, 180, 100, 255 });
+        }
     // Desenhar monstros em batalha e suas informações
     if (battleSystem != NULL &&
         battleSystem->playerTeam != NULL && battleSystem->playerTeam->current != NULL &&

@@ -14,7 +14,7 @@
  #include <string.h>
  #include <time.h>
  #include "raylib.h"
-#include "render/resources.h"
+ #include "render/resources.h"
  #include "monsters.h"
  #include "battle.h"
  #include "ia_integration.h"

@@ -10,7 +10,11 @@ void unloadTextures(void);
 void loadSounds(float musicVol, float soundVol);
 void unloadSounds(void);
 
-// Variáveis globais de recursos (declaradas como extern)
+#define BATTLE_BACKGROUNDS_COUNT 13
+extern Texture2D battleBackgrounds[BATTLE_BACKGROUNDS_COUNT];
+extern int currentBattleBackground;
+
+// Variáveis globais de recursos
 extern Font gameFont;
 extern Texture2D backgroundTexture;
 extern Texture2D menuBackground;

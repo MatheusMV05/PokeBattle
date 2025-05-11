@@ -17,6 +17,7 @@
  #include "battle.h"
  #include "monsters.h"
  #include "ia_integration.h"
+#import  "resources.h"
 
  char battleMessage[256] = "";
  BattleMessage currentMessage = {0};
@@ -242,13 +243,17 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     // Resetar contadores e estado
     battleSystem->turn = 1;
     battleSystem->battleState = BATTLE_INTRO;
-    battleSystem->playerTurn = true; // Jogador sempre começa
+    battleSystem->playerTurn = true;
     battleSystem->itemUsed = false;
     battleSystem->selectedAttack = 0;
     battleSystem->selectedAction = 0;
 
     // Escolher um item aleatório para a batalha
     battleSystem->itemType = rollRandomItem();
+
+    // ESCOLHER BACKGROUND ALEATÓRIO
+    currentBattleBackground = rand() % BATTLE_BACKGROUNDS_COUNT;
+    printf("Background selecionado: %d\n", currentBattleBackground);
 
     // Limpar estruturas de dados
     clearQueue(battleSystem->actionQueue);
