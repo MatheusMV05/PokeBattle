@@ -87,34 +87,20 @@ void drawBattleScreen(void) {
         currentBattleBackground < BATTLE_BACKGROUNDS_COUNT &&
         battleBackgrounds[currentBattleBackground].id != 0) {
 
-        // Desenhar o background em tela cheia
-        Rectangle source = {
-            0, 0,
-            (float)battleBackgrounds[currentBattleBackground].width,
-            (float)battleBackgrounds[currentBattleBackground].height
-        };
-
-        Rectangle dest = {
-            0, 0,
-            (float)GetScreenWidth(),
-            (float)GetScreenHeight()
-        };
-
         DrawTexturePro(
             battleBackgrounds[currentBattleBackground],
-            source,
-            dest,
+            (Rectangle){ 0, 0,
+                        (float)battleBackgrounds[currentBattleBackground].width,
+                        (float)battleBackgrounds[currentBattleBackground].height },
+            (Rectangle){ 0, 0,
+                        (float)GetScreenWidth(),
+                        (float)GetScreenHeight() },
             (Vector2){ 0, 0 },
             0.0f,
             WHITE
         );
-        } else {
-            // Fallback caso o background não carregue
-            ClearBackground((Color){ 120, 200, 255, 255 });
-            DrawRectangle(0, GetScreenHeight()/2, GetScreenWidth(), GetScreenHeight()/2,
-                          (Color){ 120, 180, 100, 255 });
-        }
-    // Desenhar monstros em batalha e suas informações
+    }
+
     if (battleSystem != NULL &&
         battleSystem->playerTeam != NULL && battleSystem->playerTeam->current != NULL &&
         battleSystem->opponentTeam != NULL && battleSystem->opponentTeam->current != NULL) {
@@ -122,14 +108,31 @@ void drawBattleScreen(void) {
         PokeMonster* playerMonster = battleSystem->playerTeam->current;
         PokeMonster* opponentMonster = battleSystem->opponentTeam->current;
 
-        // Definir retângulos para os monstros
-        Rectangle opponentRect = { GetScreenWidth()/4 - 80, GetScreenHeight()/2 - 130, 160, 160 };
-        Rectangle playerRect = { GetScreenWidth() - GetScreenWidth()/4 - 80, GetScreenHeight()/2 - 50, 160, 160 };
+        // POSIÇÕES EXATAS DOS MONSTROS BASEADAS NA IMAGEM
 
-        // Boxes de informação estilo Pokémon
-        // Box do oponente (superior direito)
-        DrawRectangleRounded((Rectangle){ GetScreenWidth() - 280, 20, 260, 100 }, 0.2f, 10, (Color){ 240, 240, 240, 255 });
-        DrawRectangleRoundedLines((Rectangle){ GetScreenWidth() - 280, 20, 260, 100 }, 0.2f, 10, BLACK);
+        // Monstro do oponente (na plataforma superior direita - onde está o Squirtle)
+        // Para o monstro do oponente (Squirtle na imagem):
+        Rectangle opponentRect = {
+            GetScreenWidth() * 0.72f - 80,   // Ajuste fino: 72% da largura
+            GetScreenHeight() * 0.40f,       // 32% da altura
+            160,
+            160
+        };
+
+        // Para o monstro do jogador (Charmander na imagem):
+        Rectangle playerRect = {
+            GetScreenWidth() * 0.22f ,   // Ajuste fino: 18% da largura
+            GetScreenHeight() * 0.78f,       // 65% da altura
+            160,
+            160
+        };
+
+        // Mantenha todo o resto do código como estava (boxes de informação, menus, etc.)
+        // ...
+
+        // Desenhar os monstros nas posições corretas
+        drawMonsterInBattle(opponentMonster, opponentRect, false);
+        drawMonsterInBattle(playerMonster, playerRect, true);
 
         // Nome do monstro oponente
         DrawText(opponentMonster->name, GetScreenWidth() - 270, 30, 24, BLACK);
