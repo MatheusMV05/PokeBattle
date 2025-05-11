@@ -83,16 +83,6 @@ static bool pendingFullscreen = false;
 static int pendingDifficultyIndex = 1;
 static int pendingAnimSpeedIndex = 1;
 
-
-
-static Resolution availableResolutions[] = {
-    { 1920, 1080, "1920x1080" },
-    { 1600, 900,  "1600x900" },
-    { 1366, 768,  "1366x768" },
-    { 1280, 720,  "1280x720" },
-    { 1024, 768,  "1024x768" }
-};
-static int numResolutions = 5;
  
  // Tabela de tipos
  void drawTypesTable(void) {

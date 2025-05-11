@@ -1129,13 +1129,17 @@ void updateBattleScreen(void) {
 }
 
 /**
- * Função para desenhar um monstro na batalha
+ * Função atualizada para desenhar um monstro na batalha,
+ * usando a textura frontal ou traseira dependendo de quem é o dono
  */
 void drawMonsterInBattle(PokeMonster* monster, Rectangle bounds, bool isPlayer) {
     if (monster == NULL) return;
 
+    // Escolher a textura apropriada (traseira para jogador, frontal para oponente)
+    Texture2D texture = isPlayer ? monster->backTexture : monster->frontTexture;
+
     // Verificar se a textura foi carregada
-    if (monster->texture.id == 0) {
+    if (texture.id == 0) {
         // Desenhar apenas uma silhueta se não houver textura
         Color monsterColor = getTypeColor(monster->type1);
         monsterColor.a = 200; // Semitransparente
@@ -1153,41 +1157,24 @@ void drawMonsterInBattle(PokeMonster* monster, Rectangle bounds, bool isPlayer) 
 
     // Calcular tamanho e posição para desenhar a textura
     float scale = fmin(
-        bounds.width / monster->texture.width,
-        bounds.height / monster->texture.height
+        bounds.width / texture.width,
+        bounds.height / texture.height
     ) * 0.9f; // Ligeiramente menor para deixar espaço
 
-    float width = monster->texture.width * scale;
-    float height = monster->texture.height * scale;
+    float width = texture.width * scale;
+    float height = texture.height * scale;
 
     float x = bounds.x + (bounds.width - width) / 2;
     float y = bounds.y + (bounds.height - height) / 2;
 
-    // Se for o monstro do jogador, aplicar efeito espelhado
-    if (isPlayer) {
-        // Desenhar com efeito espelhado (virado de costas)
-        DrawTexturePro(
-            monster->texture,
-            (Rectangle){ 0, 0, -monster->texture.width, monster->texture.height }, // Inverter horizontalmente
-            (Rectangle){ x, y, width, height },
-            (Vector2){ 0, 0 },
-            0.0f,  // Rotação
-            WHITE
-        );
-    } else {
-        // Desenhar normalmente com um efeito de "flutuação"
-        static float animTimer = 0;
-        animTimer += GetFrameTime() * 2.0f;
-        float offsetY = sinf(animTimer) * 3.0f; // Movimento suave para cima e para baixo
-
-        DrawTextureEx(
-            monster->texture,
-            (Vector2){ x, y + offsetY },
-            0.0f,
-            scale,
-            WHITE
-        );
-    }
+    // Desenhar a textura
+    DrawTextureEx(
+        texture,
+        (Vector2){ x, y },
+        0.0f,  // Rotação
+        scale,
+        WHITE
+    );
 
     // Adicionar efeitos baseados no status do monstro
     if (monster->statusCondition != STATUS_NONE) {
@@ -1488,7 +1475,7 @@ void createAttackEffect(MonsterType attackType, Vector2 origin, Vector2 target) 
             createBattleEffect(EFFECT_FLASH, (Rectangle){0}, (Color){50, 200, 50, 128}, origin, target, 0.2f);
             break;
 
-        case TYPE_METAL:
+        case TYPE_STEEL:
         case TYPE_FLYING:
             createBattleEffect(EFFECT_SLASH, (Rectangle){0}, WHITE, origin, target, 0.4f);
             createBattleEffect(EFFECT_SHAKE, (Rectangle){0}, WHITE, origin, target, 0.3f);

@@ -13,17 +13,41 @@ typedef struct PokeMonster PokeMonster;
 // Tipos de PokeMonstros
 typedef enum {
     TYPE_NONE = -1,
-    TYPE_METAL = 0,
-    TYPE_FIRE,
-    TYPE_WATER,
-    TYPE_ELECTRIC,
-    TYPE_GRASS,
-    TYPE_DRAGON,
-    TYPE_GHOST,
-    TYPE_FLYING,
-    TYPE_FAIRY,
+    TYPE_NORMAL = 0,
+    TYPE_FIRE,       // Fogo
+    TYPE_WATER,      // Água
+    TYPE_GRASS,      // Grama
+    TYPE_ELECTRIC,   // Elétrico
+    TYPE_ICE,        // Gelo
+    TYPE_FIGHTING,   // Lutador
+    TYPE_POISON,     // Veneno
+    TYPE_GROUND,     // Terra
+    TYPE_FLYING,     // Voador
+    TYPE_PSYCHIC,    // Psíquico
+    TYPE_BUG,        // Inseto
+    TYPE_ROCK,       // Pedra
+    TYPE_GHOST,      // Fantasma
+    TYPE_DRAGON,     // Dragão
+    TYPE_DARK,       // Sombrio
+    TYPE_STEEL,      // Metal/Ferro
+    TYPE_FAIRY,      // Fada
     TYPE_COUNT
 } MonsterType;
+
+typedef struct {
+    const char* name;
+    int pokedexNum;
+} MonsterMapping;
+
+// Estrutura para manter informações de animação
+typedef struct {
+    Texture2D* textures;      // Array de texturas para frames da animação
+    int frameCount;           // Número de frames
+    float frameDuration;      // Duração de cada frame em segundos
+    float timer;              // Timer para controlar a animação
+    int currentFrame;         // Frame atual
+    bool isAnimated;          // Flag indicando se é uma textura animada
+} AnimatedTexture;
 
 // Estrutura para os ataques
 typedef struct Attack {
@@ -52,7 +76,8 @@ struct PokeMonster {
     int statusCondition;
     int statusCounter;
     int statusTurns;
-    Texture2D texture;
+    Texture2D frontTexture;    // Textura frontal (GIF para o oponente)
+    Texture2D backTexture;     // Textura traseira (PNG para o jogador)
     struct PokeMonster* next;
     struct PokeMonster* prev;
 };
@@ -123,6 +148,8 @@ typedef struct {
     int top;
     int capacity;
 } EffectStack;
+
+
 
 // Estrutura para o banco de dados de monstros
 typedef struct {
