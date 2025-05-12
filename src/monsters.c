@@ -279,7 +279,7 @@ void createMonsterDatabase(void) {
     monsterDB.monsters[index].next = NULL;
     monsterDB.monsters[index].prev = NULL;
     addAttackToMonster(&monsterDB.monsters[index], 0, "Shadow Ball", TYPE_GHOST, 80, 100, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Nightmare", TYPE_GHOST, 60, 100, 15, STATUS_SLEEPING, 0, 60);
+    addAttackToMonster(&monsterDB.monsters[index], 1, "Nightmare", TYPE_GHOST, 60, 100, 15, STATUS_SLEEPING, 0, 20);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Phantom Force", TYPE_GHOST, 90, 90, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Shadow Sneak", TYPE_GHOST, 70, 100, 20, 0, 0, 0);
     index++;
@@ -383,7 +383,7 @@ void createMonsterDatabase(void) {
     addAttackToMonster(&monsterDB.monsters[index], 0, "Vine Whip", TYPE_GRASS, 70, 100, 20, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Solar Beam", TYPE_GRASS, 120, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Sludge Bomb", TYPE_POISON, 90, 95, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Sleep Powder", TYPE_GRASS, 0, 75, 15, STATUS_SLEEPING, 0, 100);
+    addAttackToMonster(&monsterDB.monsters[index], 3, "Sleep Powder", TYPE_GRASS, 0, 50, 5, STATUS_SLEEPING, 0, 10);
     index++;
 
     // Charizard (Fogo/Voador)
@@ -461,7 +461,7 @@ monsterDB.monsters[index].statusTurns = 0;
 monsterDB.monsters[index].next = NULL;
 monsterDB.monsters[index].prev = NULL;
 addAttackToMonster(&monsterDB.monsters[index], 0, "Confusion", TYPE_PSYCHIC, 50, 100, 25, 0, 0, 0);
-addAttackToMonster(&monsterDB.monsters[index], 1, "Sleep Powder", TYPE_GRASS, 0, 75, 15, STATUS_SLEEPING, 0, 100);
+addAttackToMonster(&monsterDB.monsters[index], 1, "Sleep Powder", TYPE_GRASS, 0, 50, 5, STATUS_SLEEPING, 0, 100);
 addAttackToMonster(&monsterDB.monsters[index], 2, "Gust", TYPE_FLYING, 40, 100, 35, 0, 0, 0);
 addAttackToMonster(&monsterDB.monsters[index], 3, "Psychic", TYPE_PSYCHIC, 90, 100, 10, 0, 0, 0);
 index++;

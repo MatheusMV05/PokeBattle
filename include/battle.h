@@ -69,7 +69,7 @@ typedef enum {
     STATUS_BURNING = 6
 } StatusType;
 
-// Protótipos das funções existentes...
+// Protótipos das funções existentes
 void initializeBattleSystem(void);
 void freeBattleSystem(void);
 void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam);
@@ -97,4 +97,12 @@ void processStatusEffects(PokeMonster* monster);
 void displayStatusMessage(const char* message);
 void determineAndExecuteTurnOrder(void);
 void messageDisplayComplete(void);
+// Inicializa a árvore de decisão para o bot
+void initBotDecisionTree(void);
+
+// Libera a árvore de decisão
+void freeBotDecisionTree(void);
+
+// Encontra o melhor ataque de status
+int getBestStatusAttack(PokeMonster* botMonster, PokeMonster* playerMonster);
 #endif // BATTLE_H
