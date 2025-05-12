@@ -52,7 +52,7 @@ static TypewriterText typewriter = {0};
 #define FONT_SIZE_LARGE (10 * UI_SCALE)
 #define PADDING (4 * UI_SCALE)
 
-// Cores do estilo FireRed
+// Cores da UI
 #define COLOR_UI_BG (Color){248, 248, 248, 255}
 #define COLOR_BOX_BG (Color){255, 255, 255, 255}
 #define COLOR_BOX_BORDER (Color){40, 40, 40, 255}
@@ -66,6 +66,7 @@ static TypewriterText typewriter = {0};
 #define COLOR_PLATFORM_PLAYER (Color){168, 168, 160, 255}
 #define COLOR_MALE_GENDER (Color){0, 144, 240, 255}
 #define COLOR_FEMALE_GENDER (Color){248, 96, 104, 255}
+
 #define REF_ENEMY_POS_X     520
 #define REF_ENEMY_POS_Y     180
 #define REF_PLAYER_POS_X    200

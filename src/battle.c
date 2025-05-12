@@ -17,7 +17,7 @@
  #include "battle.h"
  #include "monsters.h"
  #include "ia_integration.h"
-#import  "resources.h"
+ #import  "resources.h"
 
  char battleMessage[256] = "";
  BattleMessage currentMessage = {0};
