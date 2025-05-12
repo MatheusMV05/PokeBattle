@@ -687,7 +687,7 @@ addAttackToMonster(&monsterDB.monsters[index], 3, "Sleep Powder", TYPE_GRASS, 0,
 index++;
 
 // Tentacruel (Água/Veneno)
-strcpy(monsterDB.monsters[index].name, "Tentacrual");
+strcpy(monsterDB.monsters[index].name, "Tentacruel");
 monsterDB.monsters[index].type1 = TYPE_WATER;
 monsterDB.monsters[index].type2 = TYPE_POISON;
 monsterDB.monsters[index].maxHp = 80;
@@ -1562,11 +1562,12 @@ int getPokedexNumber(const char* monsterName) {
  * Carrega as texturas para os monstros usando o padrão de nomenclatura
  * [número]-[Nome]-(front/back).(gif/png)
  */
+// monsters.c - Modificar função loadMonsterTextures
 void loadMonsterTextures(void) {
     char frontPath[256];
     char backPath[256];
+    char fallbackPath[256];
     int pokedexNum;
-    bool anyTextureLoaded = false;
 
     printf("Iniciando carregamento de texturas dos monstros...\n");
 
@@ -1578,67 +1579,69 @@ void loadMonsterTextures(void) {
         if (pokedexNum < 0) {
             printf("Aviso: Monstro '%s' não tem número na Pokedex mapeado.\n",
                 monsterDB.monsters[i].name);
-            continue;
+
+            // Usar número de índice como fallback
+            pokedexNum = 1000 + i;
         }
 
-        // Construir os caminhos para os arquivos de textura
+        // Caminhos primários para sprites
         snprintf(frontPath, sizeof(frontPath), "resources/sprites/pokemon/%03d-%s-front.gif",
                 pokedexNum, monsterDB.monsters[i].name);
         snprintf(backPath, sizeof(backPath), "resources/sprites/pokemon/%03d-%s-back.png",
                 pokedexNum, monsterDB.monsters[i].name);
 
-        // Tentar carregar a textura frontal (para o oponente)
+        // Tentar carregar sprites primários
         Image frontImage = LoadImage(frontPath);
-
-        if (frontImage.data != NULL) {
-            // Imagem carregada com sucesso
-            monsterDB.monsters[i].frontTexture = LoadTextureFromImage(frontImage);
-            UnloadImage(frontImage);
-            printf("Textura frontal carregada: %s\n", frontPath);
-            anyTextureLoaded = true;
-        } else {
-            printf("Aviso: Não foi possível carregar textura frontal: %s\n", frontPath);
-        }
-
-        // Tentar carregar a textura traseira (para o jogador)
         Image backImage = LoadImage(backPath);
 
-        if (backImage.data != NULL) {
-            // Imagem carregada com sucesso
-            monsterDB.monsters[i].backTexture = LoadTextureFromImage(backImage);
-            UnloadImage(backImage);
-            printf("Textura traseira carregada: %s\n", backPath);
-            anyTextureLoaded = true;
-        } else {
-            printf("Aviso: Não foi possível carregar textura traseira: %s\n", backPath);
+        // Verificar se carregou com sucesso
+        if (frontImage.data == NULL || backImage.data == NULL) {
+            // Tentar caminhos secundários sem o nome
+            snprintf(frontPath, sizeof(frontPath), "resources/sprites/pokemon/%03d-front.gif", pokedexNum);
+            snprintf(backPath, sizeof(backPath), "resources/sprites/pokemon/%03d-back.png", pokedexNum);
+
+            if (frontImage.data == NULL) frontImage = LoadImage(frontPath);
+            if (backImage.data == NULL) backImage = LoadImage(backPath);
         }
 
-        // Se nenhuma textura foi carregada, tentar carregar uma textura padrão baseada no tipo
-        if (monsterDB.monsters[i].frontTexture.id == 0 && monsterDB.monsters[i].backTexture.id == 0) {
-            char defaultTexturePath[256];
+        // Se ainda falhar, usar sprites de placeholder
+        if (frontImage.data == NULL) {
+            snprintf(fallbackPath, sizeof(fallbackPath), "resources/fallback/%03d.png", pokedexNum % 10);
+            frontImage = LoadImage(fallbackPath);
 
-            // Carregar uma textura baseada no tipo do monstro
-            snprintf(defaultTexturePath, sizeof(defaultTexturePath),
-                     "resources/types/%s.png", getTypeName(monsterDB.monsters[i].type1));
+            // Se ainda falhar, usar ícone de tipo
+            if (frontImage.data == NULL) {
+                snprintf(fallbackPath, sizeof(fallbackPath), "resources/types/%s.png",
+                        getTypeName(monsterDB.monsters[i].type1));
+                frontImage = LoadImage(fallbackPath);
 
-            Image defaultImage = LoadImage(defaultTexturePath);
-            if (defaultImage.data != NULL) {
-                monsterDB.monsters[i].frontTexture = LoadTextureFromImage(defaultImage);
-                monsterDB.monsters[i].backTexture = monsterDB.monsters[i].frontTexture;
-                UnloadImage(defaultImage);
-                printf("Textura padrão carregada para %s: %s\n",
-                      monsterDB.monsters[i].name, defaultTexturePath);
-            } else {
-                printf("Aviso: Nem textura padrão pôde ser carregada para %s\n",
-                      monsterDB.monsters[i].name);
+                // Se tudo falhar, criar imagem de placeholder
+                if (frontImage.data == NULL) {
+                    frontImage = GenImageColor(64, 64, getTypeColor(monsterDB.monsters[i].type1));
+                }
             }
         }
-    }
 
-    if (anyTextureLoaded) {
-        printf("Texturas dos monstros carregadas com sucesso!\n");
-    } else {
-        printf("Alerta: Nenhuma textura de monstro foi carregada!\n");
+        // Se backImage falhou, usar a mesma que frontImage
+        if (backImage.data == NULL) {
+            // Criar uma cópia da imagem frontal
+            if (frontImage.data != NULL) {
+                backImage = ImageCopy(frontImage);
+            } else {
+                backImage = GenImageColor(64, 64, getTypeColor(monsterDB.monsters[i].type1));
+            }
+        }
+
+        // Converter imagens para texturas
+        if (frontImage.data != NULL) {
+            monsterDB.monsters[i].frontTexture = LoadTextureFromImage(frontImage);
+            UnloadImage(frontImage);
+        }
+
+        if (backImage.data != NULL) {
+            monsterDB.monsters[i].backTexture = LoadTextureFromImage(backImage);
+            UnloadImage(backImage);
+        }
     }
 }
 
