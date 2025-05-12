@@ -30,7 +30,9 @@ file(GLOB_RECURSE SOURCES
 # Criar o executável
 add_executable(pokebattle ${SOURCES}
         src/scaling.c
-        include/scaling.h)
+        include/scaling.h
+        src/decision_tree.c
+        include/decision_tree.h)
 
 # Linkar bibliotecas necessárias no Windows
 target_link_libraries(pokebattle

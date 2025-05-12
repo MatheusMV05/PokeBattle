@@ -18,16 +18,15 @@
  #include "monsters.h"
  #include "ia_integration.h"
  #import  "resources.h"
+#include "decision_tree.h"
 
  char battleMessage[256] = "";
  BattleMessage currentMessage = {0};
  BattleAnimation currentAnimation = {0};
  bool actionQueueReady = false;
  float stateTransitionDelay = 0.0f;
-
-
-
- // Mensagem de batalha atual
+// Variável global para armazenar a árvore de decisão
+static DecisionNode* botDecisionTree = NULL;
 
 void displayBattleMessage(const char* message, float duration, bool waitForInput, bool autoAdvance);
 void startAttackAnimation(PokeMonster* attacker, PokeMonster* defender, int attackIndex);
@@ -110,6 +109,7 @@ void checkBothPlayersReady(void) {
      battleSystem->selectedAction = 0;
      battleSystem->itemUsed = false;
      battleSystem->itemType = ITEM_POTION; // Padrão
+     initBotDecisionTree();
      
      // Verificar se tudo foi alocado corretamente
      if (battleSystem->actionQueue == NULL || battleSystem->effectStack == NULL) {
@@ -958,27 +958,121 @@ void useItem(ItemType itemType, PokeMonster* target) {
 
 
  // Faz o bot escolher uma ação
+// Inicializar a árvore de decisão ao iniciar o sistema de batalha
+void initBotDecisionTree(void) {
+    if (botDecisionTree != NULL) {
+        freeDecisionTree(botDecisionTree);
+    }
+
+    botDecisionTree = createBotDecisionTree();
+}
+
+// Liberar a árvore de decisão
+void freeBotDecisionTree(void) {
+    if (botDecisionTree != NULL) {
+        freeDecisionTree(botDecisionTree);
+        botDecisionTree = NULL;
+    }
+}
+
+// Melhorar a função botChooseAction usando a árvore de decisão
 void botChooseAction(void) {
     if (battleSystem == NULL ||
         battleSystem->opponentTeam == NULL || battleSystem->opponentTeam->current == NULL ||
         battleSystem->playerTeam == NULL || battleSystem->playerTeam->current == NULL) {
         printf("[DEBUG BOT] Erro: ponteiros inválidos\n");
         return;
-        }
+    }
 
     PokeMonster* botMonster = battleSystem->opponentTeam->current;
     PokeMonster* playerMonster = battleSystem->playerTeam->current;
 
-    printf("[DEBUG BOT] Bot escolhendo ação...\n");
+    printf("[DEBUG BOT] Bot escolhendo ação usando árvore de decisão...\n");
 
-    // Obter sugestão da IA
-    int action = getAISuggestedAction(botMonster, playerMonster);
-    printf("[DEBUG BOT] IA sugeriu ação: %d\n", action);
+    // Usar a árvore de decisão se estiver disponível
+    if (botDecisionTree != NULL) {
+        BotDecision decision = traverseDecisionTree(botDecisionTree, botMonster, playerMonster);
 
-    // Sempre atacar se não puder fazer outra coisa
-    int attackIndex = botChooseAttack(botMonster, playerMonster);
-    enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-    printf("[DEBUG BOT] Bot enfileirou ataque %d\n", attackIndex);
+        // Processar a decisão
+        switch (decision.action) {
+            case ACTION_ATTACK: {
+                // Obter o índice do ataque
+                int attackIndex;
+
+                if (decision.parameter == 0) {
+                    // Usar IA para escolher o melhor ataque
+                    attackIndex = getAISuggestedAttack(botMonster, playerMonster);
+                } else if (decision.parameter == 1) {
+                    // Escolher um ataque de status
+                    attackIndex = getBestStatusAttack(botMonster, playerMonster);
+                } else {
+                    // Ataque específico ou fallback para ataque aleatório
+                    attackIndex = rand() % 4;
+
+                    // Verificar se o ataque tem PP
+                    int attempts = 0;
+                    while (botMonster->attacks[attackIndex].ppCurrent <= 0 && attempts < 4) {
+                        attackIndex = (attackIndex + 1) % 4;
+                        attempts++;
+                    }
+                }
+
+                // Enfileirar o ataque
+                enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+                printf("[DEBUG BOT] Bot enfileirou ataque %d\n", attackIndex);
+                break;
+            }
+
+            case ACTION_SWITCH: {
+                // Escolher um monstro para trocar
+                PokeMonster* newMonster = botChooseMonster(battleSystem->opponentTeam, playerMonster);
+
+                if (newMonster && newMonster != botMonster) {
+                    // Encontrar o índice do monstro na equipe
+                    int monsterIndex = 0;
+                    PokeMonster* current = battleSystem->opponentTeam->first;
+
+                    while (current && current != newMonster) {
+                        monsterIndex++;
+                        current = current->next;
+                    }
+
+                    // Enfileirar a troca
+                    enqueue(battleSystem->actionQueue, 1, monsterIndex, botMonster);
+                    printf("[DEBUG BOT] Bot enfileirou troca para monstro %d\n", monsterIndex);
+                } else {
+                    // Fallback para ataque
+                    int attackIndex = getAISuggestedAttack(botMonster, playerMonster);
+                    enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+                    printf("[DEBUG BOT] Troca falhou, bot enfileirou ataque %d\n", attackIndex);
+                }
+                break;
+            }
+
+            case ACTION_ITEM: {
+                // Enfileirar uso de item
+                enqueue(battleSystem->actionQueue, 2, decision.parameter, botMonster);
+                printf("[DEBUG BOT] Bot enfileirou uso de item %d\n", decision.parameter);
+                break;
+            }
+
+            default: {
+                // Fallback para ataque
+                int attackIndex = getAISuggestedAttack(botMonster, playerMonster);
+                enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+                printf("[DEBUG BOT] Decisão inválida, bot enfileirou ataque %d\n", attackIndex);
+                break;
+            }
+        }
+    } else {
+        // Fallback para o sistema antigo
+        printf("[DEBUG BOT] Árvore de decisão não disponível, usando sistema antigo\n");
+
+        // Usar código existente
+        int attackIndex = botChooseAttack(botMonster, playerMonster);
+        enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+        printf("[DEBUG BOT] Bot enfileirou ataque %d\n", attackIndex);
+    }
 
     // Verificar se ambos jogadores fizeram suas escolhas
     printf("[DEBUG BOT] Ações na fila: %d\n", battleSystem->actionQueue->count);
@@ -987,6 +1081,39 @@ void botChooseAction(void) {
         battleSystem->battleState = BATTLE_PREPARING_ACTIONS;
         printf("[DEBUG BOT] Ambos jogadores escolheram, indo para PREPARING_ACTIONS\n");
     }
+}
+
+// Função auxiliar para encontrar o melhor ataque de status
+int getBestStatusAttack(PokeMonster* botMonster, PokeMonster* playerMonster) {
+    int bestAttackIndex = -1;
+    int bestStatusEffect = 0;
+
+    // Procurar por ataques que causam efeito de status
+    for (int i = 0; i < 4; i++) {
+        if (botMonster->attacks[i].ppCurrent <= 0) continue;
+
+        if (botMonster->attacks[i].statusEffect > 0 &&
+            botMonster->attacks[i].statusChance > 0) {
+
+            // Priorizar paralisia e sono
+            if (botMonster->attacks[i].statusEffect > bestStatusEffect) {
+                bestStatusEffect = botMonster->attacks[i].statusEffect;
+                bestAttackIndex = i;
+            }
+        }
+    }
+
+    // Se não encontrou ataque de status, retorna o primeiro ataque disponível
+    if (bestAttackIndex == -1) {
+        for (int i = 0; i < 4; i++) {
+            if (botMonster->attacks[i].ppCurrent > 0) {
+                return i;
+            }
+        }
+        return 0; // Fallback
+    }
+
+    return bestAttackIndex;
 }
 
 // Faz o bot escolher um ataque
@@ -1271,3 +1398,5 @@ void startAttackAnimation(PokeMonster* attacker, PokeMonster* defender, int atta
     currentAnimation.target = defender;
     battleSystem->battleState = BATTLE_ATTACK_ANIMATION;
 }
+
+
