@@ -14,6 +14,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include "scaling.h"
 
 // Declaração de funções de sistema de batalha
 void displayBattleMessage(const char* message, float duration, bool waitForInput, bool autoAdvance);
@@ -65,6 +66,23 @@ static TypewriterText typewriter = {0};
 #define COLOR_PLATFORM_PLAYER (Color){168, 168, 160, 255}
 #define COLOR_MALE_GENDER (Color){0, 144, 240, 255}
 #define COLOR_FEMALE_GENDER (Color){248, 96, 104, 255}
+#define REF_ENEMY_POS_X     520
+#define REF_ENEMY_POS_Y     180
+#define REF_PLAYER_POS_X    200
+#define REF_PLAYER_POS_Y    360
+#define REF_MONSTER_SIZE    150
+#define REF_ACTION_BOX_X    10
+#define REF_ACTION_BOX_Y    440
+#define REF_ACTION_BOX_W    670
+#define REF_ACTION_BOX_H    110
+#define REF_ENEMY_STATUS_X  480
+#define REF_ENEMY_STATUS_Y  20
+#define REF_ENEMY_STATUS_W  200
+#define REF_ENEMY_STATUS_H  65
+#define REF_PLAYER_STATUS_X 480
+#define REF_PLAYER_STATUS_Y 390
+#define REF_PLAYER_STATUS_W 200
+#define REF_PLAYER_STATUS_H 80
 
 // Backgrounds disponíveis para batalha
 extern Texture2D battleBackgrounds[BATTLE_BACKGROUNDS_COUNT];
@@ -147,16 +165,21 @@ void updateTypewriter(void) {
  * @param color Cor do texto
  */
 void drawTypewriterText(Vector2 position, float fontSize, Color color) {
+    // Escalar o tamanho da fonte
+    float scaledFontSize = ScaleFontSize(fontSize);
+
     // Desenhar o texto atual
-    DrawText(typewriter.displayText, position.x, position.y, fontSize, color);
+    DrawText(typewriter.displayText, position.x, position.y, scaledFontSize, color);
 
     // Se o texto estiver completo e esperando input, desenhar indicador de continuar
     if (typewriter.isComplete && typewriter.waitingForInput) {
         if (sinf(typewriter.blinkTimer) > 0.0f) {
             // Triângulo pequeno piscando
-            Vector2 v1 = {position.x + MeasureText(typewriter.displayText, fontSize) + 10, position.y + fontSize/2};
-            Vector2 v2 = {v1.x + 8, v1.y};
-            Vector2 v3 = {v1.x + 4, v1.y + 6};
+            float triangleSize = ScaleFontSize(8);
+            Vector2 v1 = {position.x + MeasureText(typewriter.displayText, scaledFontSize) + 10 * GetScaleX(),
+                          position.y + scaledFontSize/2};
+            Vector2 v2 = {v1.x + triangleSize, v1.y};
+            Vector2 v3 = {v1.x + triangleSize/2, v1.y + triangleSize};
             DrawTriangle(v1, v2, v3, color);
         }
     }
@@ -182,10 +205,13 @@ bool isTypewriterWaitingInput(void) {
  * @param isSelected Se a caixa está selecionada (adiciona destaque)
  */
 void drawFireRedBox(Rectangle bounds, bool isSelected) {
+    float borderThickness = 2.0f * ((GetScaleX() + GetScaleY()) / 2.0f);
+    float shadowOffset = 2.0f * ((GetScaleX() + GetScaleY()) / 2.0f);
+
     // Sombra inferior direita
     Rectangle shadowRect = {
-        bounds.x + 2,
-        bounds.y + 2,
+        bounds.x + shadowOffset,
+        bounds.y + shadowOffset,
         bounds.width,
         bounds.height
     };
@@ -196,16 +222,16 @@ void drawFireRedBox(Rectangle bounds, bool isSelected) {
 
     // Fundo branco interno
     Rectangle innerRect = {
-        bounds.x + 2,
-        bounds.y + 2,
-        bounds.width - 4,
-        bounds.height - 4
+        bounds.x + borderThickness,
+        bounds.y + borderThickness,
+        bounds.width - (borderThickness * 2),
+        bounds.height - (borderThickness * 2)
     };
     DrawRectangleRec(innerRect, COLOR_BOX_BG);
 
     // Destaque se selecionado
     if (isSelected) {
-        DrawRectangleLinesEx(bounds, 2, COLOR_TEXT_MAIN);
+        DrawRectangleLinesEx(bounds, borderThickness, COLOR_TEXT_MAIN);
     }
 }
 
@@ -219,16 +245,25 @@ void drawFireRedBox(Rectangle bounds, bool isSelected) {
 void drawFireRedHPBar(Vector2 position, float width, float currentHP, float maxHP) {
     float hpPercentage = (maxHP > 0) ? (currentHP / maxHP) : 0;
 
+    // Escalas para a altura da barra e bordas
+    float barHeight = 6 * ((GetScaleX() + GetScaleY()) / 2.0f);
+    float borderThickness = 1 * ((GetScaleX() + GetScaleY()) / 2.0f);
+
     // Borda da barra
-    Rectangle borderRect = {position.x, position.y, width, 6 * UI_SCALE};
+    Rectangle borderRect = {
+        position.x,
+        position.y,
+        width,
+        barHeight
+    };
     DrawRectangleRec(borderRect, COLOR_BOX_BORDER);
 
     // Fundo branco
     Rectangle bgRect = {
-        position.x + 1,
-        position.y + 1,
-        width - 2,
-        4 * UI_SCALE
+        position.x + borderThickness,
+        position.y + borderThickness,
+        width - (borderThickness * 2),
+        barHeight - (borderThickness * 2)
     };
     DrawRectangleRec(bgRect, COLOR_BOX_BG);
 
@@ -240,10 +275,10 @@ void drawFireRedHPBar(Vector2 position, float width, float currentHP, float maxH
     // Preenchimento da HP
     if (hpPercentage > 0) {
         Rectangle hpRect = {
-            position.x + 1,
-            position.y + 1,
-            (width - 2) * hpPercentage,
-            4 * UI_SCALE
+            position.x + borderThickness,
+            position.y + borderThickness,
+            (width - (borderThickness * 2)) * hpPercentage,
+            barHeight - (borderThickness * 2)
         };
         DrawRectangleRec(hpRect, hpColor);
     }
@@ -288,83 +323,76 @@ void drawFireRedEXPBar(Vector2 position, float width, float expPercentage) {
 void drawOpponentStatusBox(PokeMonster* monster) {
     if (monster == NULL) return;
 
-    // Posição e tamanho da caixa
-    Rectangle statusBox = {
-        8 * UI_SCALE,
-        8 * UI_SCALE,
-        96 * UI_SCALE,
-        30 * UI_SCALE
-    };
+    // Posição e tamanho da caixa escalados
+    Rectangle statusBox = ScaleRectangle(
+        REF_ENEMY_STATUS_X,
+        REF_ENEMY_STATUS_Y,
+        REF_ENEMY_STATUS_W,
+        REF_ENEMY_STATUS_H
+    );
 
     drawFireRedBox(statusBox, false);
 
-    // Nome do Pokémon
-    Vector2 namePos = {statusBox.x + 4 * UI_SCALE, statusBox.y + 4 * UI_SCALE};
-    DrawText(monster->name, namePos.x, namePos.y, FONT_SIZE_SMALL, COLOR_TEXT_MAIN);
-
-    // Símbolo de gênero (exemplo - sempre macho por enquanto)
-    Vector2 genderPos = {namePos.x + MeasureText(monster->name, FONT_SIZE_SMALL) + 2 * UI_SCALE, namePos.y};
-    DrawText("♂", genderPos.x, genderPos.y, FONT_SIZE_SMALL, COLOR_MALE_GENDER);
+    // Nome do Pokémon - fonte escalada
+    float fontSize = ScaleFontSize(18);
+    Vector2 namePos = {statusBox.x + 8 * GetScaleX(), statusBox.y + 8 * GetScaleY()};
+    DrawText(monster->name, namePos.x, namePos.y, fontSize, COLOR_TEXT_MAIN);
 
     // Nível
-    Vector2 levelPos = {statusBox.x + statusBox.width - 25 * UI_SCALE, namePos.y};
-    DrawText("Lv5", levelPos.x, levelPos.y, FONT_SIZE_SMALL, COLOR_TEXT_MAIN);
-
-    // Label HP
-    Vector2 hpLabelPos = {statusBox.x + 4 * UI_SCALE, statusBox.y + 16 * UI_SCALE};
-    DrawText("HP", hpLabelPos.x, hpLabelPos.y, FONT_SIZE_SMALL, COLOR_TEXT_MAIN);
+    Vector2 levelPos = {statusBox.x + statusBox.width - 50 * GetScaleX(), namePos.y};
+    DrawText("Lv5", levelPos.x, levelPos.y, fontSize, COLOR_TEXT_MAIN);
 
     // Barra de HP
-    Vector2 hpBarPos = {hpLabelPos.x + 16 * UI_SCALE, hpLabelPos.y + UI_SCALE};
-    drawFireRedHPBar(hpBarPos, 48 * UI_SCALE, monster->hp, monster->maxHp);
+    Vector2 hpBarPos = {statusBox.x + 45 * GetScaleX(), statusBox.y + 35 * GetScaleY()};
+    drawFireRedHPBar(
+        hpBarPos,
+        statusBox.width - 55 * GetScaleX(),
+        monster->hp,
+        monster->maxHp
+    );
 }
 
 /**
  * Desenha a caixa de status do jogador
  * @param monster Monstro do jogador
  */
+
 void drawPlayerStatusBox(PokeMonster* monster) {
     if (monster == NULL) return;
 
-    // Posição e tamanho da caixa
-    Rectangle statusBox = {
-        GetScreenWidth() - (100 * UI_SCALE) - (8 * UI_SCALE),
-        GetScreenHeight() - (40 * UI_SCALE) - (48 * UI_SCALE) - (12 * UI_SCALE),
-        100 * UI_SCALE,
-        40 * UI_SCALE
-    };
+    // Posição e tamanho da caixa escalados
+    Rectangle statusBox = ScaleRectangle(
+        REF_PLAYER_STATUS_X,
+        REF_PLAYER_STATUS_Y,
+        REF_PLAYER_STATUS_W,
+        REF_PLAYER_STATUS_H
+    );
 
     drawFireRedBox(statusBox, false);
 
-    // Nome do Pokémon
-    Vector2 namePos = {statusBox.x + 4 * UI_SCALE, statusBox.y + 4 * UI_SCALE};
-    DrawText(monster->name, namePos.x, namePos.y, FONT_SIZE_SMALL, COLOR_TEXT_MAIN);
-
-    // Símbolo de gênero
-    Vector2 genderPos = {namePos.x + MeasureText(monster->name, FONT_SIZE_SMALL) + 2 * UI_SCALE, namePos.y};
-    DrawText("♂", genderPos.x, genderPos.y, FONT_SIZE_SMALL, COLOR_MALE_GENDER);
+    // Nome do Pokémon - fonte escalada
+    float fontSize = ScaleFontSize(18);
+    Vector2 namePos = {statusBox.x + 8 * GetScaleX(), statusBox.y + 8 * GetScaleY()};
+    DrawText(monster->name, namePos.x, namePos.y, fontSize, COLOR_TEXT_MAIN);
 
     // Nível
-    Vector2 levelPos = {statusBox.x + statusBox.width - 25 * UI_SCALE, namePos.y};
-    DrawText("Lv5", levelPos.x, levelPos.y, FONT_SIZE_SMALL, COLOR_TEXT_MAIN);
+    Vector2 levelPos = {statusBox.x + statusBox.width - 50 * GetScaleX(), namePos.y};
+    DrawText("Lv5", levelPos.x, levelPos.y, fontSize, COLOR_TEXT_MAIN);
 
     // Barra de HP
-    Vector2 hpBarPos = {statusBox.x + 20 * UI_SCALE, statusBox.y + 16 * UI_SCALE};
-    drawFireRedHPBar(hpBarPos, 48 * UI_SCALE, monster->hp, monster->maxHp);
+    Vector2 hpBarPos = {statusBox.x + 45 * GetScaleX(), statusBox.y + 35 * GetScaleY()};
+    drawFireRedHPBar(
+        hpBarPos,
+        statusBox.width - 55 * GetScaleX(),
+        monster->hp,
+        monster->maxHp
+    );
 
     // Texto de HP
     char hpText[16];
     sprintf(hpText, "%d/%d", monster->hp, monster->maxHp);
-    Vector2 hpTextPos = {hpBarPos.x + 48 * UI_SCALE + 4 * UI_SCALE, hpBarPos.y};
-    DrawText(hpText, hpTextPos.x, hpTextPos.y, FONT_SIZE_SMALL, COLOR_TEXT_MAIN);
-
-    // Label EXP
-    Vector2 expLabelPos = {statusBox.x + 4 * UI_SCALE, statusBox.y + 28 * UI_SCALE};
-    DrawText("EXP", expLabelPos.x, expLabelPos.y, 6 * UI_SCALE, COLOR_TEXT_MAIN);
-
-    // Barra de EXP
-    Vector2 expBarPos = {expLabelPos.x + 18 * UI_SCALE, expLabelPos.y + UI_SCALE};
-    drawFireRedEXPBar(expBarPos, 64 * UI_SCALE, 0.1f); // 10% de exemplo
+    Vector2 hpTextPos = {statusBox.x + 8 * GetScaleX(), statusBox.y + 55 * GetScaleY()};
+    DrawText(hpText, hpTextPos.x, hpTextPos.y, ScaleFontSize(16), COLOR_TEXT_MAIN);
 }
 
 /**
@@ -372,29 +400,15 @@ void drawPlayerStatusBox(PokeMonster* monster) {
  * Gerencia todos os estados visuais da batalha
  */
 void drawBattleScreen(void) {
-    // Atualizar música da batalha
+      // Atualizar música da batalha
     UpdateMusicStream(battleMusic);
 
-    // Desenhar background
-    if (currentBattleBackground >= 0 &&
-        currentBattleBackground < BATTLE_BACKGROUNDS_COUNT &&
-        battleBackgrounds[currentBattleBackground].id != 0) {
+    // Desenhar fundo simples (plano ou listrado horizontal como no Crystal)
+    ClearBackground(RAYWHITE);
 
-        DrawTexturePro(
-            battleBackgrounds[currentBattleBackground],
-            (Rectangle){ 0, 0,
-                        (float)battleBackgrounds[currentBattleBackground].width,
-                        (float)battleBackgrounds[currentBattleBackground].height },
-            (Rectangle){ 0, 0,
-                        (float)GetScreenWidth(),
-                        (float)GetScreenHeight() },
-            (Vector2){ 0, 0 },
-            0.0f,
-            WHITE
-        );
-    } else {
-        // Fundo padrão caso não tenha background
-        ClearBackground(COLOR_UI_BG);
+    // Desenhar listras horizontais sutis como no Pokémon Crystal
+    for (int i = 0; i < GetScreenHeight(); i += (int)(8 * GetScaleY())) {
+        DrawRectangle(0, i, GetScreenWidth(), (int)(4 * GetScaleY()), (Color){200, 230, 220, 80});
     }
 
     // Verificar se o sistema de batalha está válido
@@ -405,53 +419,41 @@ void drawBattleScreen(void) {
         PokeMonster* playerMonster = battleSystem->playerTeam->current;
         PokeMonster* opponentMonster = battleSystem->opponentTeam->current;
 
-        // Desenhar plataformas estilo FireRed
-        // Plataforma do oponente (elipse cinza clara)
-        Vector2 enemyPlatformCenter = {
-            GetScreenWidth() * 0.72f,
-            GetScreenHeight() * 0.35f
-        };
-        DrawEllipse(enemyPlatformCenter.x, enemyPlatformCenter.y,
-                   100 * UI_SCALE, 20 * UI_SCALE, COLOR_PLATFORM_ENEMY);
+        // Obter posições escaladas
+        Vector2 enemyPosition = ScalePosition(REF_ENEMY_POS_X, REF_ENEMY_POS_Y);
+        Vector2 playerPosition = ScalePosition(REF_PLAYER_POS_X, REF_PLAYER_POS_Y);
+        float monsterSize = REF_MONSTER_SIZE * ((GetScaleX() + GetScaleY()) / 2.0f);
 
-        // Plataforma do jogador (elipse cinza mais escura)
-        Vector2 playerPlatformCenter = {
-            GetScreenWidth() * 0.30f,
-            GetScreenHeight() * 0.75f
-        };
-        DrawEllipse(playerPlatformCenter.x, playerPlatformCenter.y,
-                   90 * UI_SCALE, 15 * UI_SCALE, COLOR_PLATFORM_PLAYER);
-
-        // Posições dos sprites
+        // Definir retângulos para posicionar os sprites
         Rectangle opponentRect = {
-            enemyPlatformCenter.x - 64,
-            enemyPlatformCenter.y - 140,
-            128,
-            128
+            enemyPosition.x - monsterSize/2,
+            enemyPosition.y - monsterSize/2,
+            monsterSize,
+            monsterSize
         };
 
         Rectangle playerRect = {
-            playerPlatformCenter.x - 64,
-            playerPlatformCenter.y - 140,
-            128,
-            128
+            playerPosition.x - monsterSize/2,
+            playerPosition.y - monsterSize/2,
+            monsterSize,
+            monsterSize
         };
 
         // Desenhar os monstros
         drawMonsterInBattle(opponentMonster, opponentRect, false);
         drawMonsterInBattle(playerMonster, playerRect, true);
 
-        // Desenhar caixas de status
+        //Desenha a box de status dos monstros
         drawOpponentStatusBox(opponentMonster);
         drawPlayerStatusBox(playerMonster);
 
-        // Caixa principal de ação/mensagem
-        Rectangle actionBox = {
-            4 * UI_SCALE,
-            GetScreenHeight() - (48 * UI_SCALE) - (4 * UI_SCALE),
-            GetScreenWidth() - (8 * UI_SCALE),
-            48 * UI_SCALE
-        };
+        // Caixa principal de ação/mensagem - Usar valores escalados
+        Rectangle actionBox = ScaleRectangle(
+            REF_ACTION_BOX_X,
+            REF_ACTION_BOX_Y,
+            REF_ACTION_BOX_W,
+            REF_ACTION_BOX_H
+        );
 
         drawFireRedBox(actionBox, false);
 
@@ -1144,14 +1146,8 @@ void drawMonsterInBattle(PokeMonster* monster, Rectangle bounds, bool isPlayer) 
         Color monsterColor = getTypeColor(monster->type1);
         monsterColor.a = 200; // Semitransparente
 
-        if (isPlayer) {
-            // Silhueta traseira para o jogador
-            DrawRectangleRounded((Rectangle){ bounds.x + 30, bounds.y + 20,
-                               bounds.width - 60, bounds.height - 40 }, 0.5f, 10, monsterColor);
-        } else {
-            // Silhueta frontal para o oponente
-            DrawRectangleRounded(bounds, 0.3f, 10, monsterColor);
-        }
+        // Desenhar silhueta simples sem plataformas
+        DrawRectangleRounded(bounds, 0.3f, 10, monsterColor);
         return;
     }
 
@@ -1159,7 +1155,7 @@ void drawMonsterInBattle(PokeMonster* monster, Rectangle bounds, bool isPlayer) 
     float scale = fmin(
         bounds.width / texture.width,
         bounds.height / texture.height
-    ) * 0.9f; // Ligeiramente menor para deixar espaço
+    ) * 1.2f; // Um pouco maior para ficar mais próximo da tela
 
     float width = texture.width * scale;
     float height = texture.height * scale;

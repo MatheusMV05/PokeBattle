@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <curl/curl.h>
+#include "scaling.h"
 
 extern bool initialized;
 extern CURL* curl_handle;
@@ -34,25 +35,26 @@ bool drawButton(Rectangle bounds, const char* text, Color color) {
             color.a
         };
         
-        DrawRectangleRounded(bounds, 0.2f, 10, hoverColor);
-        
+        DrawRectangleRounded(bounds, 0.2f, 10 * ((GetScaleX() + GetScaleY()) / 2.0f), hoverColor);
+
         // Verificar clique
         if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
             clicked = true;
         }
     } else {
-        DrawRectangleRounded(bounds, 0.2f, 10, color);
+        DrawRectangleRounded(bounds, 0.2f, 10 * ((GetScaleX() + GetScaleY()) / 2.0f), color);
     }
-    
+
     // Desenhar borda
-    DrawRectangleRoundedLines(bounds, 0.2f, 10, BLACK);
-    
-    // Desenhar texto
-    Vector2 textSize = MeasureTextEx(gameFont, text, 20, 1);
-    DrawTextEx(gameFont, text, (Vector2){ 
+    DrawRectangleRoundedLines(bounds, 0.2f, 10 * ((GetScaleX() + GetScaleY()) / 2.0f), BLACK);
+
+    // Desenhar texto com tamanho escalado
+    float fontSize = ScaleFontSize(20);
+    Vector2 textSize = MeasureTextEx(gameFont, text, fontSize, 1);
+    DrawTextEx(gameFont, text, (Vector2){
         bounds.x + bounds.width/2 - textSize.x/2,
         bounds.y + bounds.height/2 - textSize.y/2
-    }, 20, 1, WHITE);
+    }, fontSize, 1, WHITE);
     
     return clicked;
 }
@@ -157,7 +159,7 @@ void drawHealthBar(Rectangle bounds, int currentHP, int maxHP, PokeMonster* mons
        float fillRatio = (float)currentHP / maxHP;
        if (fillRatio < 0) fillRatio = 0;
        if (fillRatio > 1) fillRatio = 1;
-       
+
        DrawRectangleRec(bounds, BLACK);
        Rectangle innerBounds = {
            bounds.x + 1,
@@ -166,37 +168,37 @@ void drawHealthBar(Rectangle bounds, int currentHP, int maxHP, PokeMonster* mons
            bounds.height - 2
        };
        DrawRectangleRec(innerBounds, WHITE);
-       
+
        Color fillColor = fillRatio > 0.5f ? GREEN : (fillRatio > 0.2f ? YELLOW : RED);
-       DrawRectangleRec((Rectangle){ 
-           innerBounds.x, innerBounds.y, 
-           innerBounds.width * fillRatio, innerBounds.height 
+       DrawRectangleRec((Rectangle){
+           innerBounds.x, innerBounds.y,
+           innerBounds.width * fillRatio, innerBounds.height
        }, fillColor);
        return;
    }
-   
+
    // Calcular preenchimento baseado no HP atual
    float targetFillRatio = (float)currentHP / maxHP;
    if (targetFillRatio < 0) targetFillRatio = 0;
    if (targetFillRatio > 1) targetFillRatio = 1;
-   
+
    // Detectar mudança de HP
    if (anim->lastHP != currentHP) {
        anim->lastHP = currentHP;
        anim->timer = 0;  // Resetar timer quando o HP muda
    }
-   
+
    // Avançar o timer
    anim->timer += GetFrameTime();
-   
+
    // Animação mais lenta e suave (0.5 unidades por segundo)
    float animationSpeed = 0.5f;
-   
+
    // Animação suave da barra
    float delta = targetFillRatio - anim->animatedFillRatio;
    if (fabs(delta) > 0.001f) {
        anim->animatedFillRatio += delta * animationSpeed * GetFrameTime() * 4.0f;
-       
+
        // Garantir que não ultrapasse o objetivo
        if (delta > 0 && anim->animatedFillRatio > targetFillRatio) {
            anim->animatedFillRatio = targetFillRatio;
@@ -204,10 +206,10 @@ void drawHealthBar(Rectangle bounds, int currentHP, int maxHP, PokeMonster* mons
            anim->animatedFillRatio = targetFillRatio;
        }
    }
-   
+
    // Desenhar fundo da barra (borda preta)
    DrawRectangleRec(bounds, BLACK);
-   
+
    // Borda interna (espaço para o preenchimento)
    Rectangle innerBounds = {
        bounds.x + 1,
@@ -216,7 +218,7 @@ void drawHealthBar(Rectangle bounds, int currentHP, int maxHP, PokeMonster* mons
        bounds.height - 2
    };
    DrawRectangleRec(innerBounds, WHITE);
-   
+
    // Determinar cor baseada no HP - estilo Pokémon
    Color fillColor;
    if (anim->animatedFillRatio > 0.5f) {
@@ -226,21 +228,21 @@ void drawHealthBar(Rectangle bounds, int currentHP, int maxHP, PokeMonster* mons
    } else {
        fillColor = (Color){ 200, 0, 0, 255 }; // Vermelho
    }
-   
+
    // Desenhar preenchimento com animação
-   DrawRectangleRec((Rectangle){ 
-       innerBounds.x, innerBounds.y, 
-       innerBounds.width * anim->animatedFillRatio, innerBounds.height 
+   DrawRectangleRec((Rectangle){
+       innerBounds.x, innerBounds.y,
+       innerBounds.width * anim->animatedFillRatio, innerBounds.height
    }, fillColor);
-   
+
    // Adicionar efeito de gradiente sutil na barra de HP
    for (int i = 0; i < innerBounds.height; i += 2) {
        DrawLine(
-           innerBounds.x, 
+           innerBounds.x,
            innerBounds.y + i,
            innerBounds.x + innerBounds.width * anim->animatedFillRatio,
            innerBounds.y + i,
-           (Color){ 
+           (Color){
                (unsigned char)fmin(255, fillColor.r + 40),
                (unsigned char)fmin(255, fillColor.g + 40),
                (unsigned char)fmin(255, fillColor.b + 40),
@@ -248,17 +250,17 @@ void drawHealthBar(Rectangle bounds, int currentHP, int maxHP, PokeMonster* mons
            }
        );
    }
-   
+
    // Adicionar efeito de "piscada" quando o HP estiver muito baixo
    if (anim->animatedFillRatio <= 0.2f) {
        float blinkRate = 3.0f;  // Frequência de piscada mais lenta
-       
+
        if (sinf(anim->timer * blinkRate) > 0.0f) {
            DrawRectangleRec(
-               (Rectangle){ 
-                   innerBounds.x, innerBounds.y, 
-                   innerBounds.width * anim->animatedFillRatio, innerBounds.height 
-               }, 
+               (Rectangle){
+                   innerBounds.x, innerBounds.y,
+                   innerBounds.width * anim->animatedFillRatio, innerBounds.height
+               },
                (Color){ 255, 255, 255, 100 }
            );
        }
