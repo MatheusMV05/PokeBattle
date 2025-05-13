@@ -18,13 +18,9 @@
  #include "monsters.h"
  #include "ia_integration.h"
  #import  "resources.h"
-#include "decision_tree.h"
+ #include "decision_tree.h"
+ #include "globals.h"
 
- char battleMessage[256] = "";
- BattleMessage currentMessage = {0};
- BattleAnimation currentAnimation = {0};
- bool actionQueueReady = false;
- float stateTransitionDelay = 0.0f;
 // Variável global para armazenar a árvore de decisão
 static DecisionNode* botDecisionTree = NULL;
 
@@ -35,8 +31,7 @@ void executeItemUse(PokeMonster* user, ItemType itemType);
 void messageDisplayComplete(void);
 void executeAttackWithEffects(PokeMonster* attacker, PokeMonster* defender, int attackIndex);
 
-// Sistema de batalha global
-BattleSystem* battleSystem = NULL;
+
  // No início de cada turno 
 void startTurn(void) {
     // Limpar a fila de ações anterior

@@ -15,19 +15,13 @@
 #include <stdio.h>
 #include <string.h>
 #include "scaling.h"
+#include "globals.h"
 
 // Declaração de funções de sistema de batalha
 void displayBattleMessage(const char* message, float duration, bool waitForInput, bool autoAdvance);
 
-// Declaração de variáveis globais externas
-extern BattleMessage currentMessage;
-extern BattleAnimation currentAnimation;
-extern bool actionQueueReady;
-extern BattleSystem* battleSystem;
-
 // Variáveis locais
-static char battleMessage[256] = "";
-static BattleEffect effects[MAX_EFFECTS] = {0};
+BattleEffect effects[MAX_EFFECTS] = {0};
 
 // Sistema de typewriter para textos
 typedef struct {

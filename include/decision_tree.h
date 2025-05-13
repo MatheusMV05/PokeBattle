@@ -9,7 +9,7 @@
 #define DECISION_TREE_H
 
 #include "structures.h"
-#include "monsters.h"
+
 
 // Códigos de condição para nós da árvore
 typedef enum {
