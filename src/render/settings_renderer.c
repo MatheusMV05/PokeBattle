@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include "structures.h"
 
-// Variáveis estáticas e estruturas que devem ir junto:
+
 static bool fullscreen = false;
 float musicVolume = 0.7f;
 float soundVolume = 0.8f;

@@ -32,7 +32,11 @@ add_executable(pokebattle ${SOURCES}
         src/scaling.c
         include/scaling.h
         src/decision_tree.c
-        include/decision_tree.h)
+        include/decision_tree.h
+        src/globals.c
+        include/globals.h
+        include/render/types_table_renderer.h
+        include/render/credits_renderer.h)
 
 # Linkar bibliotecas necessárias no Windows
 target_link_libraries(pokebattle

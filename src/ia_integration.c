@@ -18,13 +18,10 @@
 #include "structures.h"
 #include "monsters.h"
 #include "battle.h"
+#include "globals.h"
 
 extern BattleSystem* battleSystem;
- 
- // Variáveis globais
- CURL* curl_handle = NULL;
- bool initialized = false;
- static char errorBuffer[256];
+
  
  // Chave da API (em um sistema real, seria obtida de uma variável de ambiente ou arquivo seguro)
  static const char* API_KEY = "AIzaSyCQDFjSqzONZN29n3TW-jMjzjr5Lm2YifM"; 

@@ -8,27 +8,9 @@
 #include "structures.h"
 #include "monsters.h"
 #include <stdio.h>
+#include "globals.h"
 
 
-
-// Definições das variáveis globais de recursos
-Texture2D battleBackgrounds[BATTLE_BACKGROUNDS_COUNT];
-int currentBattleBackground = 0;
-Font gameFont;
-Texture2D backgroundTexture;
-Texture2D menuBackground;
-Texture2D battleBackground;
-Texture2D monsterSelectBackground;
-Texture2D typeIcons[TYPE_COUNT];
-Sound selectSound;
-Sound attackSound;
-Sound hitSound;
-Sound faintSound;
-Music menuMusic;
-Music battleMusic;
-
-extern float musicVolume;
-extern float soundVolume;
 
  // Carrega texturas, fontes e recursos visuais
 void loadTextures(void) {
