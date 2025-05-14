@@ -547,7 +547,7 @@ addAttackToMonster(&monsterDB.monsters[index], 3, "Thunder Wave", TYPE_ELECTRIC,
 index++;
 
 // Ninetales (Fogo)
-strcpy(monsterDB.monsters[index].name, "NineTails");
+strcpy(monsterDB.monsters[index].name, "Ninetales");
 monsterDB.monsters[index].type1 = TYPE_FIRE;
 monsterDB.monsters[index].type2 = TYPE_NONE;
 monsterDB.monsters[index].maxHp = 73;
@@ -989,7 +989,7 @@ index++;
 
 
 // Electabuzz (Elétrico)
-strcpy(monsterDB.monsters[index].name, "Electabruzz");
+strcpy(monsterDB.monsters[index].name, "Electabuzz");
 monsterDB.monsters[index].type1 = TYPE_ELECTRIC;
 monsterDB.monsters[index].type2 = TYPE_NONE;
 monsterDB.monsters[index].maxHp = 65;
@@ -1506,14 +1506,14 @@ static const MonsterMapping monsterMapping[] = {
      {"Fearow", 22},
      {"Pikachu", 25},
      {"Raichu", 26},
-     {"NineTails", 38},
+     {"Ninetales", 38},
      {"Golbat", 42},
      {"Parasect", 47},
      {"Arcanine", 59},
      {"Alakazam", 65},
      {"Machamp", 68},
      {"VictreeBel", 71},
-     {"Tentacrual", 73},
+     {"Tentacruel", 73},
      {"Golem", 76},
      {"Rapidash", 78},
      {"SlowBro", 80},
@@ -1528,7 +1528,7 @@ static const MonsterMapping monsterMapping[] = {
      {"Chansey", 113},
      {"Kangaskhan", 115},
      {"Scyther", 123},
-     {"Electabruzz", 125},
+     {"Electabuzz", 125},
      {"Magmar", 126},
      {"Gyarados", 130},
      {"Eevee", 133},
