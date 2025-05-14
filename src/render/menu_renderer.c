@@ -376,7 +376,7 @@ void updateMainMenu(void) {
     }
     else if (IsKeyPressed(KEY_ENTER)) {
         PlaySound(selectSound);
-        currentScreen = selectedOption + 1;
+        currentScreen = menuOptionStates[selectedOption];
     }
 
     // Verificar se uma tecla F11 foi pressionada para alternar tela cheia
