@@ -11,21 +11,11 @@
 #include <math.h>
 #include <stdio.h>
 #include "structures.h"
+#include "gui.h"
+#include "globals.h"
+#include "ia_integration.h"
 
-
-static bool fullscreen = false;
-float musicVolume = 0.7f;
-float soundVolume = 0.8f;
-static int currentResolutionIndex = 0;
-static int pendingResolutionIndex = 0;
-static bool hasUnsavedChanges = false;
-static float pendingMusicVolume = 0.7f;
-static float pendingSoundVolume = 0.8f;
-static bool pendingFullscreen = false;
-static int pendingDifficultyIndex = 1;
-static int pendingAnimSpeedIndex = 1;
-
-
+// Definição de resoluções disponíveis
 static Resolution availableResolutions[] = {
     { 1920, 1080, "1920x1080" },
     { 1600, 900,  "1600x900" },
@@ -35,84 +25,80 @@ static Resolution availableResolutions[] = {
 };
 static int numResolutions = 5;
 
+// Opções de dificuldade e velocidade de animação
+static const char* difficultyOptions[] = {"FÁCIL", "NORMAL", "DIFÍCIL"};
+static const char* animSpeedOptions[] = {"LENTA", "NORMAL", "RÁPIDA"};
+
+// Animações
+static float settingsTimer = 0.0f;
+static float bgScroll = 0.0f;
+
 // Função para desenhar a tela de configurações
 void drawSettings(void) {
-    // Calcular escala baseada em 1920x1080
-    float scaleX = GetScreenWidth() / 1920.0f;
-    float scaleY = GetScreenHeight() / 1080.0f;
-    float scale = fmin(scaleX, scaleY);
-    
-    // Cores do tema (mantendo consistência com o menu principal)
-    Color primaryColor = (Color){ 255, 51, 51, 255 };      
-    Color secondaryColor = (Color){ 51, 153, 255, 255 };   
-    Color bgColor = (Color){ 245, 245, 245, 255 };         
-    Color accentColor = (Color){ 255, 204, 0, 255 };       
-    
-    // Fundo gradiente similar ao menu principal
-    static float bgTimer = 0.0f;
-    bgTimer += GetFrameTime() * 0.5f;
-    
-    // Desenhar fundo gradiente dinâmico
-    for (int i = 0; i < GetScreenHeight(); i += 5) {
+    // Atualizar temporizador
+    settingsTimer += GetFrameTime();
+    bgScroll += GetFrameTime() * 30.0f;
+    if (bgScroll > 40.0f) bgScroll -= 40.0f;
+
+    // Desenhar fundo estilo Pokémon
+    // Fundo azul gradiente
+    for (int i = 0; i < GetScreenHeight(); i++) {
         float factor = (float)i / GetScreenHeight();
-        
         Color lineColor = (Color){
-            (unsigned char)(bgColor.r * (1.0f - factor) + secondaryColor.r * factor),
-            (unsigned char)(bgColor.g * (1.0f - factor) + secondaryColor.g * factor),
-            (unsigned char)(bgColor.b * (1.0f - factor) + secondaryColor.b * factor),
+            (unsigned char)(60 * (1.0f - factor) + 30 * factor),
+            (unsigned char)(120 * (1.0f - factor) + 80 * factor),
+            (unsigned char)(180 * (1.0f - factor) + 140 * factor),
             255
         };
-        
-        DrawRectangle(0, i, GetScreenWidth(), 5, lineColor);
+        DrawRectangle(0, i, GetScreenWidth(), 1, lineColor);
     }
-    
+
+    // Desenhar padrão de linhas horizontais
+    for (int i = 0; i < GetScreenHeight(); i += 40) {
+        int yPos = i + (int)bgScroll;
+        if (yPos < 0) yPos += 40;
+        DrawRectangle(0, yPos, GetScreenWidth(), 3, (Color){255, 255, 255, 20});
+    }
+
     // Título principal
-    const char* title = "Configurações";
-    int titleFontSize = (int)(90 * scale);
-    
-    // Título - Sombra
-    Vector2 titleShadowPos = { 
-        GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2 + (int)(3 * scale), 
-        (int)(83 * scale) 
-    };
-    DrawText(title, titleShadowPos.x, titleShadowPos.y, titleFontSize, (Color){ 40, 40, 40, 200 });
-    
-    // Título - Contorno
-    Vector2 titleOutlinePos = { 
-        GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2, 
-        (int)(80 * scale) 
-    };
-    
-    int outlineOffset = (int)(3 * scale);
-    DrawText(title, titleOutlinePos.x - outlineOffset, titleOutlinePos.y - outlineOffset, titleFontSize, BLACK);
-    DrawText(title, titleOutlinePos.x + outlineOffset, titleOutlinePos.y - outlineOffset, titleFontSize, BLACK);
-    DrawText(title, titleOutlinePos.x - outlineOffset, titleOutlinePos.y + outlineOffset, titleFontSize, BLACK);
-    DrawText(title, titleOutlinePos.x + outlineOffset, titleOutlinePos.y + outlineOffset, titleFontSize, BLACK);
-    
-    // Título - Texto principal
-    DrawText(title, titleOutlinePos.x, titleOutlinePos.y, titleFontSize, primaryColor);
-    
+    const char* title = "CONFIGURAÇÕES";
+    int titleFontSize = 40;
+
+    // Sombra do título
+    DrawText(title,
+            GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2 + 2,
+            40 + 2,
+            titleFontSize,
+            (Color){0, 0, 0, 120});
+
+    // Título
+    DrawText(title,
+            GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2,
+            40,
+            titleFontSize,
+            WHITE);
+
     // Área principal de configurações
-    int settingsWidth = (int)(900 * scale);
-    int settingsHeight = (int)(700 * scale);
+    int settingsWidth = 800;
+    int settingsHeight = GetScreenHeight() - 150;
     Rectangle settingsArea = {
         GetScreenWidth()/2 - settingsWidth/2,
-        (int)(220 * scale),
+        100,
         settingsWidth,
         settingsHeight
     };
-    
+
     // Painel de configurações
-    DrawRectangleRounded(settingsArea, 0.05f, 8, ColorAlpha(WHITE, 0.95f));
-    DrawRectangleRoundedLines(settingsArea, 0.05f, 8, DARKGRAY);
-    
-    // Desenhar categorias de configuração em abas
+    DrawRectangleRounded(settingsArea, 0.05f, 8, (Color){30, 60, 90, 230});
+    DrawRectangleRoundedLines(settingsArea, 0.05f, 8, WHITE);
+
+    // Desenhar abas de configuração
     const char* tabs[] = { "ÁUDIO", "VÍDEO", "CONTROLES", "JOGO" };
     static int activeTab = 0;
-    
+
     int tabWidth = settingsWidth / 4;
-    int tabHeight = (int)(60 * scale);
-    
+    int tabHeight = 50;
+
     for (int i = 0; i < 4; i++) {
         Rectangle tabRect = {
             settingsArea.x + i * tabWidth,
@@ -120,576 +106,573 @@ void drawSettings(void) {
             tabWidth,
             tabHeight
         };
-        
-        Color tabColor = (activeTab == i) ? primaryColor : LIGHTGRAY;
+
+        Color tabColor = (activeTab == i) ?
+                        (Color){0, 102, 204, 255} :
+                        (Color){30, 60, 90, 180};
+
+        // Desenhar aba
         if (activeTab == i) {
-            DrawRectangleRounded(tabRect, 0.2f, 8, tabColor);
+            DrawRectangleRounded(tabRect, 0.5f, 6, tabColor);
         } else {
             DrawRectangleRec(tabRect, tabColor);
         }
-        
-        // Hover effect
+
+        // Efeito de hover
         if (CheckCollisionPointRec(GetMousePosition(), tabRect) && activeTab != i) {
-            DrawRectangleRec(tabRect, ColorAlpha(primaryColor, 0.3f));
-            
+            DrawRectangleRec(tabRect, (Color){0, 102, 204, 100});
+
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 activeTab = i;
                 PlaySound(selectSound);
             }
         }
-        
-        int tabFontSize = (int)(30 * scale);
-        Color textColor = (activeTab == i) ? WHITE : DARKGRAY;
-        DrawText(tabs[i], 
-                tabRect.x + tabRect.width/2 - MeasureText(tabs[i], tabFontSize)/2,
-                tabRect.y + tabRect.height/2 - tabFontSize/2,
-                tabFontSize,
-                textColor);
+
+        // Texto da aba
+        DrawText(tabs[i],
+                tabRect.x + tabRect.width/2 - MeasureText(tabs[i], 20)/2,
+                tabRect.y + tabRect.height/2 - 10,
+                20,
+                activeTab == i ? WHITE : (Color){200, 200, 200, 200});
     }
-    
-    // Conteúdo da aba ativa
+
+    // Área de conteúdo da aba
     Rectangle contentArea = {
-        settingsArea.x + (int)(50 * scale),
-        settingsArea.y + tabHeight + (int)(50 * scale),
-        settingsArea.width - (int)(100 * scale),
-        settingsArea.height - tabHeight - (int)(150 * scale)
+        settingsArea.x + 20,
+        settingsArea.y + tabHeight + 20,
+        settingsArea.width - 40,
+        settingsArea.height - tabHeight - 80
     };
-    
+
+    // Desenhar conteúdo com base na aba ativa
     switch (activeTab) {
         case 0: // ÁUDIO
             {
-                int yOffset = contentArea.y;
-                int itemSpacing = (int)(100 * scale);
-                
-                // Volume da Música
-                int labelFontSize = (int)(32 * scale);
-                DrawText("Volume da Música", contentArea.x, yOffset, labelFontSize, BLACK);
-                
-                // Slider para volume da música
-                Rectangle musicSlider = { 
-                    contentArea.x, 
-                    yOffset + (int)(40 * scale), 
-                    contentArea.width - (int)(100 * scale), // Espaço para o texto da porcentagem
-                    (int)(40 * scale) 
+                int yPos = contentArea.y;
+                int itemHeight = 80;
+
+                // Volume da música
+                DrawText("Volume da Música", contentArea.x, yPos, 24, WHITE);
+
+                Rectangle musicSlider = {
+                    contentArea.x + 50,
+                    yPos + 40,
+                    contentArea.width - 150,
+                    30
                 };
-                
-                // Fundo do slider
-                DrawRectangleRounded(musicSlider, 0.5f, 8, LIGHTGRAY);
-                
-                // Preenchimento do slider
-                Rectangle musicFill = {
-                    musicSlider.x,
-                    musicSlider.y,
-                    musicSlider.width * pendingMusicVolume,
-                    musicSlider.height
-                };
-                DrawRectangleRounded(musicFill, 0.5f, 8, secondaryColor);
-                
-                // Controle deslizante (thumb)
-                int thumbRadius = (int)(20 * scale);
-                float thumbX = musicSlider.x + musicSlider.width * pendingMusicVolume;
-                float thumbY = musicSlider.y + musicSlider.height/2;
-                
-                DrawCircle(thumbX, thumbY, thumbRadius, WHITE);
-                DrawCircleLines(thumbX, thumbY, thumbRadius, DARKGRAY);
-                
-                // Valor atual
-                char volumeText[10];
-                sprintf(volumeText, "%.0f%%", pendingMusicVolume * 100);
-                DrawText(volumeText, 
-                        musicSlider.x + musicSlider.width + (int)(20 * scale), 
-                        musicSlider.y + (int)(5 * scale), 
-                        (int)(28 * scale), 
-                        BLACK);
-                
-                // Interação com o slider de música
+
+                // Barra de fundo
+                DrawRectangleRec(musicSlider, (Color){100, 100, 100, 150});
+
+                // Barra de valor
+                DrawRectangleRec(
+                    (Rectangle){
+                        musicSlider.x,
+                        musicSlider.y,
+                        musicSlider.width * pendingMusicVolume,
+                        musicSlider.height
+                    },
+                    (Color){0, 150, 220, 255}
+                );
+
+                // Manopla
+                float handleX = musicSlider.x + musicSlider.width * pendingMusicVolume;
+                DrawRectangleRec(
+                    (Rectangle){
+                        handleX - 5,
+                        musicSlider.y - 5,
+                        10,
+                        musicSlider.height + 10
+                    },
+                    WHITE
+                );
+
+                // Texto do valor
+                char musicText[16];
+                sprintf(musicText, "%.0f%%", pendingMusicVolume * 100);
+                DrawText(musicText,
+                        musicSlider.x + musicSlider.width + 20,
+                        musicSlider.y + 5,
+                        20,
+                        WHITE);
+
+                // Interação com o slider
                 if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-                    Vector2 mousePos = GetMousePosition();
-                    Rectangle expandedSlider = {
-                        musicSlider.x - thumbRadius,
-                        musicSlider.y - thumbRadius,
-                        musicSlider.width + thumbRadius * 2,
-                        musicSlider.height + thumbRadius * 2
-                    };
-                    
-                    if (CheckCollisionPointRec(mousePos, expandedSlider)) {
-                        pendingMusicVolume = (mousePos.x - musicSlider.x) / musicSlider.width;
-                        pendingMusicVolume = pendingMusicVolume < 0 ? 0 : (pendingMusicVolume > 1 ? 1 : pendingMusicVolume);
+                    Vector2 mouse = GetMousePosition();
+                    if (CheckCollisionPointRec(mouse,
+                            (Rectangle){
+                                musicSlider.x - 10,
+                                musicSlider.y - 10,
+                                musicSlider.width + 20,
+                                musicSlider.height + 20
+                            })) {
+                        pendingMusicVolume = (mouse.x - musicSlider.x) / musicSlider.width;
+                        if (pendingMusicVolume < 0) pendingMusicVolume = 0;
+                        if (pendingMusicVolume > 1) pendingMusicVolume = 1;
                         hasUnsavedChanges = true;
                     }
                 }
-                
-                yOffset += itemSpacing;
-                
-                // Volume dos Efeitos
-                DrawText("Volume dos Efeitos", contentArea.x, yOffset, labelFontSize, BLACK);
-                
-                // Slider para volume dos efeitos
-                Rectangle soundSlider = { 
-                    contentArea.x, 
-                    yOffset + (int)(40 * scale), 
-                    contentArea.width - (int)(100 * scale),
-                    (int)(40 * scale) 
+
+                yPos += itemHeight + 20;
+
+                // Volume dos efeitos
+                DrawText("Volume dos Efeitos", contentArea.x, yPos, 24, WHITE);
+
+                Rectangle soundSlider = {
+                    contentArea.x + 50,
+                    yPos + 40,
+                    contentArea.width - 150,
+                    30
                 };
-                
-                DrawRectangleRounded(soundSlider, 0.5f, 8, LIGHTGRAY);
-                
-                Rectangle soundFill = {
-                    soundSlider.x,
-                    soundSlider.y,
-                    soundSlider.width * pendingSoundVolume,
-                    soundSlider.height
-                };
-                DrawRectangleRounded(soundFill, 0.5f, 8, secondaryColor);
-                
-                // Controle deslizante
-                thumbX = soundSlider.x + soundSlider.width * pendingSoundVolume;
-                thumbY = soundSlider.y + soundSlider.height/2;
-                
-                DrawCircle(thumbX, thumbY, thumbRadius, WHITE);
-                DrawCircleLines(thumbX, thumbY, thumbRadius, DARKGRAY);
-                
-                // Valor atual
-                sprintf(volumeText, "%.0f%%", pendingSoundVolume * 100);
-                DrawText(volumeText, 
-                        soundSlider.x + soundSlider.width + (int)(20 * scale), 
-                        soundSlider.y + (int)(5 * scale), 
-                        (int)(28 * scale), 
-                        BLACK);
-                
-                // Interação com o slider de som
+
+                // Barra de fundo
+                DrawRectangleRec(soundSlider, (Color){100, 100, 100, 150});
+
+                // Barra de valor
+                DrawRectangleRec(
+                    (Rectangle){
+                        soundSlider.x,
+                        soundSlider.y,
+                        soundSlider.width * pendingSoundVolume,
+                        soundSlider.height
+                    },
+                    (Color){0, 150, 220, 255}
+                );
+
+                // Manopla
+                handleX = soundSlider.x + soundSlider.width * pendingSoundVolume;
+                DrawRectangleRec(
+                    (Rectangle){
+                        handleX - 5,
+                        soundSlider.y - 5,
+                        10,
+                        soundSlider.height + 10
+                    },
+                    WHITE
+                );
+
+                // Texto do valor
+                char soundText[16];
+                sprintf(soundText, "%.0f%%", pendingSoundVolume * 100);
+                DrawText(soundText,
+                        soundSlider.x + soundSlider.width + 20,
+                        soundSlider.y + 5,
+                        20,
+                        WHITE);
+
+                // Interação com o slider
                 if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-                    Vector2 mousePos = GetMousePosition();
-                    Rectangle expandedSlider = {
-                        soundSlider.x - thumbRadius,
-                        soundSlider.y - thumbRadius,
-                        soundSlider.width + thumbRadius * 2,
-                        soundSlider.height + thumbRadius * 2
-                    };
-                    
-                    if (CheckCollisionPointRec(mousePos, expandedSlider)) {
-                        pendingSoundVolume = (mousePos.x - soundSlider.x) / soundSlider.width;
-                        pendingSoundVolume = pendingSoundVolume < 0 ? 0 : (pendingSoundVolume > 1 ? 1 : pendingSoundVolume);
+                    Vector2 mouse = GetMousePosition();
+                    if (CheckCollisionPointRec(mouse,
+                            (Rectangle){
+                                soundSlider.x - 10,
+                                soundSlider.y - 10,
+                                soundSlider.width + 20,
+                                soundSlider.height + 20
+                            })) {
+                        pendingSoundVolume = (mouse.x - soundSlider.x) / soundSlider.width;
+                        if (pendingSoundVolume < 0) pendingSoundVolume = 0;
+                        if (pendingSoundVolume > 1) pendingSoundVolume = 1;
                         hasUnsavedChanges = true;
-                    }
-                }
-                
-                yOffset += itemSpacing;
-                
-                // Opção Mute
-                static bool muteAll = false;
-                Rectangle muteButton = {
-                    contentArea.x,
-                    yOffset,
-                    (int)(300 * scale),
-                    (int)(60 * scale)
-                };
-                
-                Color muteColor = muteAll ? primaryColor : LIGHTGRAY;
-                DrawRectangleRounded(muteButton, 0.3f, 8, muteColor);
-                DrawRectangleRoundedLines(muteButton, 0.3f, 8, DARKGRAY);
-                
-                const char* muteText = muteAll ? "SOM DESLIGADO" : "SOM LIGADO";
-                DrawText(muteText,
-                        muteButton.x + muteButton.width/2 - MeasureText(muteText, (int)(28 * scale))/2,
-                        muteButton.y + muteButton.height/2 - (int)(14 * scale),
-                        (int)(28 * scale),
-                        muteAll ? WHITE : BLACK);
-                
-                if (CheckCollisionPointRec(GetMousePosition(), muteButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                    muteAll = !muteAll;
-                    PlaySound(selectSound);
-                    
-                    if (muteAll) {
-                        SetMasterVolume(0.0f);
-                    } else {
-                        SetMasterVolume(1.0f);
                     }
                 }
             }
             break;
-            
+
         case 1: // VÍDEO
             {
-                int yOffset = contentArea.y;
-                int itemSpacing = (int)(100 * scale);
-                int labelFontSize = (int)(32 * scale);
-                
+                int yPos = contentArea.y;
+                int itemHeight = 70;
+
                 // Tela cheia
-                DrawText("Modo Tela Cheia", contentArea.x, yOffset, labelFontSize, BLACK);
-                
-                Rectangle fullscreenButton = {
-                    contentArea.x,
-                    yOffset + (int)(40 * scale),
-                    (int)(300 * scale),
-                    (int)(60 * scale)
+                DrawText("Modo Tela Cheia", contentArea.x, yPos, 24, WHITE);
+
+                Rectangle fullscreenToggle = {
+                    contentArea.x + 50,
+                    yPos + 35,
+                    80,
+                    30
                 };
-                
-                Color fullscreenColor = pendingFullscreen ? primaryColor : LIGHTGRAY;
-                DrawRectangleRounded(fullscreenButton, 0.3f, 8, fullscreenColor);
-                DrawRectangleRoundedLines(fullscreenButton, 0.3f, 8, DARKGRAY);
-                
-                const char* fullscreenText = pendingFullscreen ? "ATIVADO" : "DESATIVADO";
-                DrawText(fullscreenText,
-                        fullscreenButton.x + fullscreenButton.width/2 - MeasureText(fullscreenText, (int)(28 * scale))/2,
-                        fullscreenButton.y + fullscreenButton.height/2 - (int)(14 * scale),
-                        (int)(28 * scale),
-                        pendingFullscreen ? WHITE : BLACK);
-                
-                if (CheckCollisionPointRec(GetMousePosition(), fullscreenButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                    pendingFullscreen = !pendingFullscreen;
-                    PlaySound(selectSound);
-                    hasUnsavedChanges = true;
+
+                // Desenhar toggle
+                DrawRectangleRec(fullscreenToggle, (Color){100, 100, 100, 150});
+
+                // Desenhar indicador
+                DrawRectangleRec(
+                    (Rectangle){
+                        pendingFullscreen ?
+                            fullscreenToggle.x + fullscreenToggle.width - 30 :
+                            fullscreenToggle.x,
+                        fullscreenToggle.y,
+                        30,
+                        fullscreenToggle.height
+                    },
+                    pendingFullscreen ? (Color){0, 200, 100, 255} : (Color){150, 150, 150, 255}
+                );
+
+                // Texto do estado
+                DrawText(pendingFullscreen ? "ATIVADO" : "DESATIVADO",
+                        fullscreenToggle.x + 100,
+                        fullscreenToggle.y + 5,
+                        20,
+                        WHITE);
+
+                // Interação com o toggle
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    if (CheckCollisionPointRec(GetMousePosition(), fullscreenToggle)) {
+                        pendingFullscreen = !pendingFullscreen;
+                        PlaySound(selectSound);
+                        hasUnsavedChanges = true;
+                    }
                 }
-                
-                yOffset += itemSpacing;
-                
+
+                yPos += itemHeight + 20;
+
                 // Resolução
-                DrawText("Resolução", contentArea.x, yOffset, labelFontSize, BLACK);
-                
+                DrawText("Resolução", contentArea.x, yPos, 24, WHITE);
+
                 // Botão anterior
-                Rectangle prevButton = {
-                    contentArea.x,
-                    yOffset + (int)(40 * scale),
-                    (int)(60 * scale),
-                    (int)(60 * scale)
+                Rectangle prevResButton = {
+                    contentArea.x + 50,
+                    yPos + 35,
+                    40,
+                    40
                 };
-                
-                DrawRectangleRounded(prevButton, 0.3f, 8, primaryColor);
-                DrawText("<",
-                        prevButton.x + prevButton.width/2 - MeasureText("<", (int)(32 * scale))/2,
-                        prevButton.y + prevButton.height/2 - (int)(16 * scale),
-                        (int)(32 * scale),
-                        WHITE);
-                
-                // Display da resolução atual
-                Rectangle resolutionDisplay = {
-                    prevButton.x + prevButton.width + (int)(20 * scale),
-                    yOffset + (int)(40 * scale),
-                    (int)(200 * scale),
-                    (int)(60 * scale)
-                };
-                
-                DrawRectangleRounded(resolutionDisplay, 0.3f, 8, LIGHTGRAY);
-                
-                // Mostrar resolução atual e pendente se diferentes
-                if (pendingResolutionIndex != currentResolutionIndex) {
-                    DrawText(availableResolutions[pendingResolutionIndex].description,
-                            resolutionDisplay.x + resolutionDisplay.width/2 - MeasureText(availableResolutions[pendingResolutionIndex].description, (int)(24 * scale))/2,
-                            resolutionDisplay.y + resolutionDisplay.height/2 - (int)(20 * scale),
-                            (int)(24 * scale),
-                            secondaryColor);
-                    
-                    // Mostrar resolução atual abaixo em menor tamanho
-                    char currentText[32];
-                    sprintf(currentText, "(atual: %s)", availableResolutions[currentResolutionIndex].description);
-                    DrawText(currentText,
-                            resolutionDisplay.x + resolutionDisplay.width/2 - MeasureText(currentText, (int)(16 * scale))/2,
-                            resolutionDisplay.y + resolutionDisplay.height/2 + (int)(5 * scale),
-                            (int)(16 * scale),
-                            GRAY);
-                } else {
-                    DrawText(availableResolutions[pendingResolutionIndex].description,
-                            resolutionDisplay.x + resolutionDisplay.width/2 - MeasureText(availableResolutions[pendingResolutionIndex].description, (int)(28 * scale))/2,
-                            resolutionDisplay.y + resolutionDisplay.height/2 - (int)(14 * scale),
-                            (int)(28 * scale),
-                            BLACK);
-                }
-                
+
                 // Botão próximo
-                Rectangle nextButton = {
-                    resolutionDisplay.x + resolutionDisplay.width + (int)(20 * scale),
-                    yOffset + (int)(40 * scale),
-                    (int)(60 * scale),
-                    (int)(60 * scale)
+                Rectangle nextResButton = {
+                    contentArea.x + 50 + 40 + 200 + 20,
+                    yPos + 35,
+                    40,
+                    40
                 };
-                
-                DrawRectangleRounded(nextButton, 0.3f, 8, primaryColor);
-                DrawText(">",
-                        nextButton.x + nextButton.width/2 - MeasureText(">", (int)(32 * scale))/2,
-                        nextButton.y + nextButton.height/2 - (int)(16 * scale),
-                        (int)(32 * scale),
+
+                // Resolução atual
+                Rectangle currentResRect = {
+                    contentArea.x + 50 + 40 + 10,
+                    yPos + 35,
+                    200,
+                    40
+                };
+
+                // Desenhar botões e display
+                DrawRectangleRounded(prevResButton, 0.5f, 6, (Color){0, 102, 204, 255});
+                DrawRectangleRounded(nextResButton, 0.5f, 6, (Color){0, 102, 204, 255});
+                DrawRectangleRounded(currentResRect, 0.2f, 6, (Color){60, 60, 60, 200});
+
+                DrawText("<",
+                        prevResButton.x + prevResButton.width/2 - 5,
+                        prevResButton.y + prevResButton.height/2 - 12,
+                        24,
                         WHITE);
-                
-                // Interação com botões de resolução
-                if (CheckCollisionPointRec(GetMousePosition(), prevButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                    pendingResolutionIndex = (pendingResolutionIndex - 1 + numResolutions) % numResolutions;
-                    PlaySound(selectSound);
-                    hasUnsavedChanges = true;
-                }
-                
-                if (CheckCollisionPointRec(GetMousePosition(), nextButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                    pendingResolutionIndex = (pendingResolutionIndex + 1) % numResolutions;
-                    PlaySound(selectSound);
-                    hasUnsavedChanges = true;
+
+                DrawText(">",
+                        nextResButton.x + nextResButton.width/2 - 5,
+                        nextResButton.y + nextResButton.height/2 - 12,
+                        24,
+                        WHITE);
+
+                DrawText(availableResolutions[pendingResolutionIndex].description,
+                        currentResRect.x + currentResRect.width/2 -
+                        MeasureText(availableResolutions[pendingResolutionIndex].description, 20)/2,
+                        currentResRect.y + currentResRect.height/2 - 10,
+                        20,
+                        WHITE);
+
+                // Interação com os botões de resolução
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    if (CheckCollisionPointRec(GetMousePosition(), prevResButton)) {
+                        pendingResolutionIndex = (pendingResolutionIndex - 1 + numResolutions) % numResolutions;
+                        PlaySound(selectSound);
+                        hasUnsavedChanges = true;
+                    }
+                    else if (CheckCollisionPointRec(GetMousePosition(), nextResButton)) {
+                        pendingResolutionIndex = (pendingResolutionIndex + 1) % numResolutions;
+                        PlaySound(selectSound);
+                        hasUnsavedChanges = true;
+                    }
                 }
             }
             break;
-            
+
         case 2: // CONTROLES
             {
-                int yOffset = contentArea.y;
-                int labelFontSize = (int)(32 * scale);
-                
-                DrawText("Controles de Batalha", contentArea.x, yOffset, labelFontSize, BLACK);
-                
-                yOffset += (int)(60 * scale);
-                
+                int yPos = contentArea.y;
+
+                DrawText("Controles do Jogo", contentArea.x, yPos, 24, WHITE);
+
+                yPos += 50;
+
                 // Lista de controles
-                const char* controls[] = {
-                    "Selecionar Ação: Clique do Mouse / Enter",
-                    "Navegar Menu: Setas / Mouse",
-                    "Cancelar: ESC / Botão Voltar",
-                    "Confirmar: Espaço / Enter / Clique",
-                    "Alternar Tela Cheia: F11"
+                const char* controlLabels[] = {
+                    "Confirmar/Selecionar:",
+                    "Cancelar/Voltar:",
+                    "Navegar no Menu:",
+                    "Navegar em Batalha:",
+                    "Alternar Tela Cheia:",
+                    "Pausar o Jogo:"
                 };
-                
-                for (int i = 0; i < 5; i++) {
-                    DrawText(controls[i], 
-                            contentArea.x + (int)(20 * scale), 
-                            yOffset + i * (int)(50 * scale), 
-                            (int)(26 * scale), 
-                            DARKGRAY);
+
+                const char* controlBindings[] = {
+                    "Enter, Clique Esquerdo",
+                    "Esc, Backspace",
+                    "Setas, Mouse",
+                    "Setas, 1-4, Mouse",
+                    "F11",
+                    "P, Esc"
+                };
+
+                int controlCount = 6;
+
+                for (int i = 0; i < controlCount; i++) {
+                    DrawText(controlLabels[i],
+                            contentArea.x + 20,
+                            yPos + i * 40,
+                            20,
+                            WHITE);
+
+                    DrawText(controlBindings[i],
+                            contentArea.x + 250,
+                            yPos + i * 40,
+                            20,
+                            (Color){200, 255, 200, 255});
                 }
+
+                yPos += controlCount * 40 + 30;
+
+                // Dica adicional
+                DrawText("Dica: Use o mouse para a maioria das interações",
+                        contentArea.x + 20,
+                        yPos,
+                        18,
+                        (Color){180, 180, 255, 255});
             }
             break;
-            
+
         case 3: // JOGO
             {
-                int yOffset = contentArea.y;
-                int itemSpacing = (int)(100 * scale);
-                int labelFontSize = (int)(32 * scale);
-                
+                int yPos = contentArea.y;
+
                 // Dificuldade
-                DrawText("Dificuldade", contentArea.x, yOffset, labelFontSize, BLACK);
-                
-                const char* difficulties[] = { "FÁCIL", "NORMAL", "DIFÍCIL" };
-                Color difficultyColors[] = { GREEN, BLUE, RED };
-                
+                DrawText("Dificuldade do Bot", contentArea.x, yPos, 24, WHITE);
+
+                int buttonWidth = 140;
+                int buttonHeight = 40;
+                int spacing = 20;
+
                 for (int i = 0; i < 3; i++) {
-                    Rectangle diffButton = {
-                        contentArea.x + i * (int)(220 * scale),
-                        yOffset + (int)(40 * scale),
-                        (int)(200 * scale),
-                        (int)(60 * scale)
+                    Rectangle diffBtn = {
+                        contentArea.x + 50 + i * (buttonWidth + spacing),
+                        yPos + 40,
+                        buttonWidth,
+                        buttonHeight
                     };
-                    
-                    Color buttonColor = (pendingDifficultyIndex == i) ? difficultyColors[i] : LIGHTGRAY;
-                    DrawRectangleRounded(diffButton, 0.3f, 8, buttonColor);
-                    DrawRectangleRoundedLines(diffButton, 0.3f, 8, DARKGRAY);
-                    
-                    DrawText(difficulties[i],
-                            diffButton.x + diffButton.width/2 - MeasureText(difficulties[i], (int)(28 * scale))/2,
-                            diffButton.y + diffButton.height/2 - (int)(14 * scale),
-                            (int)(28 * scale),
-                            (pendingDifficultyIndex == i) ? WHITE : BLACK);
-                    
-                    if (CheckCollisionPointRec(GetMousePosition(), diffButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+
+                    Color btnColor;
+                    if (pendingDifficultyIndex == i) {
+                        btnColor = i == 0 ? (Color){0, 180, 100, 255} :
+                                   i == 1 ? (Color){0, 120, 200, 255} :
+                                            (Color){200, 60, 60, 255};
+                    } else {
+                        btnColor = (Color){80, 80, 80, 200};
+                    }
+
+                    // Desenhar botão
+                    DrawRectangleRounded(diffBtn, 0.3f, 6, btnColor);
+                    DrawRectangleRoundedLines(diffBtn, 0.3f, 6, WHITE);
+
+                    // Texto
+                    DrawText(difficultyOptions[i],
+                            diffBtn.x + diffBtn.width/2 - MeasureText(difficultyOptions[i], 20)/2,
+                            diffBtn.y + diffBtn.height/2 - 10,
+                            20,
+                            WHITE);
+
+                    // Interação
+                    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
+                        CheckCollisionPointRec(GetMousePosition(), diffBtn)) {
                         pendingDifficultyIndex = i;
                         PlaySound(selectSound);
                         hasUnsavedChanges = true;
                     }
                 }
-                
-                yOffset += itemSpacing;
-                
-                // Velocidade de Animação
-                DrawText("Velocidade de Animação", contentArea.x, yOffset, labelFontSize, BLACK);
-                
-                const char* animSpeeds[] = { "LENTA", "NORMAL", "RÁPIDA" };
-                
+
+                yPos += 100;
+
+                // Velocidade de animação
+                DrawText("Velocidade de Animação", contentArea.x, yPos, 24, WHITE);
+
                 for (int i = 0; i < 3; i++) {
-                    Rectangle speedButton = {
-                        contentArea.x + i * (int)(220 * scale),
-                        yOffset + (int)(40 * scale),
-                        (int)(200 * scale),
-                        (int)(60 * scale)
+                    Rectangle speedBtn = {
+                        contentArea.x + 50 + i * (buttonWidth + spacing),
+                        yPos + 40,
+                        buttonWidth,
+                        buttonHeight
                     };
-                    
-                    Color buttonColor = (pendingAnimSpeedIndex == i) ? secondaryColor : LIGHTGRAY;
-                    DrawRectangleRounded(speedButton, 0.3f, 8, buttonColor);
-                    DrawRectangleRoundedLines(speedButton, 0.3f, 8, DARKGRAY);
-                    
-                    DrawText(animSpeeds[i],
-                            speedButton.x + speedButton.width/2 - MeasureText(animSpeeds[i], (int)(28 * scale))/2,
-                            speedButton.y + speedButton.height/2 - (int)(14 * scale),
-                            (int)(28 * scale),
-                            (pendingAnimSpeedIndex == i) ? WHITE : BLACK);
-                    
-                    if (CheckCollisionPointRec(GetMousePosition(), speedButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+
+                    Color btnColor = pendingAnimSpeedIndex == i ?
+                                 (Color){0, 150, 200, 255} : (Color){80, 80, 80, 200};
+
+                    // Desenhar botão
+                    DrawRectangleRounded(speedBtn, 0.3f, 6, btnColor);
+                    DrawRectangleRoundedLines(speedBtn, 0.3f, 6, WHITE);
+
+                    // Texto
+                    DrawText(animSpeedOptions[i],
+                            speedBtn.x + speedBtn.width/2 - MeasureText(animSpeedOptions[i], 20)/2,
+                            speedBtn.y + speedBtn.height/2 - 10,
+                            20,
+                            WHITE);
+
+                    // Interação
+                    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
+                        CheckCollisionPointRec(GetMousePosition(), speedBtn)) {
                         pendingAnimSpeedIndex = i;
                         PlaySound(selectSound);
                         hasUnsavedChanges = true;
                     }
                 }
+
+                // Verificar conexão com API - Botão de teste
+                yPos += 100;
+                DrawText("Integração com IA", contentArea.x, yPos, 24, WHITE);
+
+                Rectangle testApiBtn = {
+                    contentArea.x + 50,
+                    yPos + 40,
+                    200,
+                    40
+                };
+
+                DrawRectangleRounded(testApiBtn, 0.3f, 6, (Color){100, 50, 200, 255});
+                DrawRectangleRoundedLines(testApiBtn, 0.3f, 6, WHITE);
+
+                DrawText("Testar Conexão",
+                        testApiBtn.x + testApiBtn.width/2 - MeasureText("Testar Conexão", 20)/2,
+                        testApiBtn.y + testApiBtn.height/2 - 10,
+                        20,
+                        WHITE);
+
+                // Verificar atual do IA
+                if (initialized) {
+                    DrawText("Status: Conectado",
+                            testApiBtn.x + testApiBtn.width + 20,
+                            testApiBtn.y + 10,
+                            20,
+                            GREEN);
+                } else {
+                    DrawText("Status: Desconectado",
+                            testApiBtn.x + testApiBtn.width + 20,
+                            testApiBtn.y + 10,
+                            20,
+                            RED);
+                }
+
+                // Interação com botão de teste
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
+                    CheckCollisionPointRec(GetMousePosition(), testApiBtn)) {
+                    PlaySound(selectSound);
+                    testAIConnection();
+                }
             }
             break;
     }
-    
-    // Botões de ação na parte inferior
-    int buttonWidth = (int)(220 * scale);
-    int buttonHeight = (int)(60 * scale);
-    int buttonSpacing = (int)(20 * scale);
-    int bottomY = settingsArea.y + settingsArea.height - (int)(80 * scale);
-    
-    // Botão Aplicar (só aparece se houver mudanças)
+
+    // Botões inferiores
+    int buttonWidth = 180;
+    int buttonHeight = 50;
+    int bottomY = settingsArea.y + settingsArea.height - buttonHeight - 15;
+
+    // Botão Aplicar (só aparece se tiver mudanças)
     if (hasUnsavedChanges) {
-        Rectangle applyButton = {
-            settingsArea.x + settingsArea.width/2 - buttonWidth - buttonSpacing/2,
+        Rectangle applyBtn = {
+            settingsArea.x + settingsArea.width/2 - buttonWidth - 10,
             bottomY,
             buttonWidth,
             buttonHeight
         };
-        
-        Color applyButtonColor = CheckCollisionPointRec(GetMousePosition(), applyButton) ? 
-                               ColorAlpha(GREEN, 0.8f) : GREEN;
-        
-        DrawRectangleRounded(applyButton, 0.3f, 8, applyButtonColor);
-        DrawRectangleRoundedLines(applyButton, 0.3f, 8, DARKGRAY);
-        
-        const char* applyText = "APLICAR";
-        int applyFontSize = (int)(32 * scale);
-        DrawText(applyText,
-                applyButton.x + applyButton.width/2 - MeasureText(applyText, applyFontSize)/2,
-                applyButton.y + applyButton.height/2 - applyFontSize/2,
-                applyFontSize,
+
+        DrawRectangleRounded(applyBtn, 0.3f, 6, (Color){0, 180, 90, 255});
+        DrawRectangleRoundedLines(applyBtn, 0.3f, 6, WHITE);
+
+        DrawText("APLICAR",
+                applyBtn.x + applyBtn.width/2 - MeasureText("APLICAR", 24)/2,
+                applyBtn.y + applyBtn.height/2 - 12,
+                24,
                 WHITE);
-        
-        if (CheckCollisionPointRec(GetMousePosition(), applyButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+
+        // Interação
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
+            CheckCollisionPointRec(GetMousePosition(), applyBtn)) {
             PlaySound(selectSound);
-            applySettings();
+            hasUnsavedChanges = false;
         }
     }
-    
-    // Botão Voltar/Cancelar
-    Rectangle backButton = {
-        hasUnsavedChanges ? 
-            settingsArea.x + settingsArea.width/2 + buttonSpacing/2 :
+
+    // Botão Voltar
+    Rectangle backBtn = {
+        hasUnsavedChanges ?
+            settingsArea.x + settingsArea.width/2 + 10 :
             settingsArea.x + settingsArea.width/2 - buttonWidth/2,
         bottomY,
         buttonWidth,
         buttonHeight
     };
-    
-    Color backButtonColor = CheckCollisionPointRec(GetMousePosition(), backButton) ? 
-                           ColorAlpha(primaryColor, 0.8f) : primaryColor;
-    
-    DrawRectangleRounded(backButton, 0.3f, 8, backButtonColor);
-    DrawRectangleRoundedLines(backButton, 0.3f, 8, DARKGRAY);
-    
-    const char* backText = hasUnsavedChanges ? "CANCELAR" : "VOLTAR";
-    int backFontSize = (int)(32 * scale);
-    DrawText(backText,
-            backButton.x + backButton.width/2 - MeasureText(backText, backFontSize)/2,
-            backButton.y + backButton.height/2 - backFontSize/2,
-            backFontSize,
+
+    DrawRectangleRounded(backBtn, 0.3f, 6, (Color){100, 100, 100, 255});
+    DrawRectangleRoundedLines(backBtn, 0.3f, 6, WHITE);
+
+    DrawText(hasUnsavedChanges ? "CANCELAR" : "VOLTAR",
+            backBtn.x + backBtn.width/2 - MeasureText(hasUnsavedChanges ? "CANCELAR" : "VOLTAR", 24)/2,
+            backBtn.y + backBtn.height/2 - 12,
+            24,
             WHITE);
-    
-            if (CheckCollisionPointRec(GetMousePosition(), backButton) && IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
-                PlaySound(selectSound);
-                
-                // Se houver mudanças não salvas, reverter para os valores atuais
-                if (hasUnsavedChanges) {
-                    pendingMusicVolume = musicVolume;
-                    pendingSoundVolume = soundVolume;
-                    pendingFullscreen = fullscreen;
-                    pendingResolutionIndex = currentResolutionIndex;
-                    pendingDifficultyIndex = 1;
-                    pendingAnimSpeedIndex = 1;
-                    hasUnsavedChanges = false;
-                }
-                
-                currentScreen = MAIN_MENU;
-            }
-    
-    // Indicador de mudanças não salvas
+
+    // Interação
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
+        CheckCollisionPointRec(GetMousePosition(), backBtn)) {
+        PlaySound(selectSound);
+
+        // Se tiver mudanças não salvas, reverter para valores atuais
+        if (hasUnsavedChanges) {
+            pendingMusicVolume = musicVolume;
+            pendingSoundVolume = soundVolume;
+            pendingFullscreen = fullscreen;
+            pendingResolutionIndex = currentResolutionIndex;
+            hasUnsavedChanges = false;
+        }
+
+        currentScreen = MAIN_MENU;
+    }
+
+    // Se tiver mudanças não salvas, mostrar indicador
     if (hasUnsavedChanges) {
-        const char* unsavedText = "* Mudanças não salvas";
-        int unsavedFontSize = (int)(20 * scale);
-        DrawText(unsavedText,
-                settingsArea.x + (int)(20 * scale),
-                bottomY + (int)(10 * scale),
-                unsavedFontSize,
-                ORANGE);
+        DrawText("* Mudanças não salvas",
+                settingsArea.x + 20,
+                bottomY + 15,
+                18,
+                (Color){255, 200, 100, 255});
     }
-    
-    // Efeitos decorativos
-    static float particleTimer = 0.0f;
-    particleTimer += GetFrameTime();
-    
-    // Partículas flutuantes (similar ao menu principal)
-    for (int i = 0; i < 15; i++) {
-        float x = sinf(particleTimer * 0.3f + i * 0.4f) * GetScreenWidth() * 0.3f + GetScreenWidth() * 0.5f;
-        float y = cosf(particleTimer * 0.2f + i * 0.5f) * (int)(120 * scale) + GetScreenHeight() * 0.15f;
-        float size = sinf(particleTimer + i) * (int)(2 * scale) + (int)(3 * scale);
-        
-        DrawCircle(x, y, size, ColorAlpha(accentColor, 0.5f));
+
+    // Desenhar partículas decorativas
+    for (int i = 0; i < 10; i++) {
+        float time = settingsTimer + i * 0.5f;
+        float x = sinf(time * 0.2f + i) * GetScreenWidth() * 0.4f + GetScreenWidth() * 0.5f;
+        float y = cosf(time * 0.3f + i) * GetScreenHeight() * 0.3f + GetScreenHeight() * 0.5f;
+
+        float size = 3 + sinf(time) * 2;
+
+        Color particleColor = (Color){
+            (unsigned char)(100 + sinf(time * 0.3f) * 70),
+            (unsigned char)(150 + sinf(time * 0.5f) * 50),
+            (unsigned char)(200 + sinf(time * 0.7f) * 55),
+            150
+        };
+
+        DrawCircle(x, y, size, particleColor);
     }
 }
 
-// Funções auxiliares que precisam ser adicionadas:
-
-void applySettings(void) {
-    // Aplicar resolução se mudou
-    if (pendingResolutionIndex != currentResolutionIndex) {
-        SetWindowSize(availableResolutions[pendingResolutionIndex].width, 
-                     availableResolutions[pendingResolutionIndex].height);
-        
-        // Centralizar a janela na tela
-        int monitorWidth = GetMonitorWidth(GetCurrentMonitor());
-        int monitorHeight = GetMonitorHeight(GetCurrentMonitor());
-        int windowWidth = availableResolutions[pendingResolutionIndex].width;
-        int windowHeight = availableResolutions[pendingResolutionIndex].height;
-        
-        SetWindowPosition((monitorWidth - windowWidth) / 2, 
-                         (monitorHeight - windowHeight) / 2);
-        
-        currentResolutionIndex = pendingResolutionIndex;
-    }
-    
-    // Aplicar modo tela cheia
-    if (pendingFullscreen != fullscreen) {
-        fullscreen = pendingFullscreen;
-        ToggleFullscreen();
-    }
-    
-    // Aplicar volumes
-    musicVolume = pendingMusicVolume;
-    soundVolume = pendingSoundVolume;
-    SetMusicVolume(menuMusic, musicVolume);
-    SetMusicVolume(battleMusic, musicVolume);
-    SetSoundVolume(selectSound, soundVolume);
-    SetSoundVolume(attackSound, soundVolume);
-    SetSoundVolume(hitSound, soundVolume);
-    SetSoundVolume(faintSound, soundVolume);
-   
-   hasUnsavedChanges = false;
+void updateSettings(void) {
+    // Atualização da lógica de configurações (nada adicional aqui, tudo já é feito dentro de drawSettings)
 }
-
-void detectCurrentResolution(void) {
-   int currentWidth = GetScreenWidth();
-   int currentHeight = GetScreenHeight();
-   
-   for (int i = 0; i < numResolutions; i++) {
-       if (availableResolutions[i].width == currentWidth && 
-           availableResolutions[i].height == currentHeight) {
-           currentResolutionIndex = i;
-           pendingResolutionIndex = i;
-           break;
-       }
-   }
-}
-
-void initializeSettings(void) {
-   detectCurrentResolution();
-   pendingMusicVolume = musicVolume;
-   pendingSoundVolume = soundVolume;
-   pendingFullscreen = fullscreen;
-   pendingDifficultyIndex = 1; // Normal por padrão
-   pendingAnimSpeedIndex = 1;  // Normal por padrão
-   hasUnsavedChanges = false;
-}
- 
- void updateSettings(void) {
-     // Atualização da lógica de configurações, se necessário
- }

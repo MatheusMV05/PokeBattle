@@ -11,283 +11,376 @@
 #include "scaling.h"
 #include <math.h>
 
+static const GameState menuOptionStates[] = {
+    OPPONENT_SELECTION,  // "JOGAR"
+    SETTINGS,           // "CONFIGURAÇÕES"
+    TYPES_TABLE,        // "TIPOS"
+    CREDITS,            // "CRÉDITOS"
+    EXIT                // "SAIR"
+};
+
+
+
+// Variáveis locais para animações
+static float logoScale = 0.0f;
+static float logoAlpha = 0.0f;
+static float menuAlpha = 0.0f;
+static float particleTimer = 0.0f;
+static float backgroundScroll = 0.0f;
+static float titleBobTimer = 0.0f;
+static int selectedOption = 0;
+static int animationState = 0; // 0=intro, 1=menu normal
+static float introTimer = 0.0f;
+
+#define MAX_PARTICLES 50
+typedef struct {
+    Vector2 position;
+    Vector2 velocity;
+    float radius;
+    float alpha;
+    Color color;
+    bool active;
+} Particle;
+
+static Particle particles[MAX_PARTICLES];
+
+float EaseElasticOut(float t) {
+    float p = 0.3f;
+    return powf(2.0f, -10.0f * t) * sinf((t - p / 4.0f) * (2.0f * PI) / p) + 1.0f;
+}
+// Inicializa partículas decorativas
+static void initParticles(void) {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        particles[i].position = (Vector2){
+            GetRandomValue(0, GetScreenWidth()),
+            GetRandomValue(0, GetScreenHeight())
+        };
+        particles[i].velocity = (Vector2){
+            GetRandomValue(-50, 50) / 100.0f,
+            GetRandomValue(-50, 50) / 100.0f
+        };
+        particles[i].radius = GetRandomValue(2, 6);
+        particles[i].alpha = GetRandomValue(50, 200) / 255.0f;
+        particles[i].color = (Color){
+            GetRandomValue(100, 255),
+            GetRandomValue(200, 255),
+            GetRandomValue(200, 255),
+            255
+        };
+        particles[i].active = true;
+    }
+}
+
+// Atualiza as partículas
+static void updateParticles(void) {
+    float deltaTime = GetFrameTime();
+
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (!particles[i].active) continue;
+
+        // Mover partícula
+        particles[i].position.x += particles[i].velocity.x * deltaTime * 60.0f;
+        particles[i].position.y += particles[i].velocity.y * deltaTime * 60.0f;
+
+        // Fazer partícula flutuar com alguma aleatoriedade
+        particles[i].position.x += sinf(particleTimer * 2.0f + i) * 0.5f;
+        particles[i].position.y += cosf(particleTimer * 1.5f + i) * 0.5f;
+
+        // Verificar limites da tela
+        if (particles[i].position.x < -10 ||
+            particles[i].position.x > GetScreenWidth() + 10 ||
+            particles[i].position.y < -10 ||
+            particles[i].position.y > GetScreenHeight() + 10) {
+
+            // Reposicionar partícula
+            if (GetRandomValue(0, 1) == 0) {
+                // Entrar pelo lado
+                particles[i].position.x = GetRandomValue(0, 1) == 0 ? -5 : GetScreenWidth() + 5;
+                particles[i].position.y = GetRandomValue(0, GetScreenHeight());
+            } else {
+                // Entrar por cima ou por baixo
+                particles[i].position.x = GetRandomValue(0, GetScreenWidth());
+                particles[i].position.y = GetRandomValue(0, 1) == 0 ? -5 : GetScreenHeight() + 5;
+            }
+
+            // Nova velocidade
+            particles[i].velocity = (Vector2){
+                GetRandomValue(-60, 60) / 100.0f,
+                GetRandomValue(-60, 60) / 100.0f
+            };
+        }
+    }
+}
+
+// Desenha as partículas
+static void drawParticles(void) {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (!particles[i].active) continue;
+
+        // Pulsar tamanho e opacidade
+        float sizeScale = 0.8f + sinf(particleTimer * 2.0f + i * 0.3f) * 0.2f;
+        float opacityScale = 0.8f + sinf(particleTimer * 1.5f + i * 0.3f) * 0.2f;
+
+        Color particleColor = particles[i].color;
+        particleColor.a = (unsigned char)(particles[i].alpha * opacityScale * 255);
+
+        DrawCircleV(particles[i].position,
+                    particles[i].radius * sizeScale,
+                    particleColor);
+    }
+}
+
 void drawMainMenu(void) {
     // Atualizar música do menu
     UpdateMusicStream(menuMusic);
 
-    // Calcular escala baseada em 1920x1080
-    float scaleX = GetScreenWidth() / 1920.0f;
-    float scaleY = GetScreenHeight() / 1080.0f;
-    float scale = fmin(scaleX, scaleY);
-
-    // Cores principais do tema
-    Color primaryColor = (Color){ 255, 51, 51, 255 };      // Vermelho Fire Red
-    Color secondaryColor = (Color){ 51, 153, 255, 255 };   // Azul complementar
-    Color bgColor = (Color){ 245, 245, 245, 255 };         // Fundo claro
-    Color accentColor = (Color){ 255, 204, 0, 255 };       // Amarelo Pikachu
-
-    // Efeito de fundo animado
-    static float bgTimer = 0.0f;
-    bgTimer += GetFrameTime() * 0.5f;
-
-    // Desenhar fundo gradiente dinâmico
-    for (int i = 0; i < GetScreenHeight(); i += 5) {
+    // Desenhar fundo estilo Pokémon Crystal
+    // Fundo azul degradê
+    for (int i = 0; i < GetScreenHeight(); i++) {
         float factor = (float)i / GetScreenHeight();
-
         Color lineColor = (Color){
-            (unsigned char)(bgColor.r * (1.0f - factor) + secondaryColor.r * factor),
-            (unsigned char)(bgColor.g * (1.0f - factor) + secondaryColor.g * factor),
-            (unsigned char)(bgColor.b * (1.0f - factor) + secondaryColor.b * factor),
+            (unsigned char)(50 * (1.0f - factor) + 10 * factor),
+            (unsigned char)(100 * (1.0f - factor) + 50 * factor),
+            (unsigned char)(200 * (1.0f - factor) + 150 * factor),
             255
         };
-
-        DrawRectangle(0, i, GetScreenWidth(), 5, lineColor);
+        DrawRectangle(0, i, GetScreenWidth(), 1, lineColor);
     }
 
-    // Título principal estilo Pokémon
+    // Desenhar padrão de listras horizontais (como no Pokémon Crystal)
+    backgroundScroll -= GetFrameTime() * 20.0f;
+    if (backgroundScroll < -20.0f) backgroundScroll += 20.0f;
+
+    for (int i = 0; i < GetScreenHeight(); i += 20) {
+        int yPos = i + (int)backgroundScroll;
+        if (yPos < 0) yPos += 20;
+        DrawRectangle(0, yPos, GetScreenWidth(), 2, (Color){255, 255, 255, 20});
+    }
+
+    // Atualizar temporizadores de animação
+    particleTimer += GetFrameTime();
+    titleBobTimer += GetFrameTime() * 2.0f;
+
+    // Estado de animação de introdução
+    if (animationState == 0) {
+        introTimer += GetFrameTime();
+
+        // Crescimento do logo
+        if (introTimer < 1.5f) {
+            logoScale = EaseElasticOut(introTimer / 1.5f) * 1.0f;
+            logoAlpha = introTimer / 1.5f;
+        }
+
+        // Aparecimento do menu
+        if (introTimer > 1.5f && introTimer < 2.5f) {
+            menuAlpha = (introTimer - 1.5f) / 1.0f;
+            if (menuAlpha > 1.0f) menuAlpha = 1.0f;
+        }
+
+        // Finalizar animação
+        if (introTimer >= 2.5f) {
+            animationState = 1;
+            logoScale = 1.0f;
+            logoAlpha = 1.0f;
+            menuAlpha = 1.0f;
+        }
+    }
+
+    // Atualizar e desenhar partículas
+    updateParticles();
+    drawParticles();
+
+    // Desenhar título com animação de "flutuação"
     const char* title = "PokeBattle";
-    int titleFontSize = (int)(110 * scale); // Aumentado proporcionalmente
+    int fontSize = (int)(ScaleFontSize(60));
+    float yOffset = sinf(titleBobTimer) * 8.0f;
 
-    // Título - Sombra
-    Vector2 titleShadowPos = {
-        GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2 + (int)(3 * scale),
-        (int)(83 * scale)
-    };
-    DrawText(title, titleShadowPos.x, titleShadowPos.y, titleFontSize, (Color){ 40, 40, 40, 200 });
-
-    // Título - Contorno
-    Vector2 titleOutlinePos = {
-        GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2,
-        (int)(80 * scale)
+    // Título com efeito de sombra e cor
+    Vector2 titleSize = MeasureTextEx(gameFont, title, fontSize, 1);
+    Vector2 titlePos = {
+        GetScreenWidth() / 2 - titleSize.x / 2,
+        GetScreenHeight() / 4 - titleSize.y / 2 + yOffset
     };
 
-    // Desenhar contorno
-    int outlineOffset = (int)(3 * scale);
-    DrawText(title, titleOutlinePos.x - outlineOffset, titleOutlinePos.y - outlineOffset, titleFontSize, BLACK);
-    DrawText(title, titleOutlinePos.x + outlineOffset, titleOutlinePos.y - outlineOffset, titleFontSize, BLACK);
-    DrawText(title, titleOutlinePos.x - outlineOffset, titleOutlinePos.y + outlineOffset, titleFontSize, BLACK);
-    DrawText(title, titleOutlinePos.x + outlineOffset, titleOutlinePos.y + outlineOffset, titleFontSize, BLACK);
+    // Sombra
+    DrawTextEx(gameFont, title,
+               (Vector2){titlePos.x + 4, titlePos.y + 4},
+               fontSize, 1,
+               Fade(BLACK, 0.7f * logoAlpha));
 
-    // Título - Texto principal
-    DrawText(title, titleOutlinePos.x, titleOutlinePos.y, titleFontSize, primaryColor);
-
-    // Subtítulo
-    const char* subtitle = "Uma aventura de monstros de batalha";
-    int subtitleFontSize = (int)(32 * scale);
-    Vector2 subtitlePos = {
-        GetScreenWidth()/2 - MeasureText(subtitle, subtitleFontSize)/2,
-        (int)(200 * scale)
-    };
-    DrawText(subtitle, subtitlePos.x, subtitlePos.y, subtitleFontSize, DARKGRAY);
-
-    // Desenhar PokeBall decorativa
-    int pokeballSize = (int)(64 * scale); // Proporcional ao tamanho da tela
-    int pokeballX = GetScreenWidth()/2;
-    int pokeballY = subtitlePos.y + (int)(128 * scale);
-
-    DrawCircle(pokeballX, pokeballY, pokeballSize, RED);
-    DrawCircle(pokeballX, pokeballY, pokeballSize - (int)(8 * scale), WHITE);
-    DrawCircle(pokeballX, pokeballY, pokeballSize/4, WHITE);
-    DrawCircle(pokeballX, pokeballY, pokeballSize/4 - (int)(3 * scale), DARKGRAY);
-    DrawLine(pokeballX - pokeballSize, pokeballY, pokeballX + pokeballSize, pokeballY, BLACK);
-
-    // Área de menu
-    int menuWidth = (int)(800 * scale); // Aumentado proporcionalmente
-    int menuHeight = (int)(590 * scale); // Aumentado proporcionalmente
-    Rectangle menuArea = {
-        GetScreenWidth()/2 - menuWidth/2,
-        pokeballY + pokeballSize + (int)(48 * scale),
-        menuWidth,
-        menuHeight
-    };
-
-    // Painel do menu com efeito decorativo
-    DrawRectangleRounded(menuArea, 0.05f, 8, ColorAlpha(WHITE, 0.9f));
-    DrawRectangleRoundedLines(menuArea, 0.05f, 8, DARKGRAY);
-
-    // Desenhar decoração na borda do menu
-    int decorSize = (int)(4 * scale);
-    int decorSpacing = (int)(8 * scale);
-
-    for (int i = 0; i < menuArea.width - (int)(16 * scale); i += decorSpacing) {
-        DrawRectangle(menuArea.x + decorSpacing + i, menuArea.y + decorSpacing, decorSize, decorSize,
-                       (i % (decorSpacing * 2) == 0) ? primaryColor : secondaryColor);
-
-        DrawRectangle(menuArea.x + decorSpacing + i, menuArea.y + menuArea.height - (int)(12 * scale), decorSize, decorSize,
-                       (i % (decorSpacing * 2) == 0) ? primaryColor : secondaryColor);
+    // Contorno
+    for (int i = 0; i < 360; i += 45) {
+        float rad = i * DEG2RAD;
+        DrawTextEx(gameFont, title,
+                  (Vector2){titlePos.x + cosf(rad) * 2, titlePos.y + sinf(rad) * 2},
+                  fontSize, 1,
+                  Fade(DARKBLUE, logoAlpha));
     }
 
-    // Desenhar botões do menu
-    int buttonWidth = (int)(480 * scale); // Aumentado proporcionalmente
-    int buttonHeight = (int)(80 * scale); // Aumentado proporcionalmente
-    int buttonSpacing = (int)(24 * scale); // Aumentado proporcionalmente
-    int startY = menuArea.y + (int)(48 * scale);
+    // Texto principal com gradiente
+    for (int i = 0; i < titleSize.y; i++) {
+        float factor = (float)i / titleSize.y;
+        Color textColor = (Color){
+            255,  // R
+            (unsigned char)(220 + sinf(titleBobTimer + factor * 5) * 35),  // G
+            (unsigned char)(50 + factor * 150),  // B
+            (unsigned char)(255 * logoAlpha)  // A
+        };
 
-    // Opções do menu principal
-    const char* menuOptions[] = {
-        "INICIAR JOGO",
+        Rectangle scissorRect = {
+            titlePos.x, titlePos.y + i, titleSize.x, 1
+        };
+        BeginScissorMode(scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height);
+        DrawTextEx(gameFont, title, titlePos, fontSize, 1, textColor);
+        EndScissorMode();
+    }
+
+    // Desenhar ícone de Pokébola embaixo do título
+    float pokeScale = 0.8f + sinf(titleBobTimer * 1.2f) * 0.1f;
+    int pokeSize = (int)(60 * pokeScale);
+    DrawCircle(
+        GetScreenWidth() / 2,
+        GetScreenHeight() / 4 + 70 + (int)yOffset,
+        pokeSize,
+        Fade(RED, 0.8f * logoAlpha)
+    );
+    DrawCircle(
+        GetScreenWidth() / 2,
+        GetScreenHeight() / 4 + 70 + (int)yOffset,
+        pokeSize - 5,
+        Fade(WHITE, 0.9f * logoAlpha)
+    );
+    DrawRectangle(
+        GetScreenWidth() / 2 - pokeSize,
+        GetScreenHeight() / 4 + 70 - 3 + (int)yOffset,
+        pokeSize * 2,
+        6,
+        Fade(BLACK, 0.8f * logoAlpha)
+    );
+    DrawCircle(
+        GetScreenWidth() / 2,
+        GetScreenHeight() / 4 + 70 + (int)yOffset,
+        10,
+        Fade(BLACK, 0.8f * logoAlpha)
+    );
+    DrawCircle(
+        GetScreenWidth() / 2,
+        GetScreenHeight() / 4 + 70 + (int)yOffset,
+        6,
+        Fade(WHITE, 0.8f * logoAlpha)
+    );
+
+    // Desenhar opções do menu
+    const char* options[] = {
+        "JOGAR",
         "CONFIGURAÇÕES",
-        "TABELA DE TIPOS",
+        "TIPOS",
         "CRÉDITOS",
         "SAIR"
     };
+    int optionCount = 5;
+    int menuStart = GetScreenHeight() / 2;
 
-    // Cores para cada botão
-    Color menuColors[] = {
-        (Color){ 220, 60, 60, 255 },    // Vermelho - Jogar
-        (Color){ 60, 180, 120, 255 },   // Verde - Configurações
-        (Color){ 80, 100, 220, 255 },   // Azul - Tabela de Tipos
-        (Color){ 220, 140, 60, 255 },   // Laranja - Créditos
-        (Color){ 150, 60, 150, 255 }    // Roxo - Sair
-    };
-
-    // Ícones para os botões (representados por formas simples)
-    for (int i = 0; i < 5; i++) {
-        Rectangle buttonBounds = {
-            menuArea.x + menuArea.width/2 - buttonWidth/2,
-            startY,
-            buttonWidth,
-            buttonHeight
+    for (int i = 0; i < optionCount; i++) {
+        Rectangle optionRect = {
+            GetScreenWidth() / 2 - 150,
+            menuStart + i * 60,
+            300,
+            50
         };
 
-        // Verificar se o mouse está sobre o botão
-        bool isHovering = CheckCollisionPointRec(GetMousePosition(), buttonBounds);
-
-        // Cores dinâmicas com base no hover
-        Color currentColor = menuColors[i];
-        if (isHovering) {
-            // Brilho ao passar o mouse
-            currentColor.r = (currentColor.r + 30) > 255 ? 255 : (currentColor.r + 30);
-            currentColor.g = (currentColor.g + 30) > 255 ? 255 : (currentColor.g + 30);
-            currentColor.b = (currentColor.b + 30) > 255 ? 255 : (currentColor.b + 30);
-
-            // Destacar com linha pontilhada
-            float time = GetTime() * 10.0f;
-            int dotSize = (int)(2 * scale);
-            int dotSpacing = (int)(4 * scale);
-
-            for (int j = 0; j < buttonBounds.width; j += dotSpacing) {
-                if ((int)(j + time) % (dotSpacing * 2) < dotSpacing) {
-                    DrawRectangle(buttonBounds.x + j, buttonBounds.y - (int)(5 * scale), dotSize, dotSize, WHITE);
-                    DrawRectangle(buttonBounds.x + j, buttonBounds.y + buttonBounds.height + (int)(3 * scale), dotSize, dotSize, WHITE);
-                }
-            }
+        // Verificar mouse hover
+        bool isHovered = CheckCollisionPointRec(GetMousePosition(), optionRect);
+        if (isHovered) {
+            selectedOption = i;
         }
 
-        // Desenhar botão com efeito de profundidade
-        DrawRectangleRounded(buttonBounds, 0.2f, 8, currentColor);
+        // Cor do botão com base na seleção
+        Color buttonColor = (selectedOption == i) ?
+                           (Color){0, 102, 204, (unsigned char)(255 * menuAlpha)} :
+                           (Color){0, 51, 102, (unsigned char)(255 * menuAlpha)};
 
-        // Sombra na parte inferior
-        DrawRectangleRounded(
-            (Rectangle){ buttonBounds.x, buttonBounds.y + buttonBounds.height - (int)(8 * scale), buttonBounds.width, (int)(8 * scale) },
-            0.2f, 8, ColorAlpha(BLACK, 0.3f)
-        );
+        // Efeito de pulso para o botão selecionado
+        float pulseScale = 1.0f;
+        if (selectedOption == i) {
+            pulseScale = 1.0f + sinf(particleTimer * 5.0f) * 0.05f;
 
-        // Brilho na parte superior
-        DrawRectangleRounded(
-            (Rectangle){ buttonBounds.x, buttonBounds.y, buttonBounds.width, (int)(8 * scale) },
-            0.2f, 8, ColorAlpha(WHITE, 0.3f)
-        );
+            // Desenhar Pokébola ao lado da opção selecionada
+            float pokeX = optionRect.x - 40;
+            DrawCircle(pokeX, optionRect.y + optionRect.height/2, 12, RED);
+            DrawCircle(pokeX, optionRect.y + optionRect.height/2, 10, WHITE);
+            DrawRectangle(pokeX - 12, optionRect.y + optionRect.height/2 - 2, 24, 4, BLACK);
+            DrawCircle(pokeX, optionRect.y + optionRect.height/2, 3, BLACK);
+        }
 
-        // Desenhar ícone para cada botão
-        int iconSize = (int)(30 * scale);
-        Rectangle iconRect = {
-            buttonBounds.x + (int)(24 * scale),
-            buttonBounds.y + buttonBounds.height/2 - iconSize/2,
-            iconSize,
-            iconSize
+        // Ajustar retângulo com pulso
+        Rectangle pulsedRect = {
+            optionRect.x - (optionRect.width * pulseScale - optionRect.width) / 2,
+            optionRect.y - (optionRect.height * pulseScale - optionRect.height) / 2,
+            optionRect.width * pulseScale,
+            optionRect.height * pulseScale
         };
 
-        switch (i) {
-            case 0: // Jogar - Triângulo (Play)
-                DrawPoly((Vector2){iconRect.x + iconSize/2, iconRect.y + iconSize/2}, 3, iconSize/2, 0, WHITE);
-                break;
-            case 1: // Configurações - Engrenagem
-                DrawCircle(iconRect.x + iconSize/2, iconRect.y + iconSize/2, (int)(13 * scale), WHITE);
-                DrawCircle(iconRect.x + iconSize/2, iconRect.y + iconSize/2, (int)(7 * scale), currentColor);
-                for (int j = 0; j < 8; j++) {
-                    float angle = j * PI / 4.0f;
-                    DrawLine(
-                        iconRect.x + iconSize/2 + cosf(angle) * (int)(12 * scale),
-                        iconRect.y + iconSize/2 + sinf(angle) * (int)(12 * scale),
-                        iconRect.x + iconSize/2 + cosf(angle) * (int)(20 * scale),
-                        iconRect.y + iconSize/2 + sinf(angle) * (int)(20 * scale),
-                        WHITE
-                    );
-                }
-                break;
-            case 2: // Tabela - Grid
-                DrawRectangleLines(iconRect.x, iconRect.y, iconSize, iconSize, WHITE);
-                DrawLine(iconRect.x, iconRect.y + iconSize/3, iconRect.x + iconSize, iconRect.y + iconSize/3, WHITE);
-                DrawLine(iconRect.x, iconRect.y + iconSize*2/3, iconRect.x + iconSize, iconRect.y + iconSize*2/3, WHITE);
-                DrawLine(iconRect.x + iconSize/3, iconRect.y, iconRect.x + iconSize/3, iconRect.y + iconSize, WHITE);
-                DrawLine(iconRect.x + iconSize*2/3, iconRect.y, iconRect.x + iconSize*2/3, iconRect.y + iconSize, WHITE);
-                break;
-            case 3: // Créditos - Estrela
-                DrawPoly((Vector2){iconRect.x + iconSize/2, iconRect.y + iconSize/2}, 5, iconSize/2, 0, WHITE);
-                break;
-            case 4: // Sair - X
-                DrawLine(iconRect.x + (int)(5 * scale), iconRect.y + (int)(5 * scale),
-                        iconRect.x + iconSize - (int)(5 * scale), iconRect.y + iconSize - (int)(5 * scale), WHITE);
-                DrawLine(iconRect.x + iconSize - (int)(5 * scale), iconRect.y + (int)(5 * scale),
-                        iconRect.x + (int)(5 * scale), iconRect.y + iconSize - (int)(5 * scale), WHITE);
-                break;
-        }
+        // Desenhar fundo do botão
+        DrawRectangleRounded(pulsedRect, 0.2f, 10, buttonColor);
+        DrawRectangleRoundedLines(pulsedRect, 0.2f, 10,Fade(BLACK, menuAlpha));
 
-        // Texto do botão
-        int fontSize = (int)(38 * scale); // Aumentado proporcionalmente
-        DrawText(
-            menuOptions[i],
-            buttonBounds.x + (int)(96 * scale),
-            buttonBounds.y + buttonBounds.height/2 - fontSize/2,
-            fontSize,
-            WHITE
-        );
+        // Desenhar texto
+        DrawText(options[i],
+                pulsedRect.x + pulsedRect.width/2 - MeasureText(options[i], 20)/2,
+                pulsedRect.y + pulsedRect.height/2 - 10,
+                20,
+                Fade(WHITE, menuAlpha));
 
         // Verificar clique
-        if (isHovering && IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+        if (isHovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             PlaySound(selectSound);
-
-            // Mudança de tela com base na opção escolhida
-            switch (i) {
-                case 0: currentScreen = OPPONENT_SELECTION; break;
-                case 1: currentScreen = SETTINGS; break;
-                case 2: currentScreen = TYPES_TABLE; break;
-                case 3: currentScreen = CREDITS; break;
-                case 4: currentScreen = EXIT; break;
-            }
+            currentScreen = menuOptionStates[i];  // Use o mapeamento correto
         }
-
-        startY += buttonHeight + buttonSpacing;
     }
 
-    // Rodapé com versão do jogo
-    const char* version = "v1.0.0 (2025)";
-    int versionFontSize = (int)(25 * scale);
-    DrawText(version,
-             GetScreenWidth() - MeasureText(version, versionFontSize) - (int)(16 * scale),
-             GetScreenHeight() - (int)(40 * scale),
-             versionFontSize,
-             DARKGRAY);
+    // Desenhar informações na parte inferior da tela
+    DrawText("© 2025 - CESAR School",
+            10,
+            GetScreenHeight() - 30,
+            16,
+            Fade(WHITE, menuAlpha * 0.8f));
 
-    // Desenhar efeitos de partículas (pequenos pontos flutuando)
-    static float particleTimer = 0.0f;
-    particleTimer += GetFrameTime();
+    // Indicador de versão
+    DrawText("v1.0",
+            GetScreenWidth() - 40,
+            GetScreenHeight() - 30,
+            16,
+            Fade(WHITE, menuAlpha * 0.8f));
 
-    for (int i = 0; i < 20; i++) {
-        float x = sinf(particleTimer * 0.5f + i * 0.3f) * GetScreenWidth() * 0.4f + GetScreenWidth() * 0.5f;
-        float y = cosf(particleTimer * 0.2f + i * 0.7f) * (int)(160 * scale) + GetScreenHeight() * 0.2f;
-        float size = sinf(particleTimer + i) * (int)(3 * scale) + (int)(5 * scale);
-
-        DrawCircle(x, y, size, ColorAlpha(accentColor, 0.7f));
-    }
+    // Status da IA
+    drawAIIndicator();
 }
 
 void updateMainMenu(void) {
-    // Adicionar suporte para F11 (tela cheia)
+    // Inicializar as partículas na primeira vez
+    static bool particlesInitialized = false;
+    if (!particlesInitialized) {
+        initParticles();
+        particlesInitialized = true;
+    }
+
+    // Controle de teclado para navegação
+    if (IsKeyPressed(KEY_UP)) {
+        selectedOption = (selectedOption - 1 + 5) % 5;
+        PlaySound(selectSound);
+    }
+    else if (IsKeyPressed(KEY_DOWN)) {
+        selectedOption = (selectedOption + 1) % 5;
+        PlaySound(selectSound);
+    }
+    else if (IsKeyPressed(KEY_ENTER)) {
+        PlaySound(selectSound);
+        currentScreen = selectedOption + 1;
+    }
+
+    // Verificar se uma tecla F11 foi pressionada para alternar tela cheia
     if (IsKeyPressed(KEY_F11)) {
         pendingFullscreen = !pendingFullscreen;
-        // Chamar applySettings() se existir
-        // applySettings();
     }
 }

@@ -13,7 +13,7 @@
 
 // Funções para renderização da batalha
 void drawBattleScreen(void);
-void drawMonsterInBattle(PokeMonster* monster, Rectangle bounds, bool isPlayer);
+void drawMonsterInBattle(PokeMonster* monster, bool isPlayer);
 void drawBattleHUD(void);
 void updateBattleScreen(void);
 void initBattleEffects(void);

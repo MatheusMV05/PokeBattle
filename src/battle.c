@@ -17,7 +17,7 @@
  #include "battle.h"
  #include "monsters.h"
  #include "ia_integration.h"
- #import  "resources.h"
+ #include   "resources.h"
  #include "decision_tree.h"
  #include "globals.h"
 
@@ -1392,6 +1392,60 @@ void startAttackAnimation(PokeMonster* attacker, PokeMonster* defender, int atta
     currentAnimation.source = attacker;
     currentAnimation.target = defender;
     battleSystem->battleState = BATTLE_ATTACK_ANIMATION;
+}
+
+/**
+ * Executa a troca de monstro
+ */
+void executeMonsterSwitch(PokeMonster* monster, int targetIndex) {
+    MonsterList* team = NULL;
+    bool isPlayer = false;
+
+    // Determinar qual time
+    if (monster == battleSystem->playerTeam->current) {
+        team = battleSystem->playerTeam;
+        isPlayer = true;
+    } else {
+        team = battleSystem->opponentTeam;
+    }
+
+    // Encontrar o monstro alvo
+    PokeMonster* newMonster = NULL;
+    PokeMonster* current = team->first;
+    int count = 0;
+
+    while (current != NULL && count < targetIndex) {
+        current = current->next;
+        count++;
+    }
+
+    if (current != NULL && !isMonsterFainted(current)) {
+        newMonster = current;
+        switchMonster(team, newMonster);
+
+        // Mensagem de troca
+        char switchMsg[256];
+        if (isPlayer) {
+            sprintf(switchMsg, "Volte, %s! Vai, %s!",
+                    monster->name, newMonster->name);
+        } else {
+            sprintf(switchMsg, "O oponente trocou para %s!", newMonster->name);
+        }
+
+        displayBattleMessage(switchMsg, 2.0f, false, true);
+    }
+}
+
+/**
+ * Executa o uso de um item
+ */
+void executeItemUse(PokeMonster* user, ItemType itemType) {
+    useItem(itemType, user);
+
+    // A mensagem já está definida em useItem
+    displayBattleMessage(battleMessage, 2.0f, false, true);
+
+    battleSystem->itemUsed = true;
 }
 
 
