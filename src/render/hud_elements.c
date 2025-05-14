@@ -24,17 +24,17 @@ extern BattleSystem* battleSystem;
 bool drawButton(Rectangle bounds, const char* text, Color color) {
     bool clicked = false;
     Vector2 mousePoint = GetMousePosition();
-    
+
     // Verificar hover
     if (CheckCollisionPointRec(mousePoint, bounds)) {
         // Clarear a cor quando hover
-        Color hoverColor = (Color){ 
+        Color hoverColor = (Color){
             (unsigned char)fmin(255, color.r + 40),
             (unsigned char)fmin(255, color.g + 40),
             (unsigned char)fmin(255, color.b + 40),
             color.a
         };
-        
+
         DrawRectangleRounded(bounds, 0.2f, 10 * ((GetScaleX() + GetScaleY()) / 2.0f), hoverColor);
 
         // Verificar clique
@@ -49,13 +49,13 @@ bool drawButton(Rectangle bounds, const char* text, Color color) {
     DrawRectangleRoundedLines(bounds, 0.2f, 10 * ((GetScaleX() + GetScaleY()) / 2.0f), BLACK);
 
     // Desenhar texto com tamanho escalado
-    float fontSize = ScaleFontSize(20);
+    float fontSize = ScaleFontSize(7);
     Vector2 textSize = MeasureTextEx(gameFont, text, fontSize, 1);
     DrawTextEx(gameFont, text, (Vector2){
         bounds.x + bounds.width/2 - textSize.x/2,
         bounds.y + bounds.height/2 - textSize.y/2
     }, fontSize, 1, WHITE);
-    
+
     return clicked;
 }
 
@@ -64,29 +64,29 @@ void drawMonsterCard(Rectangle bounds, PokeMonster* monster, bool selected) {
     // Desenhar fundo do card
     Color cardColor = selected ? SKYBLUE : LIGHTGRAY;
     DrawRectangleRounded(bounds, 0.2f, 10, cardColor);
-    
+
     // Desenhar borda
     DrawRectangleRoundedLines(bounds, 0.2f, 10, selected ? BLUE : BLACK);
-    
+
     // Desenhar nome
     DrawText(monster->name, bounds.x + 10, bounds.y + 10, 20, BLACK);
-    
+
     // Desenhar tipos
-    Rectangle type1Rect = { bounds.x + 10, bounds.y + 40, 60, 25 };
+    Rectangle type1Rect = { bounds.x + 10, bounds.y + 40, 75, 25 };
     DrawRectangleRec(type1Rect, getTypeColor(monster->type1));
     DrawText(getTypeName(monster->type1), type1Rect.x + 5, type1Rect.y + 5, 15, WHITE);
-    
+
     if (monster->type2 != TYPE_NONE) {
-        Rectangle type2Rect = { bounds.x + 80, bounds.y + 40, 60, 25 };
+        Rectangle type2Rect = { bounds.x + 90, bounds.y + 40, 75, 25 };
         DrawRectangleRec(type2Rect, getTypeColor(monster->type2));
         DrawText(getTypeName(monster->type2), type2Rect.x + 5, type2Rect.y + 5, 15, WHITE);
     }
-    
+
     // Desenhar estatísticas básicas
     char stats[100];
     sprintf(stats, "HP: %d  ATK: %d", monster->maxHp, monster->attack);
     DrawText(stats, bounds.x + 10, bounds.y + 70, 15, BLACK);
-    
+
     sprintf(stats, "DEF: %d  SPD: %d", monster->defense, monster->speed);
     DrawText(stats, bounds.x + 10, bounds.y + 90, 15, BLACK);
 }
@@ -111,17 +111,17 @@ static HPBarAnimation hpBars[MAX_BARS] = {0};
 // Encontrar ou criar uma animação para um monstro específico
 HPBarAnimation* getHPBarAnimation(PokeMonster* monster) {
    if (monster == NULL) return NULL;
-   
+
    // Usar endereço do monstro como ID
    void* monsterId = (void*)monster;
-   
+
    // Procurar animação existente
    for (int i = 0; i < MAX_BARS; i++) {
        if (hpBars[i].monsterId == monsterId) {
            return &hpBars[i];
        }
    }
-   
+
    // Criar nova animação
    for (int i = 0; i < MAX_BARS; i++) {
        if (hpBars[i].monsterId == NULL) {
@@ -132,7 +132,7 @@ HPBarAnimation* getHPBarAnimation(PokeMonster* monster) {
            return &hpBars[i];
        }
    }
-   
+
    return NULL; // Não deveria acontecer a menos que MAX_BARS seja muito pequeno
 }
 
@@ -271,59 +271,59 @@ void drawHealthBar(Rectangle bounds, int currentHP, int maxHP, PokeMonster* mons
 void drawMonsterStats(Rectangle bounds, PokeMonster* monster) {
     // Desenhar fundo
     DrawRectangleRounded(bounds, 0.2f, 10, LIGHTGRAY);
-    
+
     // Desenhar nome
     DrawText(monster->name, bounds.x + 20, bounds.y + 20, 30, BLACK);
-    
+
     // Desenhar tipos
-    Rectangle type1Rect = { bounds.x + 20, bounds.y + 60, 80, 30 };
+    Rectangle type1Rect = { bounds.x + 30, bounds.y + 60, 80, 30 };
     DrawRectangleRec(type1Rect, getTypeColor(monster->type1));
     DrawText(getTypeName(monster->type1), type1Rect.x + 10, type1Rect.y + 5, 20, WHITE);
-    
+
     if (monster->type2 != TYPE_NONE) {
         Rectangle type2Rect = { bounds.x + 110, bounds.y + 60, 80, 30 };
         DrawRectangleRec(type2Rect, getTypeColor(monster->type2));
         DrawText(getTypeName(monster->type2), type2Rect.x + 10, type2Rect.y + 5, 20, WHITE);
     }
-    
+
     // Desenhar estatísticas
     DrawText("Estatísticas:", bounds.x + 20, bounds.y + 100, 25, BLACK);
-    
+
     char statText[50];
     sprintf(statText, "HP: %d", monster->maxHp);
     DrawText(statText, bounds.x + 30, bounds.y + 130, 20, BLACK);
-    
+
     sprintf(statText, "Ataque: %d", monster->attack);
     DrawText(statText, bounds.x + 30, bounds.y + 160, 20, BLACK);
-    
+
     sprintf(statText, "Defesa: %d", monster->defense);
     DrawText(statText, bounds.x + 30, bounds.y + 190, 20, BLACK);
-    
+
     sprintf(statText, "Velocidade: %d", monster->speed);
     DrawText(statText, bounds.x + 30, bounds.y + 220, 20, BLACK);
-    
+
     // Desenhar ataques
     DrawText("Ataques:", bounds.x + bounds.width/2, bounds.y + 100, 25, BLACK);
-    
+
     for (int i = 0; i < 4; i++) {
-        Rectangle attackRect = { 
-            bounds.x + bounds.width/2, 
-            bounds.y + 130 + i * 40, 
-            bounds.width/2 - 30, 
-            35 
+        Rectangle attackRect = {
+            bounds.x + bounds.width/2,
+            bounds.y + 130 + i * 40,
+            bounds.width/2 - 30,
+            35
         };
-        
+
         DrawRectangleRec(attackRect, getTypeColor(monster->attacks[i].type));
         DrawText(monster->attacks[i].name, attackRect.x + 10, attackRect.y + 8, 20, WHITE);
-        
+
         char attackInfo[50];
         if (monster->attacks[i].power > 0) {
-            sprintf(attackInfo, "Poder: %d  Precisão: %d", 
+            sprintf(attackInfo, "Poder: %d  Precisão: %d",
                    monster->attacks[i].power, monster->attacks[i].accuracy);
         } else {
             sprintf(attackInfo, "Status  Precisão: %d", monster->attacks[i].accuracy);
         }
-        
+
         DrawText(attackInfo, attackRect.x + 10, attackRect.y + 30, 15, BLACK);
     }
 }
@@ -384,7 +384,7 @@ void drawMessageBox(Rectangle bounds, const char* message) {
     // Desenhar fundo
     DrawRectangleRounded(bounds, 0.2f, 10, WHITE);
     DrawRectangleRoundedLines(bounds, 0.2f, 10, BLACK);
-    
+
     // Desenhar texto
     DrawText(message, bounds.x + 15, bounds.y + bounds.height/2 - 10, 20, BLACK);
 }
@@ -393,7 +393,7 @@ void drawMessageBox(Rectangle bounds, const char* message) {
 void drawConfirmationDialog(const char* message, const char* yesText, const char* noText) {
     // Desenhar fundo semi-transparente
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), (Color){ 0, 0, 0, 150 });
-    
+
     // Desenhar caixa de diálogo
     Rectangle dialogBox = {
         GetScreenWidth()/2 - 200,
@@ -401,17 +401,17 @@ void drawConfirmationDialog(const char* message, const char* yesText, const char
         400,
         200
     };
-    
+
     DrawRectangleRounded(dialogBox, 0.2f, 10, WHITE);
     DrawRectangleRoundedLines(dialogBox, 0.2f, 10, BLACK);
-    
+
     // Desenhar mensagem
     Vector2 textSize = MeasureTextEx(gameFont, message, 20, 1);
-    DrawTextEx(gameFont, message, (Vector2){ 
+    DrawTextEx(gameFont, message, (Vector2){
         dialogBox.x + dialogBox.width/2 - textSize.x/2,
         dialogBox.y + 40
     }, 20, 1, BLACK);
-    
+
     // Desenhar botões
     Rectangle yesButton = {
         dialogBox.x + 50,
@@ -419,14 +419,14 @@ void drawConfirmationDialog(const char* message, const char* yesText, const char
         100,
         40
     };
-    
+
     Rectangle noButton = {
         dialogBox.x + 250,
         dialogBox.y + 120,
         100,
         40
     };
-    
+
     if (drawButton(yesButton, yesText, RED)) {
         PlaySound(selectSound);
         // Voltar ao menu principal
@@ -435,7 +435,7 @@ void drawConfirmationDialog(const char* message, const char* yesText, const char
         currentScreen = MAIN_MENU;
         resetBattle();
     }
-    
+
     if (drawButton(noButton, noText, GREEN)) {
         PlaySound(selectSound);
         // Continuar a batalha
@@ -448,7 +448,7 @@ void drawAIIndicator(void) {
    Rectangle indicator = { GetScreenWidth() - 80, 5, 75, 25 };
    Color indicatorColor;
    const char* text;
-   
+
    // Verificar se a IA está disponível
    if (initialized && curl_handle != NULL) {
        indicatorColor = GREEN;
@@ -457,7 +457,7 @@ void drawAIIndicator(void) {
        indicatorColor = YELLOW;
        text = "IA OFF";
    }
-   
+
    DrawRectangleRounded(indicator, 0.3f, 8, indicatorColor);
    DrawRectangleRoundedLines(indicator, 0.3f, 8, BLACK);
    DrawText(text, indicator.x + 8, indicator.y + 4, 18, WHITE);

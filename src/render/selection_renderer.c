@@ -42,7 +42,7 @@ void drawOpponentSelection(void) {
     DrawTextEx(gameFont, title, titlePos, fontSize, 2, WHITE);
 
     // Desenhar botões de seleção com escala
-    float buttonWidth = 250 * GetScaleX();
+    float buttonWidth = 200 * GetScaleX();
     float buttonHeight = 80 * GetScaleY();
     float buttonSpacing = 40 * GetScaleY();
     float startY = GetScreenHeight()/2 - buttonHeight - buttonSpacing/2;
@@ -127,10 +127,13 @@ void drawMonsterSelection(void) {
         }
     }
 
-    float titleFontSize = ScaleFontSize(30);
+    // Desenha instruções com escala
+    float titleFontSize = ScaleFontSize(35);
     Vector2 instrSize = MeasureTextEx(gameFont, instruction, titleFontSize, 2);
-    Vector2 instrPos = ScalePosition(GetScreenWidth()/2 - instrSize.x/2, 20);
+    Vector2 instrPos = ScalePosition(GetScreenWidth()/2.5 - instrSize.x/2, 20);
     DrawTextEx(gameFont, instruction, instrPos, titleFontSize, 2, DARKGRAY);
+    float instrMargin = 10 * GetScaleY();
+    float instrHeight = instrPos.y + instrSize.y + instrMargin;
 
     // Se estiver visualizando estatísticas de um monstro
     if (viewingStats && currentViewedMonster != NULL) {
@@ -156,11 +159,12 @@ void drawMonsterSelection(void) {
         int columns = 3;
 
         // Definir tamanhos e espaçamentos com escala
-        float cardWidth = 230 * GetScaleX();
-        float cardHeight = 160 * GetScaleY();
-        float spacingX = 20 * GetScaleX();
-        float spacingY = 20 * GetScaleY();
-        float startX = (GetScreenWidth() - (cardWidth * columns + spacingX * (columns - 1))) / 2;
+        float cardWidth = 200 * GetScaleX(); //reduzido de 230 para 200
+        float cardHeight = 150 * GetScaleY(); //reduzido de 160 para 150
+        float spacingX = 30 * GetScaleX(); //Aumentado espaçamento de 20 para 30
+        float spacingY = 30 * GetScaleY(); //Aumentado espaçamento de 20 para 30
+        float totalCardsWidth = columns * cardWidth + (columns - 1) * spacingX;
+        float startX = (GetScreenWidth() - totalCardsWidth) / 2;
         float startY = 80 * GetScaleY();
 
         // Calcular área visível para os monstros
@@ -223,16 +227,16 @@ void drawMonsterSelection(void) {
                 // Botões de ação
                 Rectangle selectBounds = {
                     scaledBounds.x + 10,
-                    scaledBounds.y + scaledBounds.height - 60,
+                    scaledBounds.y + scaledBounds.height - 40,
                     scaledBounds.width / 2 - 15,
-                    40
+                    30
                 };
 
                 Rectangle statsBounds = {
                     scaledBounds.x + scaledBounds.width / 2 + 5,
-                    scaledBounds.y + scaledBounds.height - 60,
+                    scaledBounds.y + scaledBounds.height - 40,
                     scaledBounds.width / 2 - 15,
-                    40
+                    30
                 };
 
                 // Verificar se o monstro já está no time

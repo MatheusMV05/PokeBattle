@@ -186,7 +186,7 @@ static int pendingAnimSpeedIndex = 1;
      // Desenhar título
      const char* title = "Créditos";
      Vector2 titleSize = MeasureTextEx(gameFont, title, 40, 2);
-     DrawTextEx(gameFont, title, (Vector2){ GetScreenWidth()/2 - titleSize.x/2, 50 }, 40, 2, WHITE);
+     DrawTextEx(gameFont, title, (Vector2){ (GetScreenWidth() - titleSize.x) / 2.0f, 50 }, 40, 2, WHITE);
      
      // Texto dos créditos
      const char* credits[] = {
