@@ -26,6 +26,7 @@ file(GLOB_RECURSE SOURCES
         "src/*.c"
         "src/render/*.c"
 )
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/raygui_impl.c)
 
 # Criar o executável
 add_executable(pokebattle ${SOURCES}
@@ -36,7 +37,13 @@ add_executable(pokebattle ${SOURCES}
         src/globals.c
         include/globals.h
         include/render/types_table_renderer.h
-        include/render/credits_renderer.h)
+        include/render/credits_renderer.h
+        include/gui.h
+        src/gui.c
+        src/raygui_impl.c
+        src/render/types_table_renderer.c
+        src/render/credits_renderer.c
+)
 
 # Linkar bibliotecas necessárias no Windows
 target_link_libraries(pokebattle
