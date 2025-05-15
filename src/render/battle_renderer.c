@@ -1,4 +1,3 @@
-// battle_renderer.c - Sistema completo de renderização de batalha estilo Pokémon FireRed
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOGDI
@@ -16,12 +15,11 @@
 #include <string.h>
 #include "scaling.h"
 #include "globals.h"
+#include "gui.h"
 
-// Declaração de funções de sistema de batalha
-void displayBattleMessage(const char* message, float duration, bool waitForInput, bool autoAdvance);
-
-// Variáveis locais
-BattleEffect effects[MAX_EFFECTS] = {0};
+// Backgrounds disponíveis para batalha
+extern Texture2D battleBackgrounds[BATTLE_BACKGROUNDS_COUNT];
+extern int currentBattleBackground;
 
 // Sistema de typewriter para textos
 typedef struct {
@@ -36,52 +34,38 @@ typedef struct {
 } TypewriterText;
 
 static TypewriterText typewriter = {0};
+static float platformYOffset1 = 0.0f;
+static float platformYOffset2 = 0.0f;
+static float battleTimer = 0.0f;
+static float hpAnimTimer = 0.0f;
+static bool isHpAnimationActive = false;
 
-// Velocidade do Typewriter ajustada para FireRed
+// Velocidade do Typewriter (menor = mais rápido)
 #define TYPEWRITER_SPEED 0.02f
 
-// Escalas e configurações visuais estilo FireRed
-#define UI_SCALE 2.0f
-#define FONT_SIZE_SMALL (8 * UI_SCALE)
-#define FONT_SIZE_LARGE (10 * UI_SCALE)
-#define PADDING (4 * UI_SCALE)
+// Limite de efeitos visuais
+#define MAX_EFFECTS 10
+BattleEffect effects[MAX_EFFECTS] = {0};
 
-// Cores da UI
-#define COLOR_UI_BG (Color){248, 248, 248, 255}
-#define COLOR_BOX_BG (Color){255, 255, 255, 255}
-#define COLOR_BOX_BORDER (Color){40, 40, 40, 255}
-#define COLOR_BOX_SHADOW (Color){200, 200, 200, 255}
-#define COLOR_TEXT_MAIN (Color){32, 32, 32, 255}
-#define COLOR_HP_GREEN (Color){32, 200, 48, 255}
-#define COLOR_HP_YELLOW (Color){200, 168, 8, 255}
-#define COLOR_HP_RED (Color){200, 0, 0, 255}
-#define COLOR_EXP_BLUE (Color){80, 184, 248, 255}
-#define COLOR_PLATFORM_ENEMY (Color){208, 208, 200, 255}
-#define COLOR_PLATFORM_PLAYER (Color){168, 168, 160, 255}
-#define COLOR_MALE_GENDER (Color){0, 144, 240, 255}
-#define COLOR_FEMALE_GENDER (Color){248, 96, 104, 255}
+// Estrutura para sprite de um pokémon que pode ser animado
+typedef struct {
+    Texture2D texture;           // Textura do sprite
+    float scale;                 // Escala do sprite
+    Rectangle frameRect;         // Retângulo do frame atual
+    int frameCount;              // Número total de frames
+    int currentFrame;            // Frame atual
+    float frameTime;             // Tempo de cada frame
+    float timer;                 // Timer acumulado
+    bool isAnimated;             // Se é um sprite animado (GIF)
+    // Efeitos visuais opcionais
+    float bounceHeight;          // Altura do efeito de "bounce"
+    float bounceSpeed;           // Velocidade do bounce
+    float flashAlpha;            // Alpha para efeito de flash (0-1)
+    Color tint;                  // Cor de matiz
+} AnimatedSprite;
 
-#define REF_ENEMY_POS_X     520
-#define REF_ENEMY_POS_Y     180
-#define REF_PLAYER_POS_X    200
-#define REF_PLAYER_POS_Y    360
-#define REF_MONSTER_SIZE    150
-#define REF_ACTION_BOX_X    10
-#define REF_ACTION_BOX_Y    440
-#define REF_ACTION_BOX_W    670
-#define REF_ACTION_BOX_H    110
-#define REF_ENEMY_STATUS_X  480
-#define REF_ENEMY_STATUS_Y  20
-#define REF_ENEMY_STATUS_W  200
-#define REF_ENEMY_STATUS_H  65
-#define REF_PLAYER_STATUS_X 480
-#define REF_PLAYER_STATUS_Y 390
-#define REF_PLAYER_STATUS_W 200
-#define REF_PLAYER_STATUS_H 80
-
-// Backgrounds disponíveis para batalha
-extern Texture2D battleBackgrounds[BATTLE_BACKGROUNDS_COUNT];
-extern int currentBattleBackground;
+static AnimatedSprite playerSprite = {0};
+static AnimatedSprite enemySprite = {0};
 
 /**
  * Inicia o efeito typewriter para um novo texto
@@ -154,33 +138,6 @@ void updateTypewriter(void) {
 }
 
 /**
- * Desenha o texto com efeito typewriter
- * @param position Posição do texto
- * @param fontSize Tamanho da fonte
- * @param color Cor do texto
- */
-void drawTypewriterText(Vector2 position, float fontSize, Color color) {
-    // Escalar o tamanho da fonte
-    float scaledFontSize = ScaleFontSize(fontSize);
-
-    // Desenhar o texto atual
-    DrawText(typewriter.displayText, position.x, position.y, scaledFontSize, color);
-
-    // Se o texto estiver completo e esperando input, desenhar indicador de continuar
-    if (typewriter.isComplete && typewriter.waitingForInput) {
-        if (sinf(typewriter.blinkTimer) > 0.0f) {
-            // Triângulo pequeno piscando
-            float triangleSize = ScaleFontSize(8);
-            Vector2 v1 = {position.x + MeasureText(typewriter.displayText, scaledFontSize) + 10 * GetScaleX(),
-                          position.y + scaledFontSize/2};
-            Vector2 v2 = {v1.x + triangleSize, v1.y};
-            Vector2 v3 = {v1.x + triangleSize/2, v1.y + triangleSize};
-            DrawTriangle(v1, v2, v3, color);
-        }
-    }
-}
-
-/**
  * Verifica se o efeito typewriter está completo
  */
 bool isTypewriterComplete(void) {
@@ -195,1123 +152,121 @@ bool isTypewriterWaitingInput(void) {
 }
 
 /**
- * Desenha uma caixa estilo FireRed com bordas e sombra
- * @param bounds Retângulo da caixa
- * @param isSelected Se a caixa está selecionada (adiciona destaque)
+ * Inicializa um sprite animado
+ * @param sprite Ponteiro para o sprite a ser inicializado
+ * @param texture Textura do sprite
+ * @param frameCount Número de frames (1 para sprites não animados)
+ * @param frameTime Tempo de cada frame (em segundos)
+ * @param scale Fator de escala para renderização
  */
-void drawFireRedBox(Rectangle bounds, bool isSelected) {
-    float borderThickness = 2.0f * ((GetScaleX() + GetScaleY()) / 2.0f);
-    float shadowOffset = 2.0f * ((GetScaleX() + GetScaleY()) / 2.0f);
+void initAnimatedSprite(AnimatedSprite* sprite, Texture2D texture, int frameCount, float frameTime, float scale) {
+    if (sprite == NULL) return;
 
-    // Sombra inferior direita
-    Rectangle shadowRect = {
-        bounds.x + shadowOffset,
-        bounds.y + shadowOffset,
-        bounds.width,
-        bounds.height
-    };
-    DrawRectangleRec(shadowRect, COLOR_BOX_SHADOW);
+    sprite->texture = texture;
+    sprite->scale = scale;
+    sprite->frameCount = frameCount;
+    sprite->currentFrame = 0;
+    sprite->frameTime = frameTime;
+    sprite->timer = 0.0f;
+    sprite->isAnimated = (frameCount > 1);
 
-    // Borda principal preta
-    DrawRectangleRec(bounds, COLOR_BOX_BORDER);
+    // Calcular retângulo do frame
+    if (sprite->isAnimated) {
+        sprite->frameRect = (Rectangle){
+            0, 0,
+            texture.width / frameCount,
+            texture.height
+        };
+    } else {
+        sprite->frameRect = (Rectangle){
+            0, 0,
+            texture.width,
+            texture.height
+        };
+    }
 
-    // Fundo branco interno
-    Rectangle innerRect = {
-        bounds.x + borderThickness,
-        bounds.y + borderThickness,
-        bounds.width - (borderThickness * 2),
-        bounds.height - (borderThickness * 2)
-    };
-    DrawRectangleRec(innerRect, COLOR_BOX_BG);
+    // Inicializar efeitos
+    sprite->bounceHeight = 0.0f;
+    sprite->bounceSpeed = 0.0f;
+    sprite->flashAlpha = 0.0f;
+    sprite->tint = WHITE;
+}
 
-    // Destaque se selecionado
-    if (isSelected) {
-        DrawRectangleLinesEx(bounds, borderThickness, COLOR_TEXT_MAIN);
+/**
+ * Atualiza o estado de um sprite animado
+ * @param sprite Ponteiro para o sprite a atualizar
+ * @param deltaTime Tempo decorrido desde o último frame
+ */
+void updateAnimatedSprite(AnimatedSprite* sprite, float deltaTime) {
+    if (sprite == NULL || !sprite->isAnimated) return;
+
+    // Atualizar timer e frame
+    sprite->timer += deltaTime;
+    if (sprite->timer >= sprite->frameTime) {
+        sprite->timer -= sprite->frameTime;
+        sprite->currentFrame = (sprite->currentFrame + 1) % sprite->frameCount;
+
+        // Atualizar retângulo do frame
+        sprite->frameRect.x = sprite->currentFrame * sprite->frameRect.width;
+    }
+
+    // Atualizar efeitos
+    if (sprite->flashAlpha > 0.0f) {
+        sprite->flashAlpha -= deltaTime * 2.0f;
+        if (sprite->flashAlpha < 0.0f) sprite->flashAlpha = 0.0f;
     }
 }
 
 /**
- * Desenha a barra de HP estilo FireRed
- * @param position Posição da barra
- * @param width Largura da barra
- * @param currentHP HP atual
- * @param maxHP HP máximo
+ * Desenha um sprite animado na tela
+ * @param sprite Ponteiro para o sprite a desenhar
+ * @param position Posição na tela
  */
-void drawFireRedHPBar(Vector2 position, float width, float currentHP, float maxHP) {
-    float hpPercentage = (maxHP > 0) ? (currentHP / maxHP) : 0;
+void drawAnimatedSprite(AnimatedSprite* sprite, Vector2 position) {
+    if (sprite == NULL || sprite->texture.id == 0) return;
 
-    // Escalas para a altura da barra e bordas
-    float barHeight = 6 * ((GetScaleX() + GetScaleY()) / 2.0f);
-    float borderThickness = 1 * ((GetScaleX() + GetScaleY()) / 2.0f);
+    // Aplicar efeito de bounce
+    float yOffset = 0.0f;
+    if (sprite->bounceHeight > 0.0f) {
+        yOffset = -sprite->bounceHeight * sinf(battleTimer * sprite->bounceSpeed);
+    }
 
-    // Borda da barra
-    Rectangle borderRect = {
-        position.x,
-        position.y,
+    // Desenhar sprite
+    float width = sprite->frameRect.width * sprite->scale;
+    float height = sprite->frameRect.height * sprite->scale;
+    Rectangle destRect = {
+        position.x - width/2,
+        position.y - height/2 + yOffset,
         width,
-        barHeight
-    };
-    DrawRectangleRec(borderRect, COLOR_BOX_BORDER);
-
-    // Fundo branco
-    Rectangle bgRect = {
-        position.x + borderThickness,
-        position.y + borderThickness,
-        width - (borderThickness * 2),
-        barHeight - (borderThickness * 2)
-    };
-    DrawRectangleRec(bgRect, COLOR_BOX_BG);
-
-    // Cor baseada na porcentagem de HP
-    Color hpColor = COLOR_HP_GREEN;
-    if (hpPercentage <= 0.2f) hpColor = COLOR_HP_RED;
-    else if (hpPercentage <= 0.5f) hpColor = COLOR_HP_YELLOW;
-
-    // Preenchimento da HP
-    if (hpPercentage > 0) {
-        Rectangle hpRect = {
-            position.x + borderThickness,
-            position.y + borderThickness,
-            (width - (borderThickness * 2)) * hpPercentage,
-            barHeight - (borderThickness * 2)
-        };
-        DrawRectangleRec(hpRect, hpColor);
-    }
-}
-
-/**
- * Desenha a barra de EXP estilo FireRed
- * @param position Posição da barra
- * @param width Largura da barra
- * @param expPercentage Porcentagem de experiência
- */
-void drawFireRedEXPBar(Vector2 position, float width, float expPercentage) {
-    // Borda da barra
-    Rectangle borderRect = {position.x, position.y, width, 4 * UI_SCALE};
-    DrawRectangleRec(borderRect, COLOR_BOX_BORDER);
-
-    // Fundo branco
-    Rectangle bgRect = {
-        position.x + 1,
-        position.y + 1,
-        width - 2,
-        2 * UI_SCALE
-    };
-    DrawRectangleRec(bgRect, COLOR_BOX_BG);
-
-    // Preenchimento da EXP
-    if (expPercentage > 0) {
-        Rectangle expRect = {
-            position.x + 1,
-            position.y + 1,
-            (width - 2) * expPercentage,
-            2 * UI_SCALE
-        };
-        DrawRectangleRec(expRect, COLOR_EXP_BLUE);
-    }
-}
-
-/**
- * Desenha a caixa de status do oponente
- * @param monster Monstro do oponente
- */
-void drawOpponentStatusBox(PokeMonster* monster) {
-    if (monster == NULL) return;
-
-    // Posição e tamanho da caixa escalados
-    Rectangle statusBox = ScaleRectangle(
-        REF_ENEMY_STATUS_X,
-        REF_ENEMY_STATUS_Y,
-        REF_ENEMY_STATUS_W,
-        REF_ENEMY_STATUS_H
-    );
-
-    drawFireRedBox(statusBox, false);
-
-    // Nome do Pokémon - fonte escalada
-    float fontSize = ScaleFontSize(18);
-    Vector2 namePos = {statusBox.x + 8 * GetScaleX(), statusBox.y + 8 * GetScaleY()};
-    DrawText(monster->name, namePos.x, namePos.y, fontSize, COLOR_TEXT_MAIN);
-
-    // Nível
-    Vector2 levelPos = {statusBox.x + statusBox.width - 50 * GetScaleX(), namePos.y};
-    DrawText("Lv5", levelPos.x, levelPos.y, fontSize, COLOR_TEXT_MAIN);
-
-    // Barra de HP
-    Vector2 hpBarPos = {statusBox.x + 45 * GetScaleX(), statusBox.y + 35 * GetScaleY()};
-    drawFireRedHPBar(
-        hpBarPos,
-        statusBox.width - 55 * GetScaleX(),
-        monster->hp,
-        monster->maxHp
-    );
-}
-
-/**
- * Desenha a caixa de status do jogador
- * @param monster Monstro do jogador
- */
-
-void drawPlayerStatusBox(PokeMonster* monster) {
-    if (monster == NULL) return;
-
-    // Posição e tamanho da caixa escalados
-    Rectangle statusBox = ScaleRectangle(
-        REF_PLAYER_STATUS_X,
-        REF_PLAYER_STATUS_Y,
-        REF_PLAYER_STATUS_W,
-        REF_PLAYER_STATUS_H
-    );
-
-    drawFireRedBox(statusBox, false);
-
-    // Nome do Pokémon - fonte escalada
-    float fontSize = ScaleFontSize(18);
-    Vector2 namePos = {statusBox.x + 8 * GetScaleX(), statusBox.y + 8 * GetScaleY()};
-    DrawText(monster->name, namePos.x, namePos.y, fontSize, COLOR_TEXT_MAIN);
-
-    // Nível
-    Vector2 levelPos = {statusBox.x + statusBox.width - 50 * GetScaleX(), namePos.y};
-    DrawText("Lv5", levelPos.x, levelPos.y, fontSize, COLOR_TEXT_MAIN);
-
-    // Barra de HP
-    Vector2 hpBarPos = {statusBox.x + 45 * GetScaleX(), statusBox.y + 35 * GetScaleY()};
-    drawFireRedHPBar(
-        hpBarPos,
-        statusBox.width - 55 * GetScaleX(),
-        monster->hp,
-        monster->maxHp
-    );
-
-    // Texto de HP
-    char hpText[16];
-    sprintf(hpText, "%d/%d", monster->hp, monster->maxHp);
-    Vector2 hpTextPos = {statusBox.x + 8 * GetScaleX(), statusBox.y + 55 * GetScaleY()};
-    DrawText(hpText, hpTextPos.x, hpTextPos.y, ScaleFontSize(16), COLOR_TEXT_MAIN);
-}
-
-/**
- * Função principal para desenhar a tela de batalha
- * Gerencia todos os estados visuais da batalha
- */
-void drawBattleScreen(void) {
-      // Atualizar música da batalha
-    UpdateMusicStream(battleMusic);
-
-    // Desenhar fundo simples (plano ou listrado horizontal como no Crystal)
-    ClearBackground(RAYWHITE);
-
-    // Desenhar listras horizontais sutis como no Pokémon Crystal
-    for (int i = 0; i < GetScreenHeight(); i += (int)(8 * GetScaleY())) {
-        DrawRectangle(0, i, GetScreenWidth(), (int)(4 * GetScaleY()), (Color){200, 230, 220, 80});
-    }
-
-    // Verificar se o sistema de batalha está válido
-    if (battleSystem != NULL &&
-        battleSystem->playerTeam != NULL && battleSystem->playerTeam->current != NULL &&
-        battleSystem->opponentTeam != NULL && battleSystem->opponentTeam->current != NULL) {
-
-        PokeMonster* playerMonster = battleSystem->playerTeam->current;
-        PokeMonster* opponentMonster = battleSystem->opponentTeam->current;
-
-        // Obter posições escaladas
-        Vector2 enemyPosition = ScalePosition(REF_ENEMY_POS_X, REF_ENEMY_POS_Y);
-        Vector2 playerPosition = ScalePosition(REF_PLAYER_POS_X, REF_PLAYER_POS_Y);
-        float monsterSize = REF_MONSTER_SIZE * ((GetScaleX() + GetScaleY()) / 2.0f);
-
-        // Definir retângulos para posicionar os sprites
-        Rectangle opponentRect = {
-            enemyPosition.x - monsterSize/2,
-            enemyPosition.y - monsterSize/2,
-            monsterSize,
-            monsterSize
-        };
-
-        Rectangle playerRect = {
-            playerPosition.x - monsterSize/2,
-            playerPosition.y - monsterSize/2,
-            monsterSize,
-            monsterSize
-        };
-
-        // Desenhar os monstros
-        drawMonsterInBattle(opponentMonster, opponentRect, false);
-        drawMonsterInBattle(playerMonster, playerRect, true);
-
-        //Desenha a box de status dos monstros
-        drawOpponentStatusBox(opponentMonster);
-        drawPlayerStatusBox(playerMonster);
-
-        // Caixa principal de ação/mensagem - Usar valores escalados
-        Rectangle actionBox = ScaleRectangle(
-            REF_ACTION_BOX_X,
-            REF_ACTION_BOX_Y,
-            REF_ACTION_BOX_W,
-            REF_ACTION_BOX_H
-        );
-
-        drawFireRedBox(actionBox, false);
-
-        // Atualizar o typewriter para mensagens de batalha
-        static BattleState lastStateForTypewriter = BATTLE_IDLE;
-
-        // Verificar se mudou de estado e precisa iniciar novo texto
-        if (battleSystem->battleState != lastStateForTypewriter) {
-            switch (battleSystem->battleState) {
-                case BATTLE_INTRO:
-                    startTypewriter("Uma batalha selvagem começou!", true);
-                    break;
-                case BATTLE_MESSAGE_DISPLAY:
-                    if (strlen(currentMessage.message) > 0) {
-                        startTypewriter(currentMessage.message, currentMessage.waitingForInput);
-                    }
-                    break;
-                // Outros estados podem iniciar typewriter conforme necessário
-            }
-            lastStateForTypewriter = battleSystem->battleState;
-        }
-
-        // Desenhar conteúdo baseado no estado atual da batalha
-        switch (battleSystem->battleState) {
-            case BATTLE_INTRO:
-                // Usar typewriter para mensagem de introdução
-                updateTypewriter();
-                drawTypewriterText((Vector2){actionBox.x + 12 * UI_SCALE, actionBox.y + 16 * UI_SCALE},
-                                  FONT_SIZE_SMALL, COLOR_TEXT_MAIN);
-
-                // Se o texto terminou, aguardar um momento antes de prosseguir
-                if (isTypewriterComplete() && typewriter.blinkTimer > 2.0f) {
-                    battleSystem->battleState = BATTLE_SELECT_ACTION;
-                }
-                break;
-
-            case BATTLE_SELECT_ACTION:
-                // Menu principal de ação do jogador
-                if (battleSystem->playerTurn) {
-                    // Verificar se o monstro do jogador desmaiou
-                    if (isMonsterFainted(battleSystem->playerTeam->current)) {
-                        battleSystem->battleState = BATTLE_FORCED_SWITCH;
-                        return;
-                    }
-
-                    // Variável estática para controlar o início do texto
-                    static bool actionTextStarted = false;
-                    static BattleState lastActionState = BATTLE_IDLE;
-
-                    // Reset quando o estado muda
-                    if (lastActionState != battleSystem->battleState) {
-                        actionTextStarted = false;
-                        lastActionState = battleSystem->battleState;
-                    }
-
-                    // Texto com typewriter
-                    if (!actionTextStarted) {
-                        char actionText[128];
-                        sprintf(actionText, "O que %s irá fazer?", playerMonster->name);
-                        startTypewriter(actionText, false);
-                        actionTextStarted = true;
-                    }
-
-                    updateTypewriter();
-                    drawTypewriterText((Vector2){actionBox.x + 8 * UI_SCALE, actionBox.y + 16 * UI_SCALE},
-                                      FONT_SIZE_SMALL, COLOR_TEXT_MAIN);
-
-                    // Menu de opções (FIGHT, BAG, POKEMON, RUN) - só aparece após o texto
-                    if (isTypewriterComplete()) {
-    // Definir constantes para o menu
-    #define REF_MENU_X 360         // X inicial do menu
-    #define REF_MENU_Y 460         // Y inicial do menu
-    #define REF_BUTTON_WIDTH 145   // Largura de cada botão
-    #define REF_BUTTON_HEIGHT 40   // Altura de cada botão
-    #define REF_BUTTON_SPACING 15  // Espaçamento entre botões
-
-    // Opções do menu em layout 2x2
-    const char* options[] = {"FIGHT", "BAG", "POKéMON", "RUN"};
-    Color optionColors[] = {
-        (Color){ 240, 80, 80, 255 },   // FIGHT - Vermelho
-        (Color){ 120, 120, 255, 255 }, // BAG - Azul
-        (Color){ 120, 200, 80, 255 },  // POKEMON - Verde
-        (Color){ 200, 120, 200, 255 }  // RUN - Roxo
+        height
     };
 
-    // Desenhar opções e processar cliques
-    for (int i = 0; i < 4; i++) {
-        int row = i / 2;
-        int col = i % 2;
-
-        // Calcular posição escalada para cada botão
-        Rectangle optionRect = ScaleRectangle(
-            REF_MENU_X + col * (REF_BUTTON_WIDTH + REF_BUTTON_SPACING),
-            REF_MENU_Y + row * (REF_BUTTON_HEIGHT + REF_BUTTON_SPACING),
-            REF_BUTTON_WIDTH,
-            REF_BUTTON_HEIGHT
-        );
-
-        bool isHovered = CheckCollisionPointRec(GetMousePosition(), optionRect);
-
-        // Verificar se a opção está desabilitada
-        bool isDisabled = false;
-        if (i == 1 && battleSystem->itemUsed) { // BAG button quando item já foi usado
-            isDisabled = true;
-        }
-
-        // Desenhar o botão com fundo colorido
-        Color buttonColor = isDisabled ? GRAY : optionColors[i];
-        if (isHovered && !isDisabled) {
-            buttonColor = (Color){
-                (unsigned char)fmin(255, buttonColor.r + 40),
-                (unsigned char)fmin(255, buttonColor.g + 40),
-                (unsigned char)fmin(255, buttonColor.b + 40),
-                buttonColor.a
-            };
-        }
-
-        // Desenhar botão com borda arredondada
-        DrawRectangleRounded(optionRect, 0.3f, 10 * ((GetScaleX() + GetScaleY()) / 2.0f),
-                            Fade(buttonColor, isHovered ? 0.8f : 0.6f));
-        DrawRectangleRoundedLines(optionRect, 0.3f, 10 * ((GetScaleX() + GetScaleY()) / 2.0f),
-                                 isDisabled ? DARKGRAY : BLACK);
-
-        // Desenhar texto com cor diferente se desabilitado
-        Color textColor = isDisabled ? DARKGRAY : WHITE;
-        float fontSize = ScaleFontSize(20);
-
-        // Centralizar o texto no botão
-        Vector2 textSize = MeasureTextEx(gameFont, options[i], fontSize, 1);
-        Vector2 textPos = {
-            optionRect.x + (optionRect.width - textSize.x) / 2,
-            optionRect.y + (optionRect.height - textSize.y) / 2
-        };
-
-        DrawTextEx(gameFont, options[i], textPos, fontSize, 1, textColor);
-
-        // Desenhar cursor triangular quando hover
-        if (isHovered && !isDisabled) {
-            float triangleSize = ScaleFontSize(12);
-            Vector2 v1 = {optionRect.x - triangleSize*1.5f, optionRect.y + optionRect.height/2};
-            Vector2 v2 = {v1.x + triangleSize, v1.y - triangleSize};
-            Vector2 v3 = {v1.x + triangleSize, v1.y + triangleSize};
-            DrawTriangle(v1, v2, v3, WHITE);
-        }
-
-        // Processar clique apenas se não estiver desabilitado
-        if (isHovered && !isDisabled && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            PlaySound(selectSound);
-            actionTextStarted = false;
-            switch (i) {
-                case 0: // FIGHT
-                    battleSystem->battleState = BATTLE_SELECT_ATTACK;
-                    break;
-                case 1: // BAG
-                    battleSystem->battleState = BATTLE_ITEM_MENU;
-                    break;
-                case 2: // POKEMON
-                    battleSystem->battleState = BATTLE_SELECT_MONSTER;
-                    break;
-                case 3: // RUN
-                    battleSystem->battleState = BATTLE_CONFIRM_QUIT;
-                    break;
-            }
-        }
-    }
-
-    #undef REF_MENU_X
-    #undef REF_MENU_Y
-    #undef REF_BUTTON_WIDTH
-    #undef REF_BUTTON_HEIGHT
-    #undef REF_BUTTON_SPACING
-
-                    }
-                } else {
-                    // Mensagem de espera enquanto o oponente decide
-                    startTypewriter("Oponente está pensando...", false);
-                    updateTypewriter();
-                    drawTypewriterText((Vector2){actionBox.x + 12 * UI_SCALE, actionBox.y + 16 * UI_SCALE},
-                                      FONT_SIZE_SMALL, COLOR_TEXT_MAIN);
-                }
-                break;
-
-            case BATTLE_SELECT_ATTACK:
-    // Seleção de ataque
-    if (battleSystem->playerTurn) {
-        float fontSize = ScaleFontSize(10); // FONT_SIZE_SMALL
-        Vector2 titlePos = ScalePosition(actionBox.x + 8, actionBox.y + 4);
-        DrawText("ATAQUES:", titlePos.x, titlePos.y, fontSize, COLOR_TEXT_MAIN);
-
-        // Grid 2x2 para ataques
-        float scaledWidth = actionBox.width - ScalePosition(24, 0).x;
-        float attackWidth = scaledWidth / 2;
-
-        for (int i = 0; i < 4; i++) {
-            int row = i / 2;
-            int col = i % 2;
-
-            Rectangle attackRect = ScaleRectangle(
-                actionBox.x/GetScaleX() + 8 + col * (attackWidth/GetScaleX() + 8),
-                actionBox.y/GetScaleY() + 20 + row * 15,
-                attackWidth/GetScaleX(),
-                12
-            );
-
-            Color attackColor = getTypeColor(playerMonster->attacks[i].type);
-            bool canUse = playerMonster->attacks[i].ppCurrent > 0;
-
-            if (!canUse) {
-                attackColor = GRAY;
-            }
-
-            // Background do ataque
-            DrawRectangleRec(attackRect, Fade(attackColor, 0.7f));
-            DrawRectangleLinesEx(attackRect, ((GetScaleX() + GetScaleY()) / 2.0f), COLOR_BOX_BORDER);
-
-            // Nome do ataque
-            DrawText(
-                playerMonster->attacks[i].name,
-                attackRect.x + ScalePosition(2, 0).x,
-                attackRect.y + ScalePosition(0, 1).y,
-                fontSize,
-                canUse ? WHITE : LIGHTGRAY
-            );
-
-            // PP
-            char ppText[16];
-            sprintf(ppText, "PP %d/%d",
-                   playerMonster->attacks[i].ppCurrent,
-                   playerMonster->attacks[i].ppMax);
-
-            float smallFontSize = ScaleFontSize(6);
-            float textWidth = MeasureText(ppText, smallFontSize);
-            DrawText(ppText,
-                    attackRect.x + attackRect.width - textWidth - ScalePosition(2, 0).x,
-                    attackRect.y + ScalePosition(0, 1).y,
-                    smallFontSize,
-                    canUse ? WHITE : LIGHTGRAY);
-
-            // Interação com mouse
-            if (canUse && CheckCollisionPointRec(GetMousePosition(), attackRect)) {
-                DrawRectangleLinesEx(attackRect, 2 * ((GetScaleX() + GetScaleY()) / 2.0f), WHITE);
-
-                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                    PlaySound(selectSound);
-                    battleSystem->selectedAttack = i;
-
-                    // Enfileirar ação de ataque
-                    enqueue(battleSystem->actionQueue, 0, i, battleSystem->playerTeam->current);
-
-                    // Passar turno para o bot
-                    battleSystem->playerTurn = false;
-                    battleSystem->battleState = BATTLE_SELECT_ACTION;
-                }
-            }
-        }
-
-        // Botão voltar
-        Rectangle backBtn = ScaleRectangle(
-            actionBox.x/GetScaleX() + actionBox.width/GetScaleX() - 50,
-            actionBox.y/GetScaleY() + 2,
-            48,
-            10
-        );
-
-        if (drawButton(backBtn, "VOLTAR", GRAY)) {
-            PlaySound(selectSound);
-            battleSystem->battleState = BATTLE_SELECT_ACTION;
-        }
-    }
-    break;
-
-case BATTLE_MESSAGE_DISPLAY:
-    // Exibir mensagem atual com typewriter
-    updateTypewriter();
-    Vector2 msgPos = ScalePosition(actionBox.x + 8, actionBox.y + 16);
-    drawTypewriterText(msgPos, ScaleFontSize(10), COLOR_TEXT_MAIN);
-
-    // Se está esperando input e o usuário pressionou algo, avançar
-    if (isTypewriterWaitingInput() &&
-        (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
-        IsKeyPressed(KEY_SPACE) ||
-        IsKeyPressed(KEY_ENTER))) {
-        // Notificar o sistema de batalha que a mensagem foi lida
-        messageDisplayComplete();
-    }
-    break;
-
-case BATTLE_FORCED_SWITCH:
-    // Troca forçada com mensagem animada
-    startTypewriter("Escolha outro monstro!", false);
-    updateTypewriter();
-    Vector2 forcedMsgPos = ScalePosition(actionBox.x + 8, actionBox.y + 4);
-    drawTypewriterText(forcedMsgPos, ScaleFontSize(10), RED);
-
-    // Similar ao SELECT_MONSTER mas sem opção de voltar
-    int forcedCount = 0;
-    PokeMonster* forcedCurrent = battleSystem->playerTeam->first;
-
-    while (forcedCurrent != NULL && forcedCount < 3) {
-        if (!isMonsterFainted(forcedCurrent)) {
-            Rectangle monsterRect = ScaleRectangle(
-                actionBox.x/GetScaleX() + 8,
-                actionBox.y/GetScaleY() + 16 + forcedCount * 10,
-                actionBox.width/GetScaleX() - 16,
-                9
-            );
-
-            DrawRectangleRec(monsterRect, LIGHTGRAY);
-            DrawRectangleLinesEx(monsterRect, ((GetScaleX() + GetScaleY()) / 2.0f), COLOR_BOX_BORDER);
-
-            DrawText(
-                forcedCurrent->name,
-                monsterRect.x + ScalePosition(2, 0).x,
-                monsterRect.y + ScalePosition(0, 1).y,
-                ScaleFontSize(6),
-                COLOR_TEXT_MAIN
-            );
-
-            char hpText[16];
-            sprintf(hpText, "HP:%d/%d", forcedCurrent->hp, forcedCurrent->maxHp);
-            float smallFontSize = ScaleFontSize(6);
-            float hpTextWidth = MeasureText(hpText, smallFontSize);
-
-            DrawText(
-                hpText,
-                monsterRect.x + monsterRect.width - hpTextWidth - ScalePosition(2, 0).x,
-                monsterRect.y + ScalePosition(0, 1).y,
-                smallFontSize,
-                COLOR_TEXT_MAIN
-            );
-
-            if (CheckCollisionPointRec(GetMousePosition(), monsterRect)) {
-                DrawRectangleLinesEx(monsterRect, 2 * ((GetScaleX() + GetScaleY()) / 2.0f), COLOR_TEXT_MAIN);
-
-                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                    PlaySound(selectSound);
-
-                    // Fazer a troca
-                    switchMonster(battleSystem->playerTeam, forcedCurrent);
-
-                    // Voltar para a batalha
-                    if (!isQueueEmpty(battleSystem->actionQueue)) {
-                        battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
-                    } else {
-                        battleSystem->battleState = BATTLE_SELECT_ACTION;
-                    }
-                }
-            }
-
-            forcedCount++;
-        }
-        forcedCurrent = forcedCurrent->next;
-    }
-    break;
-
-case BATTLE_SELECT_MONSTER:
-    // Seleção de monstros para troca
-    if (battleSystem->playerTurn) {
-        // Título
-        Vector2 monsterTitlePos = ScalePosition(actionBox.x + 8, actionBox.y + 4);
-        DrawText("POKÉMON", monsterTitlePos.x, monsterTitlePos.y, ScaleFontSize(10), COLOR_TEXT_MAIN);
-
-        // Listar monstros disponíveis
-        int monsterCount = 0;
-        PokeMonster* current = battleSystem->playerTeam->first;
-
-        while (current != NULL && monsterCount < 3) {
-            Rectangle monsterRect = ScaleRectangle(
-                actionBox.x/GetScaleX() + 8,
-                actionBox.y/GetScaleY() + 18 + monsterCount * 12,
-                160,
-                10
-            );
-
-            // Cor de fundo baseada no estado
-            Color bgColor = LIGHTGRAY;
-            if (current == battleSystem->playerTeam->current) {
-                bgColor = Fade(BLUE, 0.3f);  // Monstro atual
-            } else if (isMonsterFainted(current)) {
-                bgColor = Fade(RED, 0.3f);    // Monstro desmaiado
-            }
-
-            DrawRectangleRec(monsterRect, bgColor);
-            DrawRectangleLinesEx(monsterRect, ((GetScaleX() + GetScaleY()) / 2.0f), COLOR_BOX_BORDER);
-
-            // Nome do monstro
-            DrawText(
-                current->name,
-                monsterRect.x + ScalePosition(2, 0).x,
-                monsterRect.y + ScalePosition(0, 1).y,
-                ScaleFontSize(10),
-                COLOR_TEXT_MAIN
-            );
-
-            // HP
-            char hpText[32];
-            sprintf(hpText, "HP:%d/%d", current->hp, current->maxHp);
-            Vector2 hpPos = ScalePosition(monsterRect.x/GetScaleX() + 80, monsterRect.y/GetScaleY() + 1);
-            DrawText(
-                hpText,
-                hpPos.x,
-                hpPos.y,
-                ScaleFontSize(10),
-                COLOR_TEXT_MAIN
-            );
-
-            // Status
-            if (current->statusCondition > STATUS_NONE) {
-                const char* statusText = "";
-                Color statusColor = GRAY;
-
-                switch (current->statusCondition) {
-                    case STATUS_PARALYZED: statusText = "PAR"; statusColor = YELLOW; break;
-                    case STATUS_SLEEPING: statusText = "SLP"; statusColor = PURPLE; break;
-                    case STATUS_BURNING: statusText = "BRN"; statusColor = RED; break;
-                }
-
-                if (strlen(statusText) > 0) {
-                    Vector2 statusPos = ScalePosition(monsterRect.x/GetScaleX() + 140, monsterRect.y/GetScaleY() + 1);
-                    DrawText(
-                        statusText,
-                        statusPos.x,
-                        statusPos.y,
-                        ScaleFontSize(10),
-                        statusColor
-                    );
-                }
-            }
-
-            // Interação
-            if (!isMonsterFainted(current) && current != battleSystem->playerTeam->current) {
-                if (CheckCollisionPointRec(GetMousePosition(), monsterRect)) {
-                    DrawRectangleLinesEx(monsterRect, 2 * ((GetScaleX() + GetScaleY()) / 2.0f), COLOR_TEXT_MAIN);
-
-                    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                        PlaySound(selectSound);
-
-                        // Enfileirar ação de troca
-                        enqueue(battleSystem->actionQueue, 1, monsterCount, battleSystem->playerTeam->current);
-
-                        // Passar turno para o bot
-                        battleSystem->playerTurn = false;
-                        battleSystem->battleState = BATTLE_SELECT_ACTION;
-                    }
-                }
-            }
-
-            monsterCount++;
-            current = current->next;
-        }
-
-        // Botão voltar
-        Rectangle backBtn = ScaleRectangle(
-            actionBox.x/GetScaleX() + actionBox.width/GetScaleX() - 50,
-            actionBox.y/GetScaleY() + 2,
-            48,
-            10
-        );
-
-        if (drawButton(backBtn, "VOLTAR", GRAY)) {
-            PlaySound(selectSound);
-            battleSystem->battleState = BATTLE_SELECT_ACTION;
-        }
-    }
-    break;
-
-case BATTLE_ITEM_MENU:
-    // Menu de itens
-    if (battleSystem->playerTurn) {
-        // Título
-        Vector2 titlePos = ScalePosition(actionBox.x + 8, actionBox.y + 4);
-        DrawText("MOCHILA", titlePos.x, titlePos.y, ScaleFontSize(10), COLOR_TEXT_MAIN);
-
-        // Item disponível
-        Rectangle itemRect = ScaleRectangle(
-            actionBox.x/GetScaleX() + 8,
-            actionBox.y/GetScaleY() + 18,
-            actionBox.width/GetScaleX() - 16,
-            15
-        );
-
-        // Cor e nome baseado no tipo de item
-        Color itemColor = GRAY;
-        const char* itemName = "";
-        const char* itemDesc = "";
-
-        switch (battleSystem->itemType) {
-            case ITEM_POTION:
-                itemColor = PURPLE;
-                itemName = "POÇÃO";
-                itemDesc = "Restaura 20 HP";
-                break;
-            case ITEM_RED_CARD:
-                itemColor = RED;
-                itemName = "CARTÃO VERMELHO";
-                itemDesc = "Força troca do oponente";
-                break;
-            case ITEM_COIN:
-                itemColor = GOLD;
-                itemName = "MOEDA DA SORTE";
-                itemDesc = "50% cura total, 50% desmaia";
-                break;
-        }
-
-        // Desenhar item
-        DrawRectangleRec(itemRect, Fade(itemColor, 0.3f));
-        DrawRectangleLinesEx(itemRect, ((GetScaleX() + GetScaleY()) / 2.0f), COLOR_BOX_BORDER);
-
-        Vector2 itemNamePos = ScalePosition(itemRect.x/GetScaleX() + 4, itemRect.y/GetScaleY() + 2);
-        DrawText(
-            itemName,
-            itemNamePos.x,
-            itemNamePos.y,
-            ScaleFontSize(10),
-            COLOR_TEXT_MAIN
-        );
-
-        Vector2 itemDescPos = ScalePosition(itemRect.x/GetScaleX() + 60, itemRect.y/GetScaleY() + 2);
-        DrawText(
-            itemDesc,
-            itemDescPos.x,
-            itemDescPos.y,
-            ScaleFontSize(6),
-            COLOR_TEXT_MAIN
-        );
-
-        // Interação - usar item
-        if (CheckCollisionPointRec(GetMousePosition(), itemRect)) {
-            DrawRectangleLinesEx(itemRect, 2 * ((GetScaleX() + GetScaleY()) / 2.0f), COLOR_TEXT_MAIN);
-
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                PlaySound(selectSound);
-
-                // Enfileirar ação de usar item
-                enqueue(battleSystem->actionQueue, 2, battleSystem->itemType, battleSystem->playerTeam->current);
-
-                // Passar turno para o bot
-                battleSystem->playerTurn = false;
-                battleSystem->battleState = BATTLE_SELECT_ACTION;
-            }
-        }
-
-        // Texto de instruções
-        Vector2 instrPos = ScalePosition(actionBox.x + 8, actionBox.y + 35);
-        DrawText(
-            "Clique no item para usar",
-            instrPos.x,
-            instrPos.y,
-            ScaleFontSize(6),
-            DARKGRAY
-        );
-
-        // Botão voltar
-        Rectangle backBtn = ScaleRectangle(
-            actionBox.x/GetScaleX() + actionBox.width/GetScaleX() - 50,
-            actionBox.y/GetScaleY() + 2,
-            48,
-            10
-        );
-
-        if (drawButton(backBtn, "VOLTAR", GRAY)) {
-            PlaySound(selectSound);
-            battleSystem->battleState = BATTLE_SELECT_ACTION;
-        }
-    }
-    break;
-
-case BATTLE_CONFIRM_QUIT:
-    // Confirmação para desistir da batalha
-    {
-        // Fundo escurecido
-        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), (Color){0, 0, 0, 150});
-
-        // Caixa de diálogo
-        Rectangle dialogBox = ScaleRectangle(
-            GetScreenWidth()/(2*GetScaleX()) - 100,
-            GetScreenHeight()/(2*GetScaleY()) - 50,
-            200,
-            100
-        );
-
-        drawFireRedBox(dialogBox, false);
-
-        // Texto da confirmação
-        const char* confirmText = "Deseja fugir da batalha?";
-        float fontSize = ScaleFontSize(10);
-        int textWidth = MeasureText(confirmText, fontSize);
-        Vector2 textPos = {
-            dialogBox.x + dialogBox.width/2 - textWidth/2,
-            dialogBox.y + ScalePosition(0, 20).y
-        };
-        DrawText(confirmText, textPos.x, textPos.y, fontSize, COLOR_TEXT_MAIN);
-
-        // Texto adicional
-        const char* warningText = "Você perderá a batalha!";
-        float smallFontSize = ScaleFontSize(6);
-        int warningWidth = MeasureText(warningText, smallFontSize);
-        Vector2 warningPos = {
-            dialogBox.x + dialogBox.width/2 - warningWidth/2,
-            dialogBox.y + ScalePosition(0, 35).y
-        };
-        DrawText(warningText, warningPos.x, warningPos.y, smallFontSize, RED);
-
-        // Botões
-        Rectangle yesBtn = ScaleRectangle(
-            dialogBox.x/GetScaleX() + 30,
-            dialogBox.y/GetScaleY() + 60,
-            50,
-            20
-        );
-
-        Rectangle noBtn = ScaleRectangle(
-            dialogBox.x/GetScaleX() + 120,
-            dialogBox.y/GetScaleY() + 60,
-            50,
-            20
-        );
-
-        if (drawButton(yesBtn, "SIM", RED)) {
-            PlaySound(selectSound);
-            StopMusicStream(battleMusic);
-            PlayMusicStream(menuMusic);
-            currentScreen = MAIN_MENU;
-            resetBattle();
-        }
-
-        if (drawButton(noBtn, "NÃO", GREEN)) {
-            PlaySound(selectSound);
-            battleSystem->battleState = BATTLE_SELECT_ACTION;
-        }
-    }
-    break;
-
-            case BATTLE_OVER:
-                // Batalha terminada
-                {
-                    int winner = getBattleWinner();
-                    const char* resultText = "";
-                    Color resultColor = BLACK;
-
-                    if (winner == 1) {
-                        resultText = "VOCÊ VENCEU!";
-                        resultColor = GREEN;
-                    } else if (winner == 2) {
-                        resultText = "VOCÊ PERDEU!";
-                        resultColor = RED;
-                    } else {
-                        resultText = "EMPATE!";
-                        resultColor = ORANGE;
-                    }
-
-                    DrawText(resultText,
-                            actionBox.x + actionBox.width/2 - MeasureText(resultText, FONT_SIZE_LARGE)/2,
-                            actionBox.y + 10 * UI_SCALE,
-                            FONT_SIZE_LARGE,
-                            resultColor);
-
-                    Rectangle menuBtn = {
-                        actionBox.x + actionBox.width/2 - 60 * UI_SCALE,
-                        actionBox.y + 30 * UI_SCALE,
-                        120 * UI_SCALE,
-                        15 * UI_SCALE
-                    };
-
-                    if (drawButton(menuBtn, "VOLTAR AO MENU", BLUE)) {
-                        PlaySound(selectSound);
-                        StopMusicStream(battleMusic);
-                        PlayMusicStream(menuMusic);
-                        currentScreen = MAIN_MENU;
-                        resetBattle();
-                    }
-                }
-                break;
-
-            default:
-                // Mensagem padrão para outros estados
-                if (strlen(battleMessage) > 0) {
-                    DrawText(battleMessage,
-                            actionBox.x + 8 * UI_SCALE,
-                            actionBox.y + 16 * UI_SCALE,
-                            FONT_SIZE_SMALL,
-                            COLOR_TEXT_MAIN);
-                } else {
-                    DrawText(getBattleDescription(),
-                            actionBox.x + 8 * UI_SCALE,
-                            actionBox.y + 16 * UI_SCALE,
-                            FONT_SIZE_SMALL,
-                            COLOR_TEXT_MAIN);
-                }
-                break;
-        }
-    }
-
-    // Sempre desenhar efeitos visuais da batalha
-    drawBattleEffects();
-
-    // Indicador de IA
-    drawAIIndicator();
-}
-
-/**
- * Atualiza a lógica da batalha
- */
-void updateBattleScreen(void) {
-    if (battleSystem != NULL) {
-        // Atualizar música
-        UpdateMusicStream(battleMusic);
-
-        // Atualizar lógica de batalha
-        updateBattle();
-
-        // Atualizar efeitos visuais
-        updateBattleEffects();
-
-        // Detectar mudanças de estado para efeitos sonoros
-        static BattleState lastState = BATTLE_IDLE;
-
-        if (lastState != battleSystem->battleState) {
-            switch (battleSystem->battleState) {
-                case BATTLE_ATTACK_ANIMATION:
-                    PlaySound(attackSound);
-                    break;
-                case BATTLE_DAMAGE_ANIMATION:
-                    PlaySound(hitSound);
-                    break;
-                case BATTLE_FORCED_SWITCH:
-                    if (isMonsterFainted(battleSystem->playerTeam->current)) {
-                        PlaySound(faintSound);
-                    }
-                    break;
-            }
-
-            lastState = battleSystem->battleState;
-        }
-    }
-}
-
-/**
- * Função atualizada para desenhar um monstro na batalha,
- * usando a textura frontal ou traseira dependendo de quem é o dono
- */
-void drawMonsterInBattle(PokeMonster* monster, Rectangle bounds, bool isPlayer) {
-    if (monster == NULL) return;
-
-    // Escolher a textura apropriada (traseira para jogador, frontal para oponente)
-    Texture2D texture = isPlayer ? monster->backTexture : monster->frontTexture;
-
-    // Verificar se a textura foi carregada
-    if (texture.id == 0) {
-        // Desenhar apenas uma silhueta se não houver textura
-        Color monsterColor = getTypeColor(monster->type1);
-        monsterColor.a = 200; // Semitransparente
-
-        // Desenhar silhueta simples sem plataformas
-        DrawRectangleRounded(bounds, 0.3f, 10, monsterColor);
-        return;
-    }
-
-    // Calcular tamanho e posição para desenhar a textura
-    float scale = fmin(
-        bounds.width / texture.width,
-        bounds.height / texture.height
-    ) * 1.2f; // Um pouco maior para ficar mais próximo da tela
-
-    float width = texture.width * scale;
-    float height = texture.height * scale;
-
-    float x = bounds.x + (bounds.width - width) / 2;
-    float y = bounds.y + (bounds.height - height) / 2;
-
-    // Desenhar a textura
-    DrawTextureEx(
-        texture,
-        (Vector2){ x, y },
-        0.0f,  // Rotação
-        scale,
-        WHITE
+    DrawTexturePro(
+        sprite->texture,
+        sprite->frameRect,
+        destRect,
+        (Vector2){0, 0},
+        0.0f,
+        sprite->tint
     );
 
-    // Adicionar efeitos baseados no status do monstro
-    if (monster->statusCondition != STATUS_NONE) {
-        Rectangle statusRect = {
-            isPlayer ? bounds.x - 30 : bounds.x + bounds.width - 50,
-            bounds.y - 20,
-            80,
-            20
-        };
-
-        Color statusColor;
-        const char* statusText;
-
-        switch (monster->statusCondition) {
-            case STATUS_PARALYZED:
-                statusColor = YELLOW;
-                statusText = "PAR";
-                // Efeito visual adicional (pequenos raios)
-                if ((int)(GetTime() * 4) % 2 == 0) {
-                    DrawLine(
-                        x + width/2,
-                        y + height/4,
-                        x + width/2 + 10 * cosf(GetTime() * 8),
-                        y + height/4 + 10 * sinf(GetTime() * 8),
-                        YELLOW
-                    );
-                }
-                break;
-
-            case STATUS_SLEEPING:
-                statusColor = DARKPURPLE;
-                statusText = "SLP";
-                // Efeito visual adicional ("Z"s flutuando)
-                for (int i = 0; i < 2; i++) {
-                    float time = GetTime() + i * 0.7f;
-                    float zX = x + width/2 + 15 * cosf(time * 1.5f);
-                    float zY = y + height/4 - 5 * time + 10 * sinf(time);
-                    if (fmodf(time, 3.0f) < 2.0f) {
-                        DrawText("z", zX, zY, 20, DARKPURPLE);
-                    }
-                }
-                break;
-
-            case STATUS_BURNING:
-                statusColor = RED;
-                statusText = "BRN";
-                // Efeito visual adicional (pequenas chamas)
-                for (int i = 0; i < 3; i++) {
-                    float time = GetTime() * 3 + i * 2.1f;
-                    float fireX = x + width/4 + width/2 * (i * 0.3f) + 5 * sinf(time);
-                    float fireY = y + height/2 - 10 * fabs(sinf(time));
-
-                    Color fireColor = (Color){ 230, 150 + i * 30, 50, 200 };
-                    DrawCircle(fireX, fireY, 5 + 3 * sinf(time), fireColor);
-                }
-                break;
-
-            default:
-                statusColor = GRAY;
-                statusText = "";
-                break;
-        }
-
-        // Desenhar indicador de status
-        if (statusText[0] != '\0') {
-            DrawRectangleRounded(statusRect, 0.5f, 8, statusColor);
-            DrawRectangleRoundedLines(statusRect, 0.5f, 8, BLACK);
-            DrawText(statusText, statusRect.x + statusRect.width/2 - MeasureText(statusText, 16)/2,
-                    statusRect.y + 2, 16, WHITE);
-        }
-    }
-
-    // Adicionar efeito de "dano" quando o HP estiver baixo
-    if (monster->hp < monster->maxHp * 0.25f) {
-        // Efeito de pulso vermelho para indicar HP baixo
-        static float lowHpTimer = 0;
-        lowHpTimer += GetFrameTime() * 2.0f;
-
-        if (sinf(lowHpTimer) > 0.2f) {
-            DrawRectangleRec(bounds, (Color){ 255, 0, 0, 50 });
-        }
+    // Efeito de flash
+    if (sprite->flashAlpha > 0.0f) {
+        DrawRectangleRec(destRect, (Color){255, 255, 255, (unsigned char)(sprite->flashAlpha * 255)});
     }
 }
 
-// Restante das funções de efeitos visuais (mantidas como no código original)
+/**
+ * Aplica um efeito de dano/flash no sprite
+ * @param sprite Ponteiro para o sprite a aplicar efeito
+ */
+void applyDamageEffect(AnimatedSprite* sprite) {
+    if (sprite == NULL) return;
+
+    sprite->flashAlpha = 1.0f;
+    sprite->bounceHeight = 5.0f;
+    sprite->bounceSpeed = 15.0f;
+}
 
 /**
  * Inicializa o sistema de efeitos visuais
@@ -1320,19 +275,65 @@ void initBattleEffects(void) {
     for (int i = 0; i < MAX_EFFECTS; i++) {
         effects[i].active = false;
     }
+
+    // Inicializar sprites com valores padrão
+    Texture2D defaultTexture = {0};
+    initAnimatedSprite(&playerSprite, defaultTexture, 1, 0.1f, 3.0f);
+    initAnimatedSprite(&enemySprite, defaultTexture, 1, 0.1f, 3.0f);
 }
 
 /**
  * Atualiza os efeitos visuais ativos
  */
 void updateBattleEffects(void) {
+    float deltaTime = GetFrameTime();
+    battleTimer += deltaTime;
+
+    // Animar plataformas
+    platformYOffset1 = sinf(battleTimer * 0.5f) * 5.0f;
+    platformYOffset2 = cosf(battleTimer * 0.6f) * 5.0f;
+
+    // Atualizar sprites
+    updateAnimatedSprite(&playerSprite, deltaTime);
+    updateAnimatedSprite(&enemySprite, deltaTime);
+
+    // Atualizar efeitos visuais
     for (int i = 0; i < MAX_EFFECTS; i++) {
         if (effects[i].active) {
-            effects[i].timer += GetFrameTime();
+            effects[i].timer += deltaTime;
 
             if (effects[i].timer >= effects[i].duration) {
                 effects[i].active = false;
             }
+        }
+    }
+
+    // Atualizar animação de HP
+    if (isHpAnimationActive) {
+        hpAnimTimer += deltaTime;
+        if (hpAnimTimer >= 1.0f) {
+            isHpAnimationActive = false;
+            hpAnimTimer = 0.0f;
+        }
+    }
+}
+
+/**
+ * Cria um novo efeito visual
+ */
+void createBattleEffect(int type, Rectangle bounds, Color color, Vector2 origin, Vector2 target, float duration) {
+    // Encontrar um slot livre
+    for (int i = 0; i < MAX_EFFECTS; i++) {
+        if (!effects[i].active) {
+            effects[i].active = true;
+            effects[i].type = type;
+            effects[i].bounds = bounds;
+            effects[i].color = color;
+            effects[i].origin = origin;
+            effects[i].target = target;
+            effects[i].duration = duration;
+            effects[i].timer = 0;
+            break;
         }
     }
 }
@@ -1483,26 +484,6 @@ void drawBattleEffects(void) {
 }
 
 /**
- * Cria um novo efeito visual
- */
-void createBattleEffect(int type, Rectangle bounds, Color color, Vector2 origin, Vector2 target, float duration) {
-    // Encontrar um slot livre
-    for (int i = 0; i < MAX_EFFECTS; i++) {
-        if (!effects[i].active) {
-            effects[i].active = true;
-            effects[i].type = type;
-            effects[i].bounds = bounds;
-            effects[i].color = color;
-            effects[i].origin = origin;
-            effects[i].target = target;
-            effects[i].duration = duration;
-            effects[i].timer = 0;
-            break;
-        }
-    }
-}
-
-/**
  * Cria efeito visual baseado no tipo do ataque
  */
 void createAttackEffect(MonsterType attackType, Vector2 origin, Vector2 target) {
@@ -1530,7 +511,7 @@ void createAttackEffect(MonsterType attackType, Vector2 origin, Vector2 target) 
         case TYPE_STEEL:
         case TYPE_FLYING:
             createBattleEffect(EFFECT_SLASH, (Rectangle){0}, WHITE, origin, target, 0.4f);
-            createBattleEffect(EFFECT_SHAKE, (Rectangle){0}, WHITE, origin, target, 0.3f);
+            createBattleEffect(EFFECT_FLASH, (Rectangle){0}, WHITE, origin, target, 0.15f);
             break;
 
         case TYPE_DRAGON:
@@ -1554,58 +535,992 @@ void createAttackEffect(MonsterType attackType, Vector2 origin, Vector2 target) 
     }
 }
 
-// Funções auxiliares do sistema de batalha
+/**
+ * Executa um ataque com efeitos visuais
+ */
+void executeAttackWithEffects(PokeMonster* attacker, PokeMonster* defender, int attackIndex) {
+    if (attacker == NULL || defender == NULL || attackIndex < 0 || attackIndex > 3) return;
+
+    // Posições dos sprites para efeitos
+    Vector2 attackerPos, defenderPos;
+
+    if (attacker == battleSystem->playerTeam->current) {
+        attackerPos = (Vector2){GetScreenWidth() / 4, GetScreenHeight() / 1.5f};
+        defenderPos = (Vector2){GetScreenWidth() * 3 / 4, GetScreenHeight() / 3};
+        applyDamageEffect(&enemySprite);
+    } else {
+        attackerPos = (Vector2){GetScreenWidth() * 3 / 4, GetScreenHeight() / 3};
+        defenderPos = (Vector2){GetScreenWidth() / 4, GetScreenHeight() / 1.5f};
+        applyDamageEffect(&playerSprite);
+    }
+
+    // Tipo de ataque para efeito visual
+    MonsterType attackType = attacker->attacks[attackIndex].type;
+
+    // Criar efeito baseado no tipo
+    createAttackEffect(attackType, attackerPos, defenderPos);
+
+    // Iniciar animação de HP
+    isHpAnimationActive = true;
+    hpAnimTimer = 0.0f;
+
+    // Tocar som de ataque
+    PlaySound(attackSound);
+}
 
 /**
- * Executa a troca de monstro
+ * Desenha um monstro na batalha
+ * @param monster Dados do monstro
+ * @param isPlayer Se é o monstro do jogador (true) ou do oponente (false)
  */
-void executeMonsterSwitch(PokeMonster* monster, int targetIndex) {
-    MonsterList* team = NULL;
-    bool isPlayer = false;
+void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
+    if (monster == NULL) return;
 
-    // Determinar qual time
-    if (monster == battleSystem->playerTeam->current) {
-        team = battleSystem->playerTeam;
-        isPlayer = true;
-    } else {
-        team = battleSystem->opponentTeam;
-    }
+    // Posições de plataforma e monstro
+    Vector2 platformPos, monsterPos;
+    float platformScale;
 
-    // Encontrar o monstro alvo
-    PokeMonster* newMonster = NULL;
-    PokeMonster* current = team->first;
-    int count = 0;
+    if (isPlayer) {
+        platformPos = (Vector2){
+            GetScreenWidth() / 4,
+            GetScreenHeight() / 1.5f + 50 + platformYOffset1
+        };
+        monsterPos = (Vector2){
+            GetScreenWidth() / 4,
+            GetScreenHeight() / 1.5f - 20
+        };
+        platformScale = 1.5f;
 
-    while (current != NULL && count < targetIndex) {
-        current = current->next;
-        count++;
-    }
-
-    if (current != NULL && !isMonsterFainted(current)) {
-        newMonster = current;
-        switchMonster(team, newMonster);
-
-        // Mensagem de troca
-        char switchMsg[256];
-        if (isPlayer) {
-            sprintf(switchMsg, "Volte, %s! Vai, %s!",
-                    monster->name, newMonster->name);
-        } else {
-            sprintf(switchMsg, "O oponente trocou para %s!", newMonster->name);
+        // Se é a primeira vez, inicializar sprite do jogador
+        if (playerSprite.texture.id == 0 && monster->backTexture.id != 0) {
+            initAnimatedSprite(&playerSprite, monster->backTexture, 1, 0.1f, 3.0f);
+            playerSprite.bounceHeight = 8.0f;
+            playerSprite.bounceSpeed = 2.0f;
         }
 
-        displayBattleMessage(switchMsg, 2.0f, false, true);
+        // Desenhar plataforma
+        DrawEllipse(
+            platformPos.x,
+            platformPos.y,
+            100 * platformScale,
+            30 * platformScale,
+            (Color){100, 120, 140, 200}
+        );
+
+        // Desenhar sprite do monstro
+        drawAnimatedSprite(&playerSprite, monsterPos);
+    } else {
+        platformPos = (Vector2){
+            GetScreenWidth() * 3 / 4,
+            GetScreenHeight() / 3 + 50 + platformYOffset2
+        };
+        monsterPos = (Vector2){
+            GetScreenWidth() * 3 / 4,
+            GetScreenHeight() / 3 - 20
+        };
+        platformScale = 1.2f;
+
+        // Se é a primeira vez, inicializar sprite do inimigo
+        if (enemySprite.texture.id == 0 && monster->frontTexture.id != 0) {
+            // Verificar se a textura frontal parece ser um GIF (pela observação do formato)
+            int frameCount = 1; // Padrão para sprite estático
+
+            // Heurística: se a largura for maior que 2x a altura, provavelmente tem mais de 1 frame
+            if (monster->frontTexture.width > monster->frontTexture.height * 2) {
+                frameCount = monster->frontTexture.width / monster->frontTexture.height;
+            }
+
+            initAnimatedSprite(&enemySprite, monster->frontTexture, frameCount, 0.2f, 2.5f);
+            enemySprite.bounceHeight = 5.0f;
+            enemySprite.bounceSpeed = 1.5f;
+        }
+
+        // Desenhar plataforma
+        DrawEllipse(
+            platformPos.x,
+            platformPos.y,
+            80 * platformScale,
+            25 * platformScale,
+            (Color){100, 120, 140, 200}
+        );
+
+        // Desenhar sprite do monstro
+        drawAnimatedSprite(&enemySprite, monsterPos);
+    }
+
+    // Desenhar indicador de status (se tiver)
+    if (monster->statusCondition != STATUS_NONE) {
+        Vector2 statusPos = isPlayer ?
+            (Vector2){monsterPos.x - 50, monsterPos.y - 70} :
+            (Vector2){monsterPos.x + 50, monsterPos.y - 60};
+
+        Color statusColor;
+        const char* statusText;
+
+        switch (monster->statusCondition) {
+            case STATUS_PARALYZED:
+                statusColor = YELLOW;
+                statusText = "PAR";
+                break;
+            case STATUS_SLEEPING:
+                statusColor = DARKPURPLE;
+                statusText = "SLP";
+                break;
+            case STATUS_BURNING:
+                statusColor = RED;
+                statusText = "BRN";
+                break;
+            case STATUS_ATK_DOWN:
+                statusColor = MAROON;
+                statusText = "ATK↓";
+                break;
+            case STATUS_DEF_DOWN:
+                statusColor = DARKBLUE;
+                statusText = "DEF↓";
+                break;
+            case STATUS_SPD_DOWN:
+                statusColor = DARKGREEN;
+                statusText = "SPD↓";
+                break;
+            default:
+                statusColor = GRAY;
+                statusText = "???";
+                break;
+        }
+
+        // Desenhar bolha de status pulsante
+        float pulseScale = 1.0f + sinf(battleTimer * 5.0f) * 0.1f;
+
+        DrawCircle(
+            statusPos.x,
+            statusPos.y,
+            20 * pulseScale,
+            statusColor
+        );
+
+        DrawCircleLines(
+            statusPos.x,
+            statusPos.y,
+            20 * pulseScale,
+            BLACK
+        );
+
+        DrawText(
+            statusText,
+            statusPos.x - MeasureText(statusText, 14) / 2,
+            statusPos.y - 7,
+            14,
+            WHITE
+        );
     }
 }
 
 /**
- * Executa o uso de um item
+ * Desenha a caixa de status de um monstro
  */
-void executeItemUse(PokeMonster* user, ItemType itemType) {
-    useItem(itemType, user);
+void drawMonsterStatusBox(PokeMonster* monster, Rectangle bounds, bool isPlayer) {
+    if (monster == NULL) return;
 
-    // A mensagem já está definida em useItem
-    displayBattleMessage(battleMessage, 2.0f, false, true);
+    // Desenhar fundo da caixa
+    DrawRectangleRounded(bounds, 0.2f, 6, (Color){240, 240, 240, 230});
+    DrawRectangleRoundedLines(bounds, 0.2f, 6, BLACK);
 
-    battleSystem->itemUsed = true;
+    // Nome e nível
+    DrawText(monster->name,
+            bounds.x + 15,
+            bounds.y + 10,
+            20,
+            BLACK);
+
+    DrawText("Nv.50",
+            bounds.x + bounds.width - 70,
+            bounds.y + 10,
+            20,
+            BLACK);
+
+    // Tipos
+    Rectangle type1Rect = {
+        bounds.x + 15,
+        bounds.y + 40,
+        60,
+        20
+    };
+
+    GuiPokemonTypeIcon(type1Rect, monster->type1);
+
+    if (monster->type2 != TYPE_NONE) {
+        Rectangle type2Rect = {
+            bounds.x + 85,
+            bounds.y + 40,
+            60,
+            20
+        };
+
+        GuiPokemonTypeIcon(type2Rect, monster->type2);
+    }
+
+    // HP atual e máximo
+    char hpText[32];
+    sprintf(hpText, "HP: %d/%d", monster->hp, monster->maxHp);
+
+    if (isPlayer) {
+        DrawText(hpText,
+                bounds.x + 15,
+                bounds.y + bounds.height - 30,
+                18,
+                BLACK);
+    }
+
+    // Barra de HP
+    Rectangle hpBarBounds = {
+        bounds.x + 15,
+        bounds.y + 70,
+        bounds.width - 30,
+        15
+    };
+
+    // Calcular proporção de HP
+    float hpRatio = (float)monster->hp / monster->maxHp;
+    if (hpRatio < 0) hpRatio = 0;
+    if (hpRatio > 1) hpRatio = 1;
+
+    // Cor da barra baseada no HP
+    Color hpColor = hpRatio > 0.5f ? GREEN : (hpRatio > 0.2f ? YELLOW : RED);
+
+    // Desenhar fundo da barra
+    DrawRectangleRec(hpBarBounds, GRAY);
+
+    // Desenhar barra de HP atual com animação
+    if (isHpAnimationActive) {
+        // Animação suave de redução
+        DrawRectangle(
+            hpBarBounds.x,
+            hpBarBounds.y,
+            hpBarBounds.width * (hpRatio + (1.0f - hpAnimTimer) * 0.1f),
+            hpBarBounds.height,
+            hpColor
+        );
+    } else {
+        DrawRectangle(
+            hpBarBounds.x,
+            hpBarBounds.y,
+            hpBarBounds.width * hpRatio,
+            hpBarBounds.height,
+            hpColor
+        );
+    }
+}
+
+/**
+ * Desenha o menu de ações da batalha
+ */
+void drawBattleActionMenu(Rectangle bounds) {
+    // Fundo da caixa de mensagem/ações
+    DrawRectangleRounded(bounds, 0.2f, 6, (Color){240, 240, 240, 230});
+    DrawRectangleRoundedLines(bounds, 0.2f, 6, BLACK);
+
+    const char* options[] = {
+        "LUTAR",
+        "MOCHILA",
+        "POKÉMON",
+        "FUGIR"
+    };
+
+    int cols = 2;
+    int rows = 2;
+    float width = (bounds.width - 60) / cols;
+    float height = (bounds.height - 40) / rows;
+    float startX = bounds.x + 20;
+    float startY = bounds.y + 20;
+
+    for (int i = 0; i < 4; i++) {
+        int row = i / cols;
+        int col = i % cols;
+
+        Rectangle optionRect = {
+            startX + col * (width + 20),
+            startY + row * (height + 20),
+            width,
+            height
+        };
+
+        // Cores diferentes para cada opção
+        Color buttonColor;
+        switch (i) {
+            case 0: buttonColor = RED; break;       // LUTAR
+            case 1: buttonColor = BLUE; break;      // MOCHILA
+            case 2: buttonColor = GREEN; break;     // POKÉMON
+            case 3: buttonColor = YELLOW; break;    // FUGIR
+            default: buttonColor = GRAY;
+        }
+
+        // Verificar se a opção está disponível (MOCHILA só disponível se item não foi usado)
+        bool isEnabled = true;
+        if (i == 1 && battleSystem->itemUsed) {
+            isEnabled = false;
+            buttonColor = GRAY;
+        }
+
+        if (GuiPokemonButton(optionRect, options[i], isEnabled)) {
+            PlaySound(selectSound);
+
+            // Ação com base na opção
+            battleSystem->selectedAction = i;
+
+            switch (i) {
+                case 0: // LUTAR
+                    battleSystem->battleState = BATTLE_SELECT_ATTACK;
+                    break;
+                case 1: // MOCHILA
+                    if (!battleSystem->itemUsed) {
+                        battleSystem->battleState = BATTLE_ITEM_MENU;
+                    }
+                    break;
+                case 2: // POKÉMON
+                    battleSystem->battleState = BATTLE_SELECT_MONSTER;
+                    break;
+                case 3: // FUGIR
+                    battleSystem->battleState = BATTLE_CONFIRM_QUIT;
+                    break;
+            }
+        }
+    }
+}
+
+/**
+ * Desenha os ataques disponíveis
+ */
+void drawBattleAttackMenu(Rectangle bounds) {
+    // Fundo da caixa de ataques
+    DrawRectangleRounded(bounds, 0.2f, 6, (Color){240, 240, 240, 230});
+    DrawRectangleRoundedLines(bounds, 0.2f, 6, BLACK);
+
+    // Título
+    DrawText("SELECIONE UM ATAQUE",
+            bounds.x + 20,
+            bounds.y + 15,
+            20,
+            BLACK);
+
+    // Botão de voltar
+    Rectangle backBtn = {
+        bounds.x + bounds.width - 100,
+        bounds.y + 10,
+        80,
+        30
+    };
+
+    if (GuiPokemonButton(backBtn, "VOLTAR", true)) {
+        PlaySound(selectSound);
+        battleSystem->battleState = BATTLE_SELECT_ACTION;
+    }
+
+    // Mostrar ataques disponíveis
+    PokeMonster* monster = battleSystem->playerTeam->current;
+
+    float attackWidth = (bounds.width - 60) / 2;
+    float attackHeight = 50;
+    float startX = bounds.x + 20;
+    float startY = bounds.y + 50;
+
+    for (int i = 0; i < 4; i++) {
+        int row = i / 2;
+        int col = i % 2;
+
+        Rectangle attackRect = {
+            startX + col * (attackWidth + 20),
+            startY + row * (attackHeight + 10),
+            attackWidth,
+            attackHeight
+        };
+
+        // Cor baseada no tipo
+        Color attackColor = getTypeColor(monster->attacks[i].type);
+
+        // Desativar se não tiver PP
+        bool canUse = monster->attacks[i].ppCurrent > 0;
+        if (!canUse) {
+            attackColor.r = (attackColor.r + 200) / 3;
+            attackColor.g = (attackColor.g + 200) / 3;
+            attackColor.b = (attackColor.b + 200) / 3;
+        }
+
+        if (GuiPokemonButton(attackRect, monster->attacks[i].name, canUse)) {
+            PlaySound(selectSound);
+            battleSystem->selectedAttack = i;
+
+            // Enfileirar ação de ataque
+            enqueue(battleSystem->actionQueue, 0, i, battleSystem->playerTeam->current);
+
+            // Passar o turno para o bot escolher
+            battleSystem->playerTurn = false;
+            battleSystem->battleState = BATTLE_SELECT_ACTION;
+        }
+
+        // Informações do ataque
+        char ppText[20];
+        sprintf(ppText, "PP: %d/%d",
+               monster->attacks[i].ppCurrent,
+               monster->attacks[i].ppMax);
+
+        DrawText(ppText,
+                attackRect.x + 10,
+                attackRect.y + 30,
+                14,
+                WHITE);
+
+        // Poder do ataque
+        if (monster->attacks[i].power > 0) {
+            char powerText[20];
+            sprintf(powerText, "Poder: %d", monster->attacks[i].power);
+
+            DrawText(powerText,
+                    attackRect.x + attackRect.width - 100,
+                    attackRect.y + 30,
+                    14,
+                    WHITE);
+        } else {
+            DrawText("Status",
+                    attackRect.x + attackRect.width - 70,
+                    attackRect.y + 30,
+                    14,
+                    WHITE);
+        }
+    }
+}
+
+/**
+ * Desenha o menu de seleção de monstro
+ */
+void drawMonsterSelectionMenu(Rectangle bounds) {
+    // Fundo da caixa
+    DrawRectangleRounded(bounds, 0.2f, 6, (Color){240, 240, 240, 230});
+    DrawRectangleRoundedLines(bounds, 0.2f, 6, BLACK);
+
+    // Título
+    DrawText("SELECIONE UM POKÉMON",
+            bounds.x + 20,
+            bounds.y + 15,
+            20,
+            BLACK);
+
+    // Botão de voltar
+    Rectangle backBtn = {
+        bounds.x + bounds.width - 100,
+        bounds.y + 10,
+        80,
+        30
+    };
+
+    if (GuiPokemonButton(backBtn, "VOLTAR",
+                battleSystem->battleState != BATTLE_FORCED_SWITCH)) {
+        PlaySound(selectSound);
+
+        // Só pode voltar se não for troca forçada
+        if (battleSystem->battleState != BATTLE_FORCED_SWITCH) {
+            battleSystem->battleState = BATTLE_SELECT_ACTION;
+        }
+    }
+
+    // Mostrar monstros do time
+    MonsterList* team = battleSystem->playerTeam;
+    if (team == NULL || team->first == NULL) return;
+
+    PokeMonster* current = team->first;
+    int index = 0;
+
+    float cardWidth = bounds.width - 40;
+    float cardHeight = 70;
+    float startX = bounds.x + 20;
+    float startY = bounds.y + 50;
+
+    while (current != NULL && index < 3) {
+        Rectangle cardRect = {
+            startX,
+            startY + index * (cardHeight + 10),
+            cardWidth,
+            cardHeight
+        };
+
+        // Cor de fundo
+        Color cardColor = getTypeColor(current->type1);
+        cardColor.a = 150;
+
+        // Verificar se é o monstro atual ou se está desmaiado
+        bool isCurrentMonster = (current == team->current);
+        bool isFainted = isMonsterFainted(current);
+
+        if (isCurrentMonster) {
+            // Destacar monstro ativo
+            DrawRectangleRounded(
+                (Rectangle){
+                    cardRect.x - 5,
+                    cardRect.y - 5,
+                    cardRect.width + 10,
+                    cardRect.height + 10
+                },
+                0.2f, 6, YELLOW
+            );
+        }
+
+        if (isFainted) {
+            // Escurecer monstros desmaiados
+            cardColor.r = cardColor.r / 3;
+            cardColor.g = cardColor.g / 3;
+            cardColor.b = cardColor.b / 3;
+        }
+
+        // Desenhar card
+        DrawRectangleRounded(cardRect, 0.2f, 6, cardColor);
+        DrawRectangleRoundedLines(cardRect, 0.2f, 6, BLACK);
+
+        // Nome
+        DrawText(current->name,
+                cardRect.x + 10,
+                cardRect.y + 10,
+                20,
+                WHITE);
+
+        // Status
+        if (current->statusCondition != STATUS_NONE) {
+            const char* statusText;
+            switch (current->statusCondition) {
+                case STATUS_PARALYZED: statusText = "PAR"; break;
+                case STATUS_SLEEPING: statusText = "SLP"; break;
+                case STATUS_BURNING: statusText = "BRN"; break;
+                default: statusText = "---";
+            }
+
+            DrawText(statusText,
+                    cardRect.x + cardRect.width - 60,
+                    cardRect.y + 10,
+                    18,
+                    WHITE);
+        }
+
+        // HP
+        char hpText[32];
+        sprintf(hpText, "HP: %d/%d",
+               current->hp,
+               current->maxHp);
+
+        DrawText(hpText,
+                cardRect.x + 10,
+                cardRect.y + 40,
+                16,
+                WHITE);
+
+        // Barra de HP
+        Rectangle hpBar = {
+            cardRect.x + 130,
+            cardRect.y + 45,
+            cardRect.width - 140,
+            10
+        };
+
+        float hpRatio = (float)current->hp / current->maxHp;
+        if (hpRatio < 0) hpRatio = 0;
+        if (hpRatio > 1) hpRatio = 1;
+
+        Color hpColor = hpRatio > 0.5f ? GREEN : (hpRatio > 0.2f ? YELLOW : RED);
+
+        DrawRectangleRec(hpBar, GRAY);
+        DrawRectangle(
+            hpBar.x,
+            hpBar.y,
+            hpBar.width * hpRatio,
+            hpBar.height,
+            hpColor
+        );
+
+        // Verificar clique
+        if (!isFainted && !isCurrentMonster &&
+            CheckCollisionPointRec(GetMousePosition(), cardRect) &&
+            IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+
+            PlaySound(selectSound);
+
+            // Trocar para este monstro
+            switchMonster(team, current);
+
+            // Enfileirar ação de troca
+            enqueue(battleSystem->actionQueue, 1, index, team->current);
+
+            // Se for troca forçada, não esperar ação do bot
+            if (battleSystem->battleState == BATTLE_FORCED_SWITCH) {
+                actionQueueReady = true;
+                battleSystem->battleState = BATTLE_PREPARING_ACTIONS;
+            } else {
+                // Passar o turno para o bot escolher
+                battleSystem->playerTurn = false;
+                battleSystem->battleState = BATTLE_SELECT_ACTION;
+            }
+        }
+
+        current = current->next;
+        index++;
+    }
+}
+
+/**
+ * Desenha o menu de itens
+ */
+void drawItemMenu(Rectangle bounds) {
+    // Fundo da caixa
+    DrawRectangleRounded(bounds, 0.2f, 6, (Color){240, 240, 240, 230});
+    DrawRectangleRoundedLines(bounds, 0.2f, 6, BLACK);
+
+    // Título
+    DrawText("USAR ITEM",
+            bounds.x + 20,
+            bounds.y + 15,
+            20,
+            BLACK);
+
+    // Botão de voltar
+    Rectangle backBtn = {
+        bounds.x + bounds.width - 100,
+        bounds.y + 10,
+        80,
+        30
+    };
+
+    if (GuiPokemonButton(backBtn, "VOLTAR", true)) {
+        PlaySound(selectSound);
+        battleSystem->battleState = BATTLE_SELECT_ACTION;
+    }
+
+    // Mostrar item disponível
+    Rectangle itemRect = {
+        bounds.x + 20,
+        bounds.y + 50,
+        bounds.width - 40,
+        70
+    };
+
+    Color itemColor;
+    const char* itemName;
+    const char* itemDesc;
+
+    switch (battleSystem->itemType) {
+        case ITEM_POTION:
+            itemColor = GREEN;
+            itemName = "Poção";
+            itemDesc = "Restaura 20 pontos de HP";
+            break;
+        case ITEM_RED_CARD:
+            itemColor = RED;
+            itemName = "Cartão Vermelho";
+            itemDesc = "Força o oponente a trocar de Pokémon";
+            break;
+        case ITEM_COIN:
+            itemColor = YELLOW;
+            itemName = "Moeda da Sorte";
+            itemDesc = "Cara: HP total / Coroa: Desmaio";
+            break;
+        default:
+            itemColor = GRAY;
+            itemName = "Item Desconhecido";
+            itemDesc = "???";
+    }
+
+    DrawRectangleRounded(itemRect, 0.2f, 6, itemColor);
+    DrawRectangleRoundedLines(itemRect, 0.2f, 6, BLACK);
+
+    DrawText(itemName,
+            itemRect.x + 10,
+            itemRect.y + 10,
+            24,
+            WHITE);
+
+    DrawText(itemDesc,
+            itemRect.x + 10,
+            itemRect.y + 40,
+            18,
+            WHITE);
+
+    // Desenhar botão de usar
+    Rectangle useBtn = {
+        bounds.x + bounds.width/2 - 75,
+        bounds.y + bounds.height - 60,
+        150,
+        40
+    };
+
+    if (GuiPokemonButton(useBtn, "USAR", true)) {
+        PlaySound(selectSound);
+
+        // Enfileirar ação de usar item
+        enqueue(battleSystem->actionQueue, 2, battleSystem->itemType, battleSystem->playerTeam->current);
+
+        // Passar o turno para o bot escolher
+        battleSystem->playerTurn = false;
+        battleSystem->battleState = BATTLE_SELECT_ACTION;
+    }
+}
+
+/**
+ * Desenha a mensagem de batalha
+ */
+void drawBattleMessage(Rectangle bounds, const char* message) {
+    // Fundo da caixa
+    DrawRectangleRounded(bounds, 0.2f, 6, (Color){240, 240, 240, 230});
+    DrawRectangleRoundedLines(bounds, 0.2f, 6, BLACK);
+
+    // Inicializar typewriter se necessário
+    static bool textInitialized = false;
+    static char lastMessage[256] = "";
+
+    if (!textInitialized || strcmp(lastMessage, message) != 0) {
+        startTypewriter(message, true);
+        strcpy(lastMessage, message);
+        textInitialized = true;
+    }
+
+    // Atualizar efeito de typing
+    updateTypewriter();
+
+    // Desenhar texto
+    Vector2 textPos = {bounds.x + 20, bounds.y + 20};
+
+    // Desenhar texto com efeito typewriter
+    int fontSize = 24;
+    DrawText(typewriter.displayText, textPos.x, textPos.y, fontSize, BLACK);
+
+    // Indicador de continuar se o texto estiver completo
+    if (typewriter.isComplete && typewriter.waitingForInput) {
+        float blinkValue = sinf(typewriter.blinkTimer);
+        if (blinkValue > 0) {
+            DrawTriangle(
+                (Vector2){bounds.x + bounds.width - 30, bounds.y + bounds.height - 20},
+                (Vector2){bounds.x + bounds.width - 10, bounds.y + bounds.height - 30},
+                (Vector2){bounds.x + bounds.width - 10, bounds.y + bounds.height - 10},
+                BLACK
+            );
+        }
+    }
+}
+
+/**
+ * Desenha o diálogo de confirmação
+ */
+void drawConfirmDialog(const char* message, const char* yesText, const char* noText) {
+    // Fundo semi-transparente
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), (Color){0, 0, 0, 150});
+
+    // Caixa de diálogo
+    Rectangle dialogBox = {
+        GetScreenWidth()/2 - 200,
+        GetScreenHeight()/2 - 100,
+        400,
+        200
+    };
+
+    DrawRectangleRounded(dialogBox, 0.2f, 6, (Color){240, 240, 240, 255});
+    DrawRectangleRoundedLines(dialogBox, 0.2f, 6, BLACK);
+
+    // Mensagem
+    DrawText(message,
+            dialogBox.x + dialogBox.width/2 - MeasureText(message, 24)/2,
+            dialogBox.y + 40,
+            24,
+            BLACK);
+
+    // Botões
+    Rectangle yesBtn = {
+        dialogBox.x + 50,
+        dialogBox.y + 120,
+        120,
+        40
+    };
+
+    Rectangle noBtn = {
+        dialogBox.x + 230,
+        dialogBox.y + 120,
+        120,
+        40
+    };
+
+    if (GuiPokemonButton(yesBtn, yesText, true)) {
+        PlaySound(selectSound);
+        // Voltar ao menu principal
+        StopMusicStream(battleMusic);
+        PlayMusicStream(menuMusic);
+        currentScreen = MAIN_MENU;
+        resetBattle();
+    }
+
+    if (GuiPokemonButton(noBtn, noText, true)) {
+        PlaySound(selectSound);
+        // Continuar a batalha
+        battleSystem->battleState = BATTLE_SELECT_ACTION;
+    }
+}
+
+/**
+ * Função principal para desenhar a tela de batalha
+ */
+void drawBattleScreen(void) {
+    // Atualizar música
+    UpdateMusicStream(battleMusic);
+
+    // Fundo da batalha
+    if (currentBattleBackground >= 0 &&
+        currentBattleBackground < BATTLE_BACKGROUNDS_COUNT &&
+        battleBackgrounds[currentBattleBackground].id != 0) {
+        // Usar a textura de fundo atual
+        DrawTexture(
+            battleBackgrounds[currentBattleBackground],
+            0,
+            0,
+            WHITE
+        );
+    } else {
+        // Fallback - fundo gradiente
+        ClearBackground((Color){20, 50, 100, 255});
+
+        for (int i = 0; i < GetScreenHeight(); i++) {
+            float factor = (float)i / GetScreenHeight();
+            Color lineColor = (Color){
+                (unsigned char)(20 * (1.0f - factor) + 10 * factor),
+                (unsigned char)(50 * (1.0f - factor) + 30 * factor),
+                (unsigned char)(100 * (1.0f - factor) + 60 * factor),
+                255
+            };
+            DrawRectangle(0, i, GetScreenWidth(), 1, lineColor);
+        }
+    }
+
+    // Verificar se a batalha está inicializada
+    if (battleSystem == NULL ||
+        battleSystem->playerTeam == NULL ||
+        battleSystem->opponentTeam == NULL) {
+        DrawText("ERRO: Sistema de batalha não inicializado!",
+                GetScreenWidth()/2 - MeasureText("ERRO: Sistema de batalha não inicializado!", 30)/2,
+                GetScreenHeight()/2,
+                30,
+                RED);
+        return;
+    }
+
+    // Monstros ativos
+    PokeMonster* playerMonster = battleSystem->playerTeam->current;
+    PokeMonster* opponentMonster = battleSystem->opponentTeam->current;
+
+    // Desenhar monstros
+    drawMonsterInBattle(playerMonster, true);
+    drawMonsterInBattle(opponentMonster, false);
+
+    // Desenhar caixas de status
+    Rectangle playerStatusBox = {
+        GetScreenWidth() - 250,
+        GetScreenHeight() - 120,
+        240,
+        110
+    };
+
+    Rectangle enemyStatusBox = {
+        10,
+        10,
+        240,
+        100
+    };
+
+    drawMonsterStatusBox(playerMonster, playerStatusBox, true);
+    drawMonsterStatusBox(opponentMonster, enemyStatusBox, false);
+
+    // Desenhar efeitos visuais
+    drawBattleEffects();
+
+    // Caixa de mensagem ou menu de ações
+    Rectangle actionBox = {
+        GetScreenWidth()/2 - 350,
+        GetScreenHeight() - 150,
+        700,
+        140
+    };
+
+    // Desenhar interface baseada no estado atual
+    switch (battleSystem->battleState) {
+        case BATTLE_SELECT_ACTION:
+            if (battleSystem->playerTurn) {
+                drawBattleActionMenu(actionBox);
+            } else {
+                // Mensagem de espera pelo bot
+                drawBattleMessage(actionBox, "O oponente está escolhendo sua ação...");
+            }
+            break;
+
+        case BATTLE_SELECT_ATTACK:
+            drawBattleAttackMenu(actionBox);
+            break;
+
+        case BATTLE_SELECT_MONSTER:
+        case BATTLE_FORCED_SWITCH:
+            drawMonsterSelectionMenu(actionBox);
+            break;
+
+        case BATTLE_ITEM_MENU:
+            drawItemMenu(actionBox);
+            break;
+
+        case BATTLE_MESSAGE_DISPLAY:
+            drawBattleMessage(actionBox, currentMessage.message);
+            break;
+
+        case BATTLE_CONFIRM_QUIT:
+            drawConfirmDialog("Tem certeza que deseja fugir da batalha?", "Sim", "Não");
+            break;
+
+        case BATTLE_OVER:
+            // Determinar vencedor
+            {
+                int winner = getBattleWinner();
+                const char* resultMsg;
+
+                if (winner == 1) {
+                    resultMsg = "Você venceu a batalha!";
+                } else if (winner == 2) {
+                    resultMsg = "Você perdeu a batalha!";
+                } else {
+                    resultMsg = "A batalha terminou em empate!";
+                }
+
+                drawBattleMessage(actionBox, resultMsg);
+
+                // Botão para voltar ao menu
+                Rectangle menuBtn = {
+                    GetScreenWidth()/2 - 100,
+                    GetScreenHeight() - 60,
+                    200,
+                    50
+                };
+
+                if (GuiPokemonButton(menuBtn, "MENU PRINCIPAL", true)) {
+                    PlaySound(selectSound);
+                    StopMusicStream(battleMusic);
+                    PlayMusicStream(menuMusic);
+                    currentScreen = MAIN_MENU;
+                    resetBattle();
+                }
+            }
+            break;
+
+        default:
+            // Outros estados, mostrar mensagem atual
+            drawBattleMessage(actionBox, getBattleDescription());
+            break;
+    }
+
+    // Desenhar indicador da API
+    drawAIIndicator();
+}
+
+/**
+ * Atualiza a lógica da tela de batalha
+ */
+void updateBattleScreen(void) {
+    // Já chamamos updateBattle no loop principal
+    // Aqui atualizamos apenas os efeitos visuais
+    updateBattleEffects();
 }

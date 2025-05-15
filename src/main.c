@@ -5,9 +5,9 @@
     #define NOUSER
 #endif
 
+#include "raygui.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 #include "raylib.h"
 #include "globals.h"
@@ -22,6 +22,7 @@
 #include "render/credits_renderer.h"     // Adicionado para resolver o drawCredits()
 #include "main.h"
 #include "resources.h"
+#include "gui.h"
 
 
 // Declarações das funções
@@ -122,8 +123,9 @@ int main(void) {
     initBattleEffects();
 
     //Inicializar o menu de configurações
-    initializeSettings();
+    drawSettings();
 
+    LoadPokemonTheme();
     // Inicializar recursos visuais
     loadTextures();
     loadSounds(musicVolume, soundVolume);
@@ -185,7 +187,7 @@ int main(void) {
 
     // Liberar estruturas de batalha
     freeBattleSystem();
-
+    UnloadPokemonTheme();
     // Liberar recursos visuais
     unloadTextures();
     unloadSounds();
