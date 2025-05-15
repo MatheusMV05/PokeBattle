@@ -93,10 +93,12 @@ const char* getBattleDescription(void);
 void resetBattle(void);
 int getAISuggestedActionSimple(PokeMonster* botMonster, PokeMonster* playerMonster);
 bool canAttack(PokeMonster* monster);
+void executeItemUse(PokeMonster* user, ItemType itemType);
 void processStatusEffects(PokeMonster* monster);
 void displayStatusMessage(const char* message);
 void determineAndExecuteTurnOrder(void);
 void messageDisplayComplete(void);
+void executeMonsterSwitch(PokeMonster* monster, int targetIndex);
 // Inicializa a árvore de decisão para o bot
 void initBotDecisionTree(void);
 

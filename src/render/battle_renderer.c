@@ -1,3 +1,6 @@
+/**
+ * PokeBattle - Renderização da tela de batalha
+ */
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOGDI
@@ -17,20 +20,16 @@
 #include "globals.h"
 #include "gui.h"
 
-// Backgrounds disponíveis para batalha
-extern Texture2D battleBackgrounds[BATTLE_BACKGROUNDS_COUNT];
-extern int currentBattleBackground;
-
 // Sistema de typewriter para textos
 typedef struct {
-    char fullText[256];         // Texto completo
-    char displayText[256];      // Texto atualmente exibido
-    float charTimer;            // Timer para próximo caractere
-    int currentChar;            // Índice do caractere atual
-    bool isComplete;            // Se terminou de digitar
-    float charDelay;            // Delay entre caracteres
-    bool waitingForInput;       // Se está esperando input do usuário
-    float blinkTimer;           // Timer para piscar o indicador de continuar
+    char fullText[256];        // Texto completo
+    char displayText[256];     // Texto atualmente exibido
+    float charTimer;           // Timer para próximo caractere
+    int currentChar;           // Índice do caractere atual
+    bool isComplete;           // Se terminou de digitar
+    float charDelay;           // Delay entre caracteres
+    bool waitingForInput;      // Se está esperando input do usuário
+    float blinkTimer;          // Timer para piscar o indicador de continuar
 } TypewriterText;
 
 static TypewriterText typewriter = {0};
@@ -49,19 +48,19 @@ BattleEffect effects[MAX_EFFECTS] = {0};
 
 // Estrutura para sprite de um pokémon que pode ser animado
 typedef struct {
-    Texture2D texture;           // Textura do sprite
-    float scale;                 // Escala do sprite
-    Rectangle frameRect;         // Retângulo do frame atual
-    int frameCount;              // Número total de frames
-    int currentFrame;            // Frame atual
-    float frameTime;             // Tempo de cada frame
-    float timer;                 // Timer acumulado
-    bool isAnimated;             // Se é um sprite animado (GIF)
+    Texture2D texture;          // Textura do sprite
+    float scale;                // Escala do sprite
+    Rectangle frameRect;        // Retângulo do frame atual
+    int frameCount;             // Número total de frames
+    int currentFrame;           // Frame atual
+    float frameTime;            // Tempo de cada frame
+    float timer;                // Timer acumulado
+    bool isAnimated;            // Se é um sprite animado (GIF)
     // Efeitos visuais opcionais
-    float bounceHeight;          // Altura do efeito de "bounce"
-    float bounceSpeed;           // Velocidade do bounce
-    float flashAlpha;            // Alpha para efeito de flash (0-1)
-    Color tint;                  // Cor de matiz
+    float bounceHeight;         // Altura do efeito de "bounce"
+    float bounceSpeed;          // Velocidade do bounce
+    float flashAlpha;           // Alpha para efeito de flash (0-1)
+    Color tint;                 // Cor de matiz
 } AnimatedSprite;
 
 static AnimatedSprite playerSprite = {0};
@@ -69,8 +68,6 @@ static AnimatedSprite enemySprite = {0};
 
 /**
  * Inicia o efeito typewriter para um novo texto
- * @param text Texto a ser exibido
- * @param waitForInput Se deve esperar input do usuário após terminar
  */
 void startTypewriter(const char* text, bool waitForInput) {
     if (text == NULL) return;
@@ -130,448 +127,12 @@ void updateTypewriter(void) {
             typewriter.currentChar = strlen(typewriter.fullText);
             typewriter.isComplete = true;
             typewriter.blinkTimer = 0.0f;
-        } else if (typewriter.waitingForInput) {
-            // Se já completou e está esperando input, avançar
-            // Isso deve ser tratado pela lógica de batalha
         }
     }
-}
-
-/**
- * Verifica se o efeito typewriter está completo
- */
-bool isTypewriterComplete(void) {
-    return typewriter.isComplete;
-}
-
-/**
- * Verifica se o typewriter está esperando input
- */
-bool isTypewriterWaitingInput(void) {
-    return typewriter.isComplete && typewriter.waitingForInput;
-}
-
-/**
- * Inicializa um sprite animado
- * @param sprite Ponteiro para o sprite a ser inicializado
- * @param texture Textura do sprite
- * @param frameCount Número de frames (1 para sprites não animados)
- * @param frameTime Tempo de cada frame (em segundos)
- * @param scale Fator de escala para renderização
- */
-void initAnimatedSprite(AnimatedSprite* sprite, Texture2D texture, int frameCount, float frameTime, float scale) {
-    if (sprite == NULL) return;
-
-    sprite->texture = texture;
-    sprite->scale = scale;
-    sprite->frameCount = frameCount;
-    sprite->currentFrame = 0;
-    sprite->frameTime = frameTime;
-    sprite->timer = 0.0f;
-    sprite->isAnimated = (frameCount > 1);
-
-    // Calcular retângulo do frame
-    if (sprite->isAnimated) {
-        sprite->frameRect = (Rectangle){
-            0, 0,
-            texture.width / frameCount,
-            texture.height
-        };
-    } else {
-        sprite->frameRect = (Rectangle){
-            0, 0,
-            texture.width,
-            texture.height
-        };
-    }
-
-    // Inicializar efeitos
-    sprite->bounceHeight = 0.0f;
-    sprite->bounceSpeed = 0.0f;
-    sprite->flashAlpha = 0.0f;
-    sprite->tint = WHITE;
-}
-
-/**
- * Atualiza o estado de um sprite animado
- * @param sprite Ponteiro para o sprite a atualizar
- * @param deltaTime Tempo decorrido desde o último frame
- */
-void updateAnimatedSprite(AnimatedSprite* sprite, float deltaTime) {
-    if (sprite == NULL || !sprite->isAnimated) return;
-
-    // Atualizar timer e frame
-    sprite->timer += deltaTime;
-    if (sprite->timer >= sprite->frameTime) {
-        sprite->timer -= sprite->frameTime;
-        sprite->currentFrame = (sprite->currentFrame + 1) % sprite->frameCount;
-
-        // Atualizar retângulo do frame
-        sprite->frameRect.x = sprite->currentFrame * sprite->frameRect.width;
-    }
-
-    // Atualizar efeitos
-    if (sprite->flashAlpha > 0.0f) {
-        sprite->flashAlpha -= deltaTime * 2.0f;
-        if (sprite->flashAlpha < 0.0f) sprite->flashAlpha = 0.0f;
-    }
-}
-
-/**
- * Desenha um sprite animado na tela
- * @param sprite Ponteiro para o sprite a desenhar
- * @param position Posição na tela
- */
-void drawAnimatedSprite(AnimatedSprite* sprite, Vector2 position) {
-    if (sprite == NULL || sprite->texture.id == 0) return;
-
-    // Aplicar efeito de bounce
-    float yOffset = 0.0f;
-    if (sprite->bounceHeight > 0.0f) {
-        yOffset = -sprite->bounceHeight * sinf(battleTimer * sprite->bounceSpeed);
-    }
-
-    // Desenhar sprite
-    float width = sprite->frameRect.width * sprite->scale;
-    float height = sprite->frameRect.height * sprite->scale;
-    Rectangle destRect = {
-        position.x - width/2,
-        position.y - height/2 + yOffset,
-        width,
-        height
-    };
-
-    DrawTexturePro(
-        sprite->texture,
-        sprite->frameRect,
-        destRect,
-        (Vector2){0, 0},
-        0.0f,
-        sprite->tint
-    );
-
-    // Efeito de flash
-    if (sprite->flashAlpha > 0.0f) {
-        DrawRectangleRec(destRect, (Color){255, 255, 255, (unsigned char)(sprite->flashAlpha * 255)});
-    }
-}
-
-/**
- * Aplica um efeito de dano/flash no sprite
- * @param sprite Ponteiro para o sprite a aplicar efeito
- */
-void applyDamageEffect(AnimatedSprite* sprite) {
-    if (sprite == NULL) return;
-
-    sprite->flashAlpha = 1.0f;
-    sprite->bounceHeight = 5.0f;
-    sprite->bounceSpeed = 15.0f;
-}
-
-/**
- * Inicializa o sistema de efeitos visuais
- */
-void initBattleEffects(void) {
-    for (int i = 0; i < MAX_EFFECTS; i++) {
-        effects[i].active = false;
-    }
-
-    // Inicializar sprites com valores padrão
-    Texture2D defaultTexture = {0};
-    initAnimatedSprite(&playerSprite, defaultTexture, 1, 0.1f, 3.0f);
-    initAnimatedSprite(&enemySprite, defaultTexture, 1, 0.1f, 3.0f);
-}
-
-/**
- * Atualiza os efeitos visuais ativos
- */
-void updateBattleEffects(void) {
-    float deltaTime = GetFrameTime();
-    battleTimer += deltaTime;
-
-    // Animar plataformas
-    platformYOffset1 = sinf(battleTimer * 0.5f) * 5.0f;
-    platformYOffset2 = cosf(battleTimer * 0.6f) * 5.0f;
-
-    // Atualizar sprites
-    updateAnimatedSprite(&playerSprite, deltaTime);
-    updateAnimatedSprite(&enemySprite, deltaTime);
-
-    // Atualizar efeitos visuais
-    for (int i = 0; i < MAX_EFFECTS; i++) {
-        if (effects[i].active) {
-            effects[i].timer += deltaTime;
-
-            if (effects[i].timer >= effects[i].duration) {
-                effects[i].active = false;
-            }
-        }
-    }
-
-    // Atualizar animação de HP
-    if (isHpAnimationActive) {
-        hpAnimTimer += deltaTime;
-        if (hpAnimTimer >= 1.0f) {
-            isHpAnimationActive = false;
-            hpAnimTimer = 0.0f;
-        }
-    }
-}
-
-/**
- * Cria um novo efeito visual
- */
-void createBattleEffect(int type, Rectangle bounds, Color color, Vector2 origin, Vector2 target, float duration) {
-    // Encontrar um slot livre
-    for (int i = 0; i < MAX_EFFECTS; i++) {
-        if (!effects[i].active) {
-            effects[i].active = true;
-            effects[i].type = type;
-            effects[i].bounds = bounds;
-            effects[i].color = color;
-            effects[i].origin = origin;
-            effects[i].target = target;
-            effects[i].duration = duration;
-            effects[i].timer = 0;
-            break;
-        }
-    }
-}
-
-/**
- * Desenha todos os efeitos visuais ativos
- */
-void drawBattleEffects(void) {
-    for (int i = 0; i < MAX_EFFECTS; i++) {
-        if (!effects[i].active) continue;
-
-        float progress = effects[i].timer / effects[i].duration;
-
-        switch (effects[i].type) {
-            case EFFECT_FLASH:
-                // Efeito de flash na tela
-                DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
-                             Fade(effects[i].color, (1.0f - progress) * 0.4f));
-                break;
-
-            case EFFECT_PARTICLES:
-                // Efeito de partículas
-                for (int j = 0; j < 20; j++) {
-                    float angle = j * (2.0f * PI / 20.0f);
-                    float distance = progress * 100.0f;
-                    float x = effects[i].origin.x + cosf(angle) * distance;
-                    float y = effects[i].origin.y + sinf(angle) * distance - progress * progress * 50.0f;
-                    float size = (1.0f - progress) * 10.0f;
-
-                    DrawCircle(x, y, size, effects[i].color);
-                }
-                break;
-
-            case EFFECT_SLASH:
-                // Efeito de corte
-                {
-                    float thickness = (1.0f - progress) * 5.0f;
-                    for (int j = 0; j < 3; j++) {
-                        Vector2 start = {
-                            effects[i].origin.x + (effects[i].target.x - effects[i].origin.x) * (progress - 0.1f + j * 0.05f),
-                            effects[i].origin.y + (effects[i].target.y - effects[i].origin.y) * (progress - 0.1f + j * 0.05f)
-                        };
-                        Vector2 end = {
-                            effects[i].origin.x + (effects[i].target.x - effects[i].origin.x) * (progress + j * 0.05f),
-                            effects[i].origin.y + (effects[i].target.y - effects[i].origin.y) * (progress + j * 0.05f)
-                        };
-
-                        DrawLineEx(start, end, thickness, effects[i].color);
-                    }
-                }
-                break;
-
-            case EFFECT_FIRE:
-                // Efeito de fogo
-                for (int j = 0; j < 15; j++) {
-                    float randAngle = j * 0.1f + GetRandomValue(0, 100) / 100.0f;
-                    float randDist = GetRandomValue(0, 100) / 100.0f;
-                    float x = effects[i].target.x + sinf(randAngle * 10.0f + progress * 5.0f) * 30.0f * randDist;
-                    float y = effects[i].target.y - progress * 80.0f * randDist - j * 2.0f;
-                    float size = (1.0f - progress) * 15.0f * randDist;
-
-                    Color fireColor = (Color){
-                        255,
-                        (unsigned char)(100 + randDist * 155),
-                        0,
-                        (unsigned char)(255 * (1.0f - progress))
-                    };
-                    DrawCircle(x, y, size, fireColor);
-                }
-                break;
-
-            case EFFECT_WATER:
-                // Efeito de água
-                for (int j = 0; j < 20; j++) {
-                    float angle = j * (2.0f * PI / 20) + GetRandomValue(0, 100) / 100.0f;
-                    float dist = progress * 80.0f;
-                    float x = effects[i].target.x + cosf(angle) * dist * (1.0f + sinf(progress * 10.0f) * 0.2f);
-                    float y = effects[i].target.y + sinf(angle) * dist * (1.0f + cosf(progress * 10.0f) * 0.2f);
-                    float size = (1.0f - progress) * 8.0f;
-
-                    Color waterColor = (Color){
-                        0,
-                        100,
-                        (unsigned char)(200 + sinf(progress * 5.0f) * 55),
-                        (unsigned char)(255 * (1.0f - progress))
-                    };
-                    DrawCircle(x, y, size, waterColor);
-                }
-                break;
-
-            case EFFECT_ELECTRIC:
-                // Efeito elétrico
-                for (int j = 0; j < 5; j++) {
-                    float offsetX = GetRandomValue(-30, 30);
-                    float offsetY = GetRandomValue(-30, 30);
-                    Vector2 start = {
-                        effects[i].target.x + offsetX,
-                        effects[i].target.y + offsetY
-                    };
-
-                    // Desenhar raios
-                    for (int k = 0; k < 5; k++) {
-                        Vector2 end = {
-                            start.x + GetRandomValue(-20, 20),
-                            start.y + GetRandomValue(-20, 20) - 10.0f
-                        };
-
-                        DrawLineEx(start, end, 3.0f * (1.0f - progress), YELLOW);
-                        start = end;
-                    }
-                }
-                break;
-
-            case EFFECT_NATURE:
-                // Efeito de natureza
-                for (int j = 0; j < 10; j++) {
-                    float angle = j * (2.0f * PI / 10) + GetRandomValue(0, 100) / 100.0f;
-                    float dist = progress * 60.0f;
-                    float x = effects[i].target.x + cosf(angle) * dist;
-                    float y = effects[i].target.y + sinf(angle) * dist;
-
-                    // Desenhar folhas
-                    Vector2 leaf[] = {
-                        {x, y},
-                        {x + 10.0f * (1.0f - progress), y + 5.0f * (1.0f - progress)},
-                        {x, y + 10.0f * (1.0f - progress)},
-                        {x - 10.0f * (1.0f - progress), y + 5.0f * (1.0f - progress)},
-                        {x, y}
-                    };
-
-                    // Rotacionar a folha
-                    float rotation = GetRandomValue(0, 360) * DEG2RAD;
-                    for (int v = 0; v < 5; v++) {
-                        float tempX = leaf[v].x - x;
-                        float tempY = leaf[v].y - y;
-                        leaf[v].x = x + tempX * cosf(rotation) - tempY * sinf(rotation);
-                        leaf[v].y = y + tempX * sinf(rotation) + tempY * cosf(rotation);
-                    }
-
-                    // Desenhar a folha
-                    for (int v = 0; v < 4; v++) {
-                        DrawLineEx(leaf[v], leaf[v+1], 2.0f * (1.0f - progress), GREEN);
-                    }
-                }
-                break;
-        }
-    }
-}
-
-/**
- * Cria efeito visual baseado no tipo do ataque
- */
-void createAttackEffect(MonsterType attackType, Vector2 origin, Vector2 target) {
-    switch (attackType) {
-        case TYPE_FIRE:
-            createBattleEffect(EFFECT_FIRE, (Rectangle){0}, RED, origin, target, 0.5f);
-            createBattleEffect(EFFECT_FLASH, (Rectangle){0}, (Color){255, 100, 0, 128}, origin, target, 0.2f);
-            break;
-
-        case TYPE_WATER:
-            createBattleEffect(EFFECT_WATER, (Rectangle){0}, BLUE, origin, target, 0.6f);
-            createBattleEffect(EFFECT_FLASH, (Rectangle){0}, (Color){0, 100, 255, 128}, origin, target, 0.2f);
-            break;
-
-        case TYPE_ELECTRIC:
-            createBattleEffect(EFFECT_ELECTRIC, (Rectangle){0}, YELLOW, origin, target, 0.5f);
-            createBattleEffect(EFFECT_FLASH, (Rectangle){0}, (Color){255, 255, 0, 128}, origin, target, 0.2f);
-            break;
-
-        case TYPE_GRASS:
-            createBattleEffect(EFFECT_NATURE, (Rectangle){0}, GREEN, origin, target, 0.7f);
-            createBattleEffect(EFFECT_FLASH, (Rectangle){0}, (Color){50, 200, 50, 128}, origin, target, 0.2f);
-            break;
-
-        case TYPE_STEEL:
-        case TYPE_FLYING:
-            createBattleEffect(EFFECT_SLASH, (Rectangle){0}, WHITE, origin, target, 0.4f);
-            createBattleEffect(EFFECT_FLASH, (Rectangle){0}, WHITE, origin, target, 0.15f);
-            break;
-
-        case TYPE_DRAGON:
-            createBattleEffect(EFFECT_FLASH, (Rectangle){0}, (Color){100, 50, 200, 100}, origin, target, 0.15f);
-            createBattleEffect(EFFECT_PARTICLES, (Rectangle){0}, (Color){150, 80, 220, 255}, origin, target, 0.5f);
-            break;
-
-        case TYPE_GHOST:
-            createBattleEffect(EFFECT_FLASH, (Rectangle){0}, (Color){100, 50, 150, 128}, origin, target, 0.4f);
-            createBattleEffect(EFFECT_PARTICLES, (Rectangle){0}, (Color){120, 60, 170, 255}, origin, target, 0.6f);
-            break;
-
-        case TYPE_FAIRY:
-            createBattleEffect(EFFECT_PARTICLES, (Rectangle){0}, (Color){255, 180, 200, 255}, origin, target, 0.7f);
-            createBattleEffect(EFFECT_FLASH, (Rectangle){0}, (Color){255, 150, 180, 128}, origin, target, 0.3f);
-            break;
-
-        default:
-            createBattleEffect(EFFECT_PARTICLES, (Rectangle){0}, WHITE, origin, target, 0.5f);
-            break;
-    }
-}
-
-/**
- * Executa um ataque com efeitos visuais
- */
-void executeAttackWithEffects(PokeMonster* attacker, PokeMonster* defender, int attackIndex) {
-    if (attacker == NULL || defender == NULL || attackIndex < 0 || attackIndex > 3) return;
-
-    // Posições dos sprites para efeitos
-    Vector2 attackerPos, defenderPos;
-
-    if (attacker == battleSystem->playerTeam->current) {
-        attackerPos = (Vector2){GetScreenWidth() / 4, GetScreenHeight() / 1.5f};
-        defenderPos = (Vector2){GetScreenWidth() * 3 / 4, GetScreenHeight() / 3};
-        applyDamageEffect(&enemySprite);
-    } else {
-        attackerPos = (Vector2){GetScreenWidth() * 3 / 4, GetScreenHeight() / 3};
-        defenderPos = (Vector2){GetScreenWidth() / 4, GetScreenHeight() / 1.5f};
-        applyDamageEffect(&playerSprite);
-    }
-
-    // Tipo de ataque para efeito visual
-    MonsterType attackType = attacker->attacks[attackIndex].type;
-
-    // Criar efeito baseado no tipo
-    createAttackEffect(attackType, attackerPos, defenderPos);
-
-    // Iniciar animação de HP
-    isHpAnimationActive = true;
-    hpAnimTimer = 0.0f;
-
-    // Tocar som de ataque
-    PlaySound(attackSound);
 }
 
 /**
  * Desenha um monstro na batalha
- * @param monster Dados do monstro
- * @param isPlayer Se é o monstro do jogador (true) ou do oponente (false)
  */
 void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
     if (monster == NULL) return;
@@ -593,9 +154,23 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
 
         // Se é a primeira vez, inicializar sprite do jogador
         if (playerSprite.texture.id == 0 && monster->backTexture.id != 0) {
-            initAnimatedSprite(&playerSprite, monster->backTexture, 1, 0.1f, 3.0f);
+            // Inicializar o sprite
+            playerSprite.texture = monster->backTexture;
+            playerSprite.scale = 3.0f;
+            playerSprite.frameCount = 1;
+            playerSprite.currentFrame = 0;
+            playerSprite.frameTime = 0.1f;
+            playerSprite.timer = 0.0f;
+            playerSprite.isAnimated = false;
             playerSprite.bounceHeight = 8.0f;
             playerSprite.bounceSpeed = 2.0f;
+            playerSprite.flashAlpha = 0.0f;
+            playerSprite.tint = WHITE;
+            playerSprite.frameRect = (Rectangle){
+                0, 0,
+                playerSprite.texture.width,
+                playerSprite.texture.height
+            };
         }
 
         // Desenhar plataforma
@@ -607,8 +182,38 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
             (Color){100, 120, 140, 200}
         );
 
-        // Desenhar sprite do monstro
-        drawAnimatedSprite(&playerSprite, monsterPos);
+        // Desenhar sprite do jogador
+        if (playerSprite.texture.id != 0) {
+            // Aplicar efeito de bounce
+            float yOffset = 0.0f;
+            if (playerSprite.bounceHeight > 0.0f) {
+                yOffset = -playerSprite.bounceHeight * sinf(battleTimer * playerSprite.bounceSpeed);
+            }
+
+            // Desenhar sprite
+            float width = playerSprite.frameRect.width * playerSprite.scale;
+            float height = playerSprite.frameRect.height * playerSprite.scale;
+            Rectangle destRect = {
+                monsterPos.x - width/2,
+                monsterPos.y - height/2 + yOffset,
+                width,
+                height
+            };
+
+            DrawTexturePro(
+                playerSprite.texture,
+                playerSprite.frameRect,
+                destRect,
+                (Vector2){0, 0},
+                0.0f,
+                playerSprite.tint
+            );
+
+            // Efeito de flash
+            if (playerSprite.flashAlpha > 0.0f) {
+                DrawRectangleRec(destRect, (Color){255, 255, 255, (unsigned char)(playerSprite.flashAlpha * 255)});
+            }
+        }
     } else {
         platformPos = (Vector2){
             GetScreenWidth() * 3 / 4,
@@ -622,17 +227,23 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
 
         // Se é a primeira vez, inicializar sprite do inimigo
         if (enemySprite.texture.id == 0 && monster->frontTexture.id != 0) {
-            // Verificar se a textura frontal parece ser um GIF (pela observação do formato)
-            int frameCount = 1; // Padrão para sprite estático
-
-            // Heurística: se a largura for maior que 2x a altura, provavelmente tem mais de 1 frame
-            if (monster->frontTexture.width > monster->frontTexture.height * 2) {
-                frameCount = monster->frontTexture.width / monster->frontTexture.height;
-            }
-
-            initAnimatedSprite(&enemySprite, monster->frontTexture, frameCount, 0.2f, 2.5f);
+            // Inicializar o sprite
+            enemySprite.texture = monster->frontTexture;
+            enemySprite.scale = 2.5f;
+            enemySprite.frameCount = 1;
+            enemySprite.currentFrame = 0;
+            enemySprite.frameTime = 0.2f;
+            enemySprite.timer = 0.0f;
+            enemySprite.isAnimated = false;
             enemySprite.bounceHeight = 5.0f;
             enemySprite.bounceSpeed = 1.5f;
+            enemySprite.flashAlpha = 0.0f;
+            enemySprite.tint = WHITE;
+            enemySprite.frameRect = (Rectangle){
+                0, 0,
+                enemySprite.texture.width,
+                enemySprite.texture.height
+            };
         }
 
         // Desenhar plataforma
@@ -644,8 +255,38 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
             (Color){100, 120, 140, 200}
         );
 
-        // Desenhar sprite do monstro
-        drawAnimatedSprite(&enemySprite, monsterPos);
+        // Desenhar sprite do inimigo
+        if (enemySprite.texture.id != 0) {
+            // Aplicar efeito de bounce
+            float yOffset = 0.0f;
+            if (enemySprite.bounceHeight > 0.0f) {
+                yOffset = -enemySprite.bounceHeight * sinf(battleTimer * enemySprite.bounceSpeed);
+            }
+
+            // Desenhar sprite
+            float width = enemySprite.frameRect.width * enemySprite.scale;
+            float height = enemySprite.frameRect.height * enemySprite.scale;
+            Rectangle destRect = {
+                monsterPos.x - width/2,
+                monsterPos.y - height/2 + yOffset,
+                width,
+                height
+            };
+
+            DrawTexturePro(
+                enemySprite.texture,
+                enemySprite.frameRect,
+                destRect,
+                (Vector2){0, 0},
+                0.0f,
+                enemySprite.tint
+            );
+
+            // Efeito de flash
+            if (enemySprite.flashAlpha > 0.0f) {
+                DrawRectangleRec(destRect, (Color){255, 255, 255, (unsigned char)(enemySprite.flashAlpha * 255)});
+            }
+        }
     }
 
     // Desenhar indicador de status (se tiver)
@@ -779,43 +420,15 @@ void drawMonsterStatusBox(PokeMonster* monster, Rectangle bounds, bool isPlayer)
         15
     };
 
-    // Calcular proporção de HP
-    float hpRatio = (float)monster->hp / monster->maxHp;
-    if (hpRatio < 0) hpRatio = 0;
-    if (hpRatio > 1) hpRatio = 1;
-
-    // Cor da barra baseada no HP
-    Color hpColor = hpRatio > 0.5f ? GREEN : (hpRatio > 0.2f ? YELLOW : RED);
-
-    // Desenhar fundo da barra
-    DrawRectangleRec(hpBarBounds, GRAY);
-
-    // Desenhar barra de HP atual com animação
-    if (isHpAnimationActive) {
-        // Animação suave de redução
-        DrawRectangle(
-            hpBarBounds.x,
-            hpBarBounds.y,
-            hpBarBounds.width * (hpRatio + (1.0f - hpAnimTimer) * 0.1f),
-            hpBarBounds.height,
-            hpColor
-        );
-    } else {
-        DrawRectangle(
-            hpBarBounds.x,
-            hpBarBounds.y,
-            hpBarBounds.width * hpRatio,
-            hpBarBounds.height,
-            hpColor
-        );
-    }
+    // Desenhar a barra de HP
+    drawHealthBar(hpBarBounds, monster->hp, monster->maxHp, monster);
 }
 
 /**
  * Desenha o menu de ações da batalha
  */
 void drawBattleActionMenu(Rectangle bounds) {
-    // Fundo da caixa de mensagem/ações
+    // Fundo da caixa de ações
     DrawRectangleRounded(bounds, 0.2f, 6, (Color){240, 240, 240, 230});
     DrawRectangleRoundedLines(bounds, 0.2f, 6, BLACK);
 
@@ -1262,42 +875,52 @@ void drawItemMenu(Rectangle bounds) {
 /**
  * Desenha a mensagem de batalha
  */
-void drawBattleMessage(Rectangle bounds, const char* message) {
+void drawBattleMessage(Rectangle bounds) {
     // Fundo da caixa
     DrawRectangleRounded(bounds, 0.2f, 6, (Color){240, 240, 240, 230});
     DrawRectangleRoundedLines(bounds, 0.2f, 6, BLACK);
 
-    // Inicializar typewriter se necessário
-    static bool textInitialized = false;
-    static char lastMessage[256] = "";
+    // Verificar se temos uma mensagem atual
+    if (strlen(currentMessage.message) > 0) {
+        // Inicializar typewriter se necessário
+        static bool textInitialized = false;
+        static char lastMessage[256] = "";
 
-    if (!textInitialized || strcmp(lastMessage, message) != 0) {
-        startTypewriter(message, true);
-        strcpy(lastMessage, message);
-        textInitialized = true;
-    }
-
-    // Atualizar efeito de typing
-    updateTypewriter();
-
-    // Desenhar texto
-    Vector2 textPos = {bounds.x + 20, bounds.y + 20};
-
-    // Desenhar texto com efeito typewriter
-    int fontSize = 24;
-    DrawText(typewriter.displayText, textPos.x, textPos.y, fontSize, BLACK);
-
-    // Indicador de continuar se o texto estiver completo
-    if (typewriter.isComplete && typewriter.waitingForInput) {
-        float blinkValue = sinf(typewriter.blinkTimer);
-        if (blinkValue > 0) {
-            DrawTriangle(
-                (Vector2){bounds.x + bounds.width - 30, bounds.y + bounds.height - 20},
-                (Vector2){bounds.x + bounds.width - 10, bounds.y + bounds.height - 30},
-                (Vector2){bounds.x + bounds.width - 10, bounds.y + bounds.height - 10},
-                BLACK
-            );
+        if (!textInitialized || strcmp(lastMessage, currentMessage.message) != 0) {
+            startTypewriter(currentMessage.message, currentMessage.waitingForInput);
+            strcpy(lastMessage, currentMessage.message);
+            textInitialized = true;
         }
+
+        // Atualizar efeito de typing
+        updateTypewriter();
+
+        // Desenhar texto
+        Vector2 textPos = {bounds.x + 20, bounds.y + 20};
+
+        // Desenhar texto com efeito typewriter
+        int fontSize = 24;
+        DrawText(typewriter.displayText, textPos.x, textPos.y, fontSize, BLACK);
+
+        // Indicador de continuar se o texto estiver completo
+        if (typewriter.isComplete && typewriter.waitingForInput) {
+            float blinkValue = sinf(typewriter.blinkTimer);
+            if (blinkValue > 0) {
+                DrawTriangle(
+                    (Vector2){bounds.x + bounds.width - 30, bounds.y + bounds.height - 20},
+                    (Vector2){bounds.x + bounds.width - 10, bounds.y + bounds.height - 30},
+                    (Vector2){bounds.x + bounds.width - 10, bounds.y + bounds.height - 10},
+                    BLACK
+                );
+            }
+        }
+    } else {
+        // Mensagem padrão se não tivermos uma específica
+        DrawText("...",
+                bounds.x + 20,
+                bounds.y + 20,
+                24,
+                BLACK);
     }
 }
 
@@ -1364,32 +987,8 @@ void drawBattleScreen(void) {
     // Atualizar música
     UpdateMusicStream(battleMusic);
 
-    // Fundo da batalha
-    if (currentBattleBackground >= 0 &&
-        currentBattleBackground < BATTLE_BACKGROUNDS_COUNT &&
-        battleBackgrounds[currentBattleBackground].id != 0) {
-        // Usar a textura de fundo atual
-        DrawTexture(
-            battleBackgrounds[currentBattleBackground],
-            0,
-            0,
-            WHITE
-        );
-    } else {
-        // Fallback - fundo gradiente
-        ClearBackground((Color){20, 50, 100, 255});
-
-        for (int i = 0; i < GetScreenHeight(); i++) {
-            float factor = (float)i / GetScreenHeight();
-            Color lineColor = (Color){
-                (unsigned char)(20 * (1.0f - factor) + 10 * factor),
-                (unsigned char)(50 * (1.0f - factor) + 30 * factor),
-                (unsigned char)(100 * (1.0f - factor) + 60 * factor),
-                255
-            };
-            DrawRectangle(0, i, GetScreenWidth(), 1, lineColor);
-        }
-    }
+    // Fundo branco puro (removido o uso de texturas de fundo)
+    ClearBackground(WHITE);
 
     // Verificar se a batalha está inicializada
     if (battleSystem == NULL ||
@@ -1429,9 +1028,6 @@ void drawBattleScreen(void) {
     drawMonsterStatusBox(playerMonster, playerStatusBox, true);
     drawMonsterStatusBox(opponentMonster, enemyStatusBox, false);
 
-    // Desenhar efeitos visuais
-    drawBattleEffects();
-
     // Caixa de mensagem ou menu de ações
     Rectangle actionBox = {
         GetScreenWidth()/2 - 350,
@@ -1442,12 +1038,24 @@ void drawBattleScreen(void) {
 
     // Desenhar interface baseada no estado atual
     switch (battleSystem->battleState) {
+        case BATTLE_INTRO:
+            // Apenas exibir a mensagem durante a introdução
+            drawBattleMessage(actionBox);
+            break;
+
         case BATTLE_SELECT_ACTION:
             if (battleSystem->playerTurn) {
+                // CORREÇÃO: Imprimir informação de debug para verificar se está entrando aqui
+                printf("[DEBUG RENDER] Desenhando menu de ações para o jogador\n");
                 drawBattleActionMenu(actionBox);
             } else {
                 // Mensagem de espera pelo bot
-                drawBattleMessage(actionBox, "O oponente está escolhendo sua ação...");
+                strcpy(currentMessage.message, "O oponente está escolhendo sua ação...");
+                currentMessage.displayTime = 0.5f;
+                currentMessage.elapsedTime = 0.0f;
+                currentMessage.waitingForInput = false;
+                currentMessage.autoAdvance = false;
+                drawBattleMessage(actionBox);
             }
             break;
 
@@ -1465,7 +1073,7 @@ void drawBattleScreen(void) {
             break;
 
         case BATTLE_MESSAGE_DISPLAY:
-            drawBattleMessage(actionBox, currentMessage.message);
+            drawBattleMessage(actionBox);
             break;
 
         case BATTLE_CONFIRM_QUIT:
@@ -1486,7 +1094,8 @@ void drawBattleScreen(void) {
                     resultMsg = "A batalha terminou em empate!";
                 }
 
-                drawBattleMessage(actionBox, resultMsg);
+                strcpy(currentMessage.message, resultMsg);
+                drawBattleMessage(actionBox);
 
                 // Botão para voltar ao menu
                 Rectangle menuBtn = {
@@ -1508,7 +1117,7 @@ void drawBattleScreen(void) {
 
         default:
             // Outros estados, mostrar mensagem atual
-            drawBattleMessage(actionBox, getBattleDescription());
+            drawBattleMessage(actionBox);
             break;
     }
 
@@ -1520,7 +1129,40 @@ void drawBattleScreen(void) {
  * Atualiza a lógica da tela de batalha
  */
 void updateBattleScreen(void) {
-    // Já chamamos updateBattle no loop principal
-    // Aqui atualizamos apenas os efeitos visuais
-    updateBattleEffects();
+    // Atualizar temporizadores e efeitos
+    float deltaTime = GetFrameTime();
+    battleTimer += deltaTime;
+
+    // Animar plataformas
+    platformYOffset1 = sinf(battleTimer * 0.5f) * 5.0f;
+    platformYOffset2 = cosf(battleTimer * 0.6f) * 5.0f;
+
+    // Atualizar efeitos de flash e animação para os sprites
+    if (playerSprite.flashAlpha > 0.0f) {
+        playerSprite.flashAlpha -= deltaTime * 2.0f;
+        if (playerSprite.flashAlpha < 0.0f) playerSprite.flashAlpha = 0.0f;
+    }
+
+    if (enemySprite.flashAlpha > 0.0f) {
+        enemySprite.flashAlpha -= deltaTime * 2.0f;
+        if (enemySprite.flashAlpha < 0.0f) enemySprite.flashAlpha = 0.0f;
+    }
+
+    // Atualizar animação de HP
+    if (isHpAnimationActive) {
+        hpAnimTimer += deltaTime;
+        if (hpAnimTimer >= 1.0f) {
+            isHpAnimationActive = false;
+            hpAnimTimer = 0.0f;
+        }
+    }
+
+    // Chamada para atualizar a lógica de batalha
+    updateBattle();
+}
+
+// Função para aplicar efeito de flash ao receber dano
+void applyDamageEffect(AnimatedSprite* sprite) {
+    if (sprite == NULL) return;
+    sprite->flashAlpha = 1.0f;
 }
