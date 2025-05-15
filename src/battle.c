@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include "raylib.h"
 #include "battle.h"
 #include "monsters.h"
@@ -20,6 +19,7 @@
 #include "resources.h"
 #include "decision_tree.h"
 #include "globals.h"
+#include "battle_renderer.h"
 
 // Variável global para armazenar a árvore de decisão
 static DecisionNode* botDecisionTree = NULL;
@@ -65,6 +65,8 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     if (battleSystem == NULL || playerTeam == NULL || opponentTeam == NULL) {
         return;
     }
+
+    resetBattleSprites();
 
     // Configurar os times
     battleSystem->playerTeam = playerTeam;

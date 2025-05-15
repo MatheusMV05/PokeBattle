@@ -152,8 +152,11 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         };
         platformScale = 1.5f;
 
-        // Se é a primeira vez, inicializar sprite do jogador
-        if (playerSprite.texture.id == 0 && monster->backTexture.id != 0) {
+        // Verificar se precisamos atualizar o sprite do jogador
+        // Isso ocorre na primeira vez ou quando o monstro muda
+        if (playerSprite.texture.id == 0 ||
+            playerSprite.texture.id != monster->backTexture.id) {
+
             // Inicializar o sprite
             playerSprite.texture = monster->backTexture;
             playerSprite.scale = 3.0f;
@@ -171,7 +174,9 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
                 playerSprite.texture.width,
                 playerSprite.texture.height
             };
-        }
+
+            printf("Sprite do jogador atualizado para: %s\n", monster->name);
+            }
 
         // Desenhar plataforma
         DrawEllipse(
@@ -226,7 +231,9 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         platformScale = 1.2f;
 
         // Se é a primeira vez, inicializar sprite do inimigo
-        if (enemySprite.texture.id == 0 && monster->frontTexture.id != 0) {
+        if (enemySprite.texture.id == 0 ||
+            enemySprite.texture.id != monster->frontTexture.id) {
+
             // Inicializar o sprite
             enemySprite.texture = monster->frontTexture;
             enemySprite.scale = 2.5f;
@@ -244,7 +251,9 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
                 enemySprite.texture.width,
                 enemySprite.texture.height
             };
-        }
+
+            printf("Sprite do oponente atualizado para: %s\n", monster->name);
+            }
 
         // Desenhar plataforma
         DrawEllipse(
@@ -1165,4 +1174,22 @@ void updateBattleScreen(void) {
 void applyDamageEffect(AnimatedSprite* sprite) {
     if (sprite == NULL) return;
     sprite->flashAlpha = 1.0f;
+}
+
+void resetBattleSprites(void) {
+    // Resetar sprite do jogador
+    if (playerSprite.texture.id != 0) {
+        playerSprite.texture.id = 0;
+    }
+
+    // Resetar sprite do inimigo
+    if (enemySprite.texture.id != 0) {
+        enemySprite.texture.id = 0;
+    }
+
+    // Limpar outras propriedades se necessário
+    playerSprite.frameCount = 0;
+    playerSprite.currentFrame = 0;
+    enemySprite.frameCount = 0;
+    enemySprite.currentFrame = 0;
 }
