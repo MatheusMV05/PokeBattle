@@ -605,6 +605,7 @@ void drawSettings(void) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
             CheckCollisionPointRec(GetMousePosition(), applyBtn)) {
             PlaySound(selectSound);
+            applySettings();
             hasUnsavedChanges = false;
         }
     }
@@ -672,6 +673,46 @@ void drawSettings(void) {
         DrawCircle(x, y, size, particleColor);
     }
 }
+
+void applySettings(void) {
+    // Atualizar volumes
+    if (musicVolume != pendingMusicVolume) {
+        musicVolume = pendingMusicVolume;
+
+        // Aplicar volume da música imediatamente
+        SetMusicVolume(menuMusic, musicVolume);
+        SetMusicVolume(battleMusic, musicVolume);
+    }
+
+    if (soundVolume != pendingSoundVolume) {
+        soundVolume = pendingSoundVolume;
+
+        // Aplicar volume dos efeitos sonoros
+        SetSoundVolume(selectSound, soundVolume);
+        SetSoundVolume(attackSound, soundVolume);
+        SetSoundVolume(hitSound, soundVolume);
+        SetSoundVolume(faintSound, soundVolume);
+    }
+
+    // Aplicar resolução somente se mudou
+    if (currentResolutionIndex != pendingResolutionIndex) {
+        currentResolutionIndex = pendingResolutionIndex;
+
+        // Atualizar resolução
+        int width = availableResolutions[currentResolutionIndex].width;
+        int height = availableResolutions[currentResolutionIndex].height;
+        SetWindowSize(width, height);
+    }
+
+    // Atualizar modo tela cheia
+    if (fullscreen != pendingFullscreen) {
+        fullscreen = pendingFullscreen;
+        ToggleFullscreen();
+    }
+
+    printf("Configurações aplicadas com sucesso!\n");
+}
+
 
 void updateSettings(void) {
     // Atualização da lógica de configurações (nada adicional aqui, tudo já é feito dentro de drawSettings)
