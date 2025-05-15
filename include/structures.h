@@ -76,8 +76,17 @@ struct PokeMonster {
     int statusCondition;
     int statusCounter;
     int statusTurns;
-    Texture2D frontTexture;    // Textura frontal (GIF para o oponente)
-    Texture2D backTexture;     // Textura traseira (PNG para o jogador)
+
+    // Texturas e animação
+    Texture2D frontTexture;    // Textura frontal
+    Texture2D backTexture;     // Textura traseira
+    Image frontImage;          // Imagem GIF com todos os frames (frontal)
+    Image backImage;           // Imagem GIF com todos os frames (traseira)
+    int frontFrames;           // Número de frames do GIF frontal
+    int backFrames;            // Número de frames do GIF traseiro
+    int currentFrontFrame;     // Frame atual do GIF frontal
+    int currentBackFrame;      // Frame atual do GIF traseiro
+
     struct PokeMonster* next;
     struct PokeMonster* prev;
 };

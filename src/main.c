@@ -52,6 +52,7 @@ int main(void) {
 
     // Inicializar recursos do jogo
     initializeGlobals();  // Inicialização das variáveis globais
+    verifyMonsterSprites();
     initializeGame();
 
     // Loop principal do jogo

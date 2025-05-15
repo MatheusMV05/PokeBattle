@@ -65,5 +65,7 @@
 
  void loadMonsterTextures(void);
  void unloadMonsterTextures(void);
+ void updateMonsterAnimations(void);
+ void verifyMonsterSprites(void);
  
  #endif // MONSTERS_H

@@ -15,6 +15,7 @@
  #include "raylib.h"
  #include "monsters.h"
  #include "battle.h"
+#include "globals.h"
 
  static void createMonsterDatabase(void);
 
@@ -1560,9 +1561,8 @@ int getPokedexNumber(const char* monsterName) {
 
  /**
  * Carrega as texturas para os monstros usando o padrão de nomenclatura
- * [número]-[Nome]-(front/back).(gif/png)
+ * [número](front/back).(gif)
  */
-// monsters.c - Modificar função loadMonsterTextures
 void loadMonsterTextures(void) {
     char frontPath[256];
     char backPath[256];
@@ -1579,68 +1579,61 @@ void loadMonsterTextures(void) {
         if (pokedexNum < 0) {
             printf("Aviso: Monstro '%s' não tem número na Pokedex mapeado.\n",
                 monsterDB.monsters[i].name);
-
-            // Usar número de índice como fallback
-            pokedexNum = 1000 + i;
+            continue;
         }
 
-        // Caminhos primários para sprites
-        snprintf(frontPath, sizeof(frontPath), "resources/sprites/pokemon/%03d-%s-front.gif",
-                pokedexNum, monsterDB.monsters[i].name);
-        snprintf(backPath, sizeof(backPath), "resources/sprites/pokemon/%03d-%s-back.png",
-                pokedexNum, monsterDB.monsters[i].name);
+        // Novos caminhos simplificados para sprites
+        snprintf(frontPath, sizeof(frontPath), "resources/sprites/pokemon/%03df.gif", pokedexNum);
+        snprintf(backPath, sizeof(backPath), "resources/sprites/pokemon/%03db.gif", pokedexNum);
 
-        // Tentar carregar sprites primários
-        Image frontImage = LoadImage(frontPath);
-        Image backImage = LoadImage(backPath);
+        // Carregar imagens GIF com todos os frames
+        monsterDB.monsters[i].frontFrames = 0;
+        monsterDB.monsters[i].backFrames = 0;
+        monsterDB.monsters[i].currentFrontFrame = 0;
+        monsterDB.monsters[i].currentBackFrame = 0;
 
-        // Verificar se carregou com sucesso
-        if (frontImage.data == NULL || backImage.data == NULL) {
-            // Tentar caminhos secundários sem o nome
-            snprintf(frontPath, sizeof(frontPath), "resources/sprites/pokemon/%03d-front.gif", pokedexNum);
-            snprintf(backPath, sizeof(backPath), "resources/sprites/pokemon/%03d-back.png", pokedexNum);
-
-            if (frontImage.data == NULL) frontImage = LoadImage(frontPath);
-            if (backImage.data == NULL) backImage = LoadImage(backPath);
-        }
-
-        // Se ainda falhar, usar sprites de placeholder
-        if (frontImage.data == NULL) {
+        // Tentar carregar o GIF frontal
+        if (FileExists(frontPath)) {
+            monsterDB.monsters[i].frontImage = LoadImageAnim(frontPath, &monsterDB.monsters[i].frontFrames);
+            monsterDB.monsters[i].frontTexture = LoadTextureFromImage(monsterDB.monsters[i].frontImage);
+            printf("GIF frontal carregado para %s: %d frames\n",
+                   monsterDB.monsters[i].name, monsterDB.monsters[i].frontFrames);
+        } else {
+            // Carregar fallback estático
             snprintf(fallbackPath, sizeof(fallbackPath), "resources/fallback/%03d.png", pokedexNum % 10);
-            frontImage = LoadImage(fallbackPath);
+            Image frontImage = LoadImage(fallbackPath);
 
-            // Se ainda falhar, usar ícone de tipo
-            if (frontImage.data == NULL) {
-                snprintf(fallbackPath, sizeof(fallbackPath), "resources/types/%s.png",
-                        getTypeName(monsterDB.monsters[i].type1));
-                frontImage = LoadImage(fallbackPath);
-
-                // Se tudo falhar, criar imagem de placeholder
-                if (frontImage.data == NULL) {
-                    frontImage = GenImageColor(64, 64, getTypeColor(monsterDB.monsters[i].type1));
-                }
+            if (!frontImage.data) {
+                frontImage = GenImageColor(64, 64, getTypeColor(monsterDB.monsters[i].type1));
             }
-        }
 
-        // Se backImage falhou, usar a mesma que frontImage
-        if (backImage.data == NULL) {
-            // Criar uma cópia da imagem frontal
-            if (frontImage.data != NULL) {
-                backImage = ImageCopy(frontImage);
-            } else {
-                backImage = GenImageColor(64, 64, getTypeColor(monsterDB.monsters[i].type1));
-            }
-        }
-
-        // Converter imagens para texturas
-        if (frontImage.data != NULL) {
             monsterDB.monsters[i].frontTexture = LoadTextureFromImage(frontImage);
             UnloadImage(frontImage);
+
+            // Inicializar valores nulos para a imagem GIF
+            monsterDB.monsters[i].frontImage.data = NULL;
+            monsterDB.monsters[i].frontFrames = 0;
         }
 
-        if (backImage.data != NULL) {
-            monsterDB.monsters[i].backTexture = LoadTextureFromImage(backImage);
-            UnloadImage(backImage);
+        // Tentar carregar o GIF traseiro
+        if (FileExists(backPath)) {
+            monsterDB.monsters[i].backImage = LoadImageAnim(backPath, &monsterDB.monsters[i].backFrames);
+            monsterDB.monsters[i].backTexture = LoadTextureFromImage(monsterDB.monsters[i].backImage);
+            printf("GIF traseiro carregado para %s: %d frames\n",
+                   monsterDB.monsters[i].name, monsterDB.monsters[i].backFrames);
+        } else {
+            // Se não existe, usar a mesma textura frontal se disponível
+            if (monsterDB.monsters[i].frontTexture.id != 0) {
+                monsterDB.monsters[i].backTexture = monsterDB.monsters[i].frontTexture;
+            } else {
+                Image backImage = GenImageColor(64, 64, getTypeColor(monsterDB.monsters[i].type1));
+                monsterDB.monsters[i].backTexture = LoadTextureFromImage(backImage);
+                UnloadImage(backImage);
+            }
+
+            // Inicializar valores nulos para a imagem GIF
+            monsterDB.monsters[i].backImage.data = NULL;
+            monsterDB.monsters[i].backFrames = 0;
         }
     }
 }
@@ -1653,17 +1646,124 @@ void unloadMonsterTextures(void) {
     printf("Descarregando texturas dos monstros...\n");
 
     for (int i = 0; i < monsterDB.count; i++) {
-        // Descarregar textura frontal
+        // Descarregar texturas
         if (monsterDB.monsters[i].frontTexture.id != 0) {
             UnloadTexture(monsterDB.monsters[i].frontTexture);
         }
 
-        // Descarregar textura traseira (se diferente da frontal)
         if (monsterDB.monsters[i].backTexture.id != 0 &&
             monsterDB.monsters[i].backTexture.id != monsterDB.monsters[i].frontTexture.id) {
             UnloadTexture(monsterDB.monsters[i].backTexture);
             }
+
+        // Descarregar imagens GIF
+        if (monsterDB.monsters[i].frontImage.data != NULL) {
+            UnloadImage(monsterDB.monsters[i].frontImage);
+        }
+
+        if (monsterDB.monsters[i].backImage.data != NULL) {
+            UnloadImage(monsterDB.monsters[i].backImage);
+        }
     }
 
     printf("Texturas de monstros descarregadas com sucesso.\n");
+}
+
+void updateMonsterAnimations(void) {
+    static int frameCounter = 0;
+    static int frameDelay = 8; // Velocidade de animação
+
+    frameCounter++;
+    if (frameCounter >= frameDelay) {
+        frameCounter = 0;
+
+        if (battleSystem && battleSystem->playerTeam && battleSystem->opponentTeam) {
+            // Atualizar monstro do jogador
+            PokeMonster* playerMonster = battleSystem->playerTeam->current;
+            if (playerMonster && playerMonster->backFrames > 0) {
+                playerMonster->currentBackFrame = (playerMonster->currentBackFrame + 1) % playerMonster->backFrames;
+
+                // Calcular offset do próximo frame na imagem
+                unsigned int offset = playerMonster->backImage.width *
+                                     playerMonster->backImage.height * 4 *
+                                     playerMonster->currentBackFrame;
+
+                // Em vez de atualizar a textura existente, vamos criar uma nova
+                UnloadTexture(playerMonster->backTexture);
+
+                // Criar uma imagem temporária com apenas o frame atual
+                Image frameImage = {
+                    .data = ((unsigned char *)playerMonster->backImage.data) + offset,
+                    .width = playerMonster->backImage.width,
+                    .height = playerMonster->backImage.height,
+                    .mipmaps = 1,
+                    .format = playerMonster->backImage.format
+                };
+
+                // Carregar nova textura a partir da imagem
+                playerMonster->backTexture = LoadTextureFromImage(frameImage);
+
+                // Não descarregamos frameImage.data pois é apenas um ponteiro para dados em backImage
+            }
+
+            // Atualizar monstro do oponente
+            PokeMonster* enemyMonster = battleSystem->opponentTeam->current;
+            if (enemyMonster && enemyMonster->frontFrames > 0) {
+                enemyMonster->currentFrontFrame = (enemyMonster->currentFrontFrame + 1) % enemyMonster->frontFrames;
+
+                // Calcular offset do próximo frame na imagem
+                unsigned int offset = enemyMonster->frontImage.width *
+                                     enemyMonster->frontImage.height * 4 *
+                                     enemyMonster->currentFrontFrame;
+
+                // Em vez de atualizar a textura existente, vamos criar uma nova
+                UnloadTexture(enemyMonster->frontTexture);
+
+                // Criar uma imagem temporária com apenas o frame atual
+                Image frameImage = {
+                    .data = ((unsigned char *)enemyMonster->frontImage.data) + offset,
+                    .width = enemyMonster->frontImage.width,
+                    .height = enemyMonster->frontImage.height,
+                    .mipmaps = 1,
+                    .format = enemyMonster->frontImage.format
+                };
+
+                // Carregar nova textura a partir da imagem
+                enemyMonster->frontTexture = LoadTextureFromImage(frameImage);
+
+                // Não descarregamos frameImage.data pois é apenas um ponteiro para dados em frontImage
+            }
+        }
+    }
+}
+
+void verifyMonsterSprites(void) {
+    char path[256];
+    int totalGifs = 0;
+    int totalMissing = 0;
+
+    printf("\nVerificando GIFs disponíveis...\n");
+
+    for (int i = 1; i <= 151; i++) {
+        // Verificar GIF frontal
+        snprintf(path, sizeof(path), "resources/sprites/pokemon/%03df.gif", i);
+        if (FileExists(path)) {
+            totalGifs++;
+        } else {
+            printf("GIF frontal não encontrado: %s\n", path);
+            totalMissing++;
+        }
+
+        // Verificar GIF traseiro
+        snprintf(path, sizeof(path), "resources/sprites/pokemon/%03db.gif", i);
+        if (FileExists(path)) {
+            totalGifs++;
+        } else {
+            printf("GIF traseiro não encontrado: %s\n", path);
+            totalMissing++;
+        }
+    }
+
+    printf("Total de GIFs encontrados: %d\n", totalGifs);
+    printf("Total de GIFs faltando: %d\n\n", totalMissing);
 }

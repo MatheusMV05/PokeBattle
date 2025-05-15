@@ -140,6 +140,9 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
     // Posições de plataforma e monstro
     Vector2 platformPos, monsterPos;
     float platformScale;
+    static float battleTimer = 0.0f;
+
+    battleTimer += GetFrameTime();
 
     if (isPlayer) {
         platformPos = (Vector2){
@@ -152,32 +155,6 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         };
         platformScale = 1.5f;
 
-        // Verificar se precisamos atualizar o sprite do jogador
-        // Isso ocorre na primeira vez ou quando o monstro muda
-        if (playerSprite.texture.id == 0 ||
-            playerSprite.texture.id != monster->backTexture.id) {
-
-            // Inicializar o sprite
-            playerSprite.texture = monster->backTexture;
-            playerSprite.scale = 3.0f;
-            playerSprite.frameCount = 1;
-            playerSprite.currentFrame = 0;
-            playerSprite.frameTime = 0.1f;
-            playerSprite.timer = 0.0f;
-            playerSprite.isAnimated = false;
-            playerSprite.bounceHeight = 8.0f;
-            playerSprite.bounceSpeed = 2.0f;
-            playerSprite.flashAlpha = 0.0f;
-            playerSprite.tint = WHITE;
-            playerSprite.frameRect = (Rectangle){
-                0, 0,
-                playerSprite.texture.width,
-                playerSprite.texture.height
-            };
-
-            printf("Sprite do jogador atualizado para: %s\n", monster->name);
-            }
-
         // Desenhar plataforma
         DrawEllipse(
             platformPos.x,
@@ -188,36 +165,26 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         );
 
         // Desenhar sprite do jogador
-        if (playerSprite.texture.id != 0) {
+        if (monster->backTexture.id != 0) {
             // Aplicar efeito de bounce
-            float yOffset = 0.0f;
-            if (playerSprite.bounceHeight > 0.0f) {
-                yOffset = -playerSprite.bounceHeight * sinf(battleTimer * playerSprite.bounceSpeed);
-            }
+            float yOffset = 0;
+            float scale = 3.0f;
 
-            // Desenhar sprite
-            float width = playerSprite.frameRect.width * playerSprite.scale;
-            float height = playerSprite.frameRect.height * playerSprite.scale;
             Rectangle destRect = {
-                monsterPos.x - width/2,
-                monsterPos.y - height/2 + yOffset,
-                width,
-                height
+                monsterPos.x - (monster->backTexture.width * scale) / 2,
+                monsterPos.y - (monster->backTexture.height * scale) / 2 + yOffset,
+                monster->backTexture.width * scale,
+                monster->backTexture.height * scale
             };
 
             DrawTexturePro(
-                playerSprite.texture,
-                playerSprite.frameRect,
+                monster->backTexture,
+                (Rectangle){0, 0, monster->backTexture.width, monster->backTexture.height},
                 destRect,
                 (Vector2){0, 0},
                 0.0f,
-                playerSprite.tint
+                WHITE
             );
-
-            // Efeito de flash
-            if (playerSprite.flashAlpha > 0.0f) {
-                DrawRectangleRec(destRect, (Color){255, 255, 255, (unsigned char)(playerSprite.flashAlpha * 255)});
-            }
         }
     } else {
         platformPos = (Vector2){
@@ -230,31 +197,6 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         };
         platformScale = 1.2f;
 
-        // Se é a primeira vez, inicializar sprite do inimigo
-        if (enemySprite.texture.id == 0 ||
-            enemySprite.texture.id != monster->frontTexture.id) {
-
-            // Inicializar o sprite
-            enemySprite.texture = monster->frontTexture;
-            enemySprite.scale = 2.5f;
-            enemySprite.frameCount = 1;
-            enemySprite.currentFrame = 0;
-            enemySprite.frameTime = 0.2f;
-            enemySprite.timer = 0.0f;
-            enemySprite.isAnimated = false;
-            enemySprite.bounceHeight = 5.0f;
-            enemySprite.bounceSpeed = 1.5f;
-            enemySprite.flashAlpha = 0.0f;
-            enemySprite.tint = WHITE;
-            enemySprite.frameRect = (Rectangle){
-                0, 0,
-                enemySprite.texture.width,
-                enemySprite.texture.height
-            };
-
-            printf("Sprite do oponente atualizado para: %s\n", monster->name);
-            }
-
         // Desenhar plataforma
         DrawEllipse(
             platformPos.x,
@@ -264,37 +206,27 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
             (Color){100, 120, 140, 200}
         );
 
-        // Desenhar sprite do inimigo
-        if (enemySprite.texture.id != 0) {
+        // Desenhar sprite do oponente
+        if (monster->frontTexture.id != 0) {
             // Aplicar efeito de bounce
-            float yOffset = 0.0f;
-            if (enemySprite.bounceHeight > 0.0f) {
-                yOffset = -enemySprite.bounceHeight * sinf(battleTimer * enemySprite.bounceSpeed);
-            }
+            float yOffset = 0;
+            float scale = 2.5f;
 
-            // Desenhar sprite
-            float width = enemySprite.frameRect.width * enemySprite.scale;
-            float height = enemySprite.frameRect.height * enemySprite.scale;
             Rectangle destRect = {
-                monsterPos.x - width/2,
-                monsterPos.y - height/2 + yOffset,
-                width,
-                height
+                monsterPos.x - (monster->frontTexture.width * scale) / 2,
+                monsterPos.y - (monster->frontTexture.height * scale) / 2 + yOffset,
+                monster->frontTexture.width * scale,
+                monster->frontTexture.height * scale
             };
 
             DrawTexturePro(
-                enemySprite.texture,
-                enemySprite.frameRect,
+                monster->frontTexture,
+                (Rectangle){0, 0, monster->frontTexture.width, monster->frontTexture.height},
                 destRect,
                 (Vector2){0, 0},
                 0.0f,
-                enemySprite.tint
+                WHITE
             );
-
-            // Efeito de flash
-            if (enemySprite.flashAlpha > 0.0f) {
-                DrawRectangleRec(destRect, (Color){255, 255, 255, (unsigned char)(enemySprite.flashAlpha * 255)});
-            }
         }
     }
 
@@ -1165,7 +1097,7 @@ void updateBattleScreen(void) {
             hpAnimTimer = 0.0f;
         }
     }
-
+    updateMonsterAnimations();
     // Chamada para atualizar a lógica de batalha
     updateBattle();
 }
