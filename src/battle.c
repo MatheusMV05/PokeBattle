@@ -210,6 +210,7 @@ void updateBattle(void) {
 
         case BATTLE_EXECUTING_ACTIONS:
             // Executar próxima ação da fila
+
             if (!isQueueEmpty(battleSystem->actionQueue)) {
                 int action, parameter;
                 PokeMonster* monster;
@@ -303,7 +304,10 @@ void updateBattle(void) {
             break;
 
         case BATTLE_FORCED_SWITCH:
-            // Esperar jogador escolher novo monstro
+            if (battleSystem->playerTeam->current->hp <= 0) {
+                battleSystem->playerTurn = true;
+                battleSystem->battleState = BATTLE_FORCED_SWITCH;
+            }
             break;
 
         case BATTLE_OVER:
@@ -415,26 +419,18 @@ void executeAttack(PokeMonster* attacker, PokeMonster* defender, int attackIndex
 
         // Se o monstro do jogador desmaiou
         if (defender == battleSystem->playerTeam->current) {
-            // Verificar se tem outro monstro disponível
-            PokeMonster* current = battleSystem->playerTeam->first;
-            bool hasAlivePokemon = false;
-            while (current != NULL) {
-                if (!isMonsterFainted(current)) {
-                    hasAlivePokemon = true;
-                    break;
-                }
-                current = current->next;
-            }
+            // Forçar troca imediatamente
+            battleSystem->battleState = BATTLE_FORCED_SWITCH;
+            battleSystem->playerTurn = true; // Dar controle ao jogador
 
-            if (hasAlivePokemon) {
-                // Forçar troca de monstro
-                battleSystem->battleState = BATTLE_FORCED_SWITCH;
-                battleSystem->playerTurn = true;
-                sprintf(battleMessage, "%s desmaiou! Escolha outro monstro!", defender->name);
+            // Limpar ações pendentes
+            clearQueue(battleSystem->actionQueue);
+            actionQueueReady = false;
 
-                // Limpar a fila de ações
-                clearQueue(battleSystem->actionQueue);
-            }
+            // Atualizar mensagem
+            strcpy(battleMessage, "Seu Pokémon desmaiou! Escolha outro!");
+            currentMessage.displayTime = 3.0f;
+            currentMessage.waitingForInput = false;
         }
         // Se o monstro do bot desmaiou
         else if (defender == battleSystem->opponentTeam->current) {

@@ -523,20 +523,17 @@ void drawMonsterSelectionMenu(Rectangle bounds) {
             20,
             BLACK);
 
-    // Botão de voltar
-    Rectangle backBtn = {
-        bounds.x + bounds.width - 100,
-        bounds.y + 10,
-        80,
-        30
-    };
+    // Botão de voltar - só visível se não for troca forçada
+    if (battleSystem->battleState != BATTLE_FORCED_SWITCH) {
+        Rectangle backBtn = {
+            bounds.x + bounds.width - 100,
+            bounds.y + 10,
+            80,
+            30
+        };
 
-    if (GuiPokemonButton(backBtn, "VOLTAR",
-                battleSystem->battleState != BATTLE_FORCED_SWITCH)) {
-        PlaySound(selectSound);
-
-        // Só pode voltar se não for troca forçada
-        if (battleSystem->battleState != BATTLE_FORCED_SWITCH) {
+        if (GuiPokemonButton(backBtn, "VOLTAR", true)) {
+            PlaySound(selectSound);
             battleSystem->battleState = BATTLE_SELECT_ACTION;
         }
     }
@@ -545,132 +542,116 @@ void drawMonsterSelectionMenu(Rectangle bounds) {
     MonsterList* team = battleSystem->playerTeam;
     if (team == NULL || team->first == NULL) return;
 
-    PokeMonster* current = team->first;
+    // Configurações de layout
+    const float cardWidth = bounds.width - 40;
+    const float cardHeight = 70;
+    const float startX = bounds.x + 20;
+    const float startY = bounds.y + 50;
+    const float spacing = 15;
+    const int maxVisible = 3; // Número máximo de cards visíveis
+
+    // Contar quantos monstros existem
+    int totalMonsters = 0;
+    PokeMonster* counter = team->first;
+    while (counter != NULL) {
+        totalMonsters++;
+        counter = counter->next;
+    }
+
+    // Ajustar posição inicial para centralizar se necessário
+    float adjustedStartY = startY;
+    if (totalMonsters < maxVisible) {
+        float totalHeight = (cardHeight + spacing) * totalMonsters - spacing;
+        adjustedStartY = bounds.y + (bounds.height - totalHeight) / 2;
+    }
+
+    // Variáveis de desenho
     int index = 0;
+    PokeMonster* current = team->first;
+    float scrollOffset = 0; // Implementar lógica de scroll se necessário
 
-    float cardWidth = bounds.width - 40;
-    float cardHeight = 70;
-    float startX = bounds.x + 20;
-    float startY = bounds.y + 50;
-
-    while (current != NULL && index < 3) {
+    while (current != NULL && index < maxVisible) {
+        // Calcular posição do card com offset
         Rectangle cardRect = {
             startX,
-            startY + index * (cardHeight + 10),
+            adjustedStartY + index * (cardHeight + spacing) - scrollOffset,
             cardWidth,
             cardHeight
         };
+
+        // Não desenhar se estiver fora da área visível
+        if (cardRect.y + cardHeight < bounds.y || cardRect.y > bounds.y + bounds.height) {
+            current = current->next;
+            index++;
+            continue;
+        }
 
         // Cor de fundo
         Color cardColor = getTypeColor(current->type1);
         cardColor.a = 150;
 
-        // Verificar se é o monstro atual ou se está desmaiado
+        // Verificar status do monstro
         bool isCurrentMonster = (current == team->current);
         bool isFainted = isMonsterFainted(current);
 
+        // Destacar monstro atual
         if (isCurrentMonster) {
-            // Destacar monstro ativo
             DrawRectangleRounded(
-                (Rectangle){
-                    cardRect.x - 5,
-                    cardRect.y - 5,
-                    cardRect.width + 10,
-                    cardRect.height + 10
-                },
+                (Rectangle){cardRect.x - 5, cardRect.y - 5, cardRect.width + 10, cardRect.height + 10},
                 0.2f, 6, YELLOW
             );
         }
 
+        // Escurecer desmaiados
         if (isFainted) {
-            // Escurecer monstros desmaiados
-            cardColor.r = cardColor.r / 3;
-            cardColor.g = cardColor.g / 3;
-            cardColor.b = cardColor.b / 3;
+            cardColor = ColorAlpha(cardColor, 0.4f);
         }
 
         // Desenhar card
         DrawRectangleRounded(cardRect, 0.2f, 6, cardColor);
         DrawRectangleRoundedLines(cardRect, 0.2f, 6, BLACK);
 
-        // Nome
-        DrawText(current->name,
-                cardRect.x + 10,
-                cardRect.y + 10,
-                20,
-                WHITE);
+        // Informações do monstro
+        DrawText(current->name, cardRect.x + 10, cardRect.y + 10, 20, WHITE);
 
         // Status
         if (current->statusCondition != STATUS_NONE) {
-            const char* statusText;
+            const char* statusText = "---";
             switch (current->statusCondition) {
                 case STATUS_PARALYZED: statusText = "PAR"; break;
                 case STATUS_SLEEPING: statusText = "SLP"; break;
                 case STATUS_BURNING: statusText = "BRN"; break;
-                default: statusText = "---";
             }
-
-            DrawText(statusText,
-                    cardRect.x + cardRect.width - 60,
-                    cardRect.y + 10,
-                    18,
-                    WHITE);
+            DrawText(statusText, cardRect.x + cardRect.width - 60, cardRect.y + 10, 18, WHITE);
         }
 
         // HP
         char hpText[32];
-        sprintf(hpText, "HP: %d/%d",
-               current->hp,
-               current->maxHp);
-
-        DrawText(hpText,
-                cardRect.x + 10,
-                cardRect.y + 40,
-                16,
-                WHITE);
+        sprintf(hpText, "HP: %d/%d", current->hp, current->maxHp);
+        DrawText(hpText, cardRect.x + 10, cardRect.y + 40, 16, WHITE);
 
         // Barra de HP
-        Rectangle hpBar = {
-            cardRect.x + 130,
-            cardRect.y + 45,
-            cardRect.width - 140,
-            10
-        };
-
+        Rectangle hpBar = {cardRect.x + 130, cardRect.y + 45, cardRect.width - 140, 10};
         float hpRatio = (float)current->hp / current->maxHp;
-        if (hpRatio < 0) hpRatio = 0;
-        if (hpRatio > 1) hpRatio = 1;
-
+        hpRatio = fmaxf(fminf(hpRatio, 1.0f), 0.0f);
         Color hpColor = hpRatio > 0.5f ? GREEN : (hpRatio > 0.2f ? YELLOW : RED);
 
         DrawRectangleRec(hpBar, GRAY);
-        DrawRectangle(
-            hpBar.x,
-            hpBar.y,
-            hpBar.width * hpRatio,
-            hpBar.height,
-            hpColor
-        );
+        DrawRectangle(hpBar.x, hpBar.y, hpBar.width * hpRatio, hpBar.height, hpColor);
 
-        // Verificar clique
+        // Interação
         if (!isFainted && !isCurrentMonster &&
             CheckCollisionPointRec(GetMousePosition(), cardRect) &&
             IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 
             PlaySound(selectSound);
-
-            // Trocar para este monstro
             switchMonster(team, current);
-
-            // Enfileirar ação de troca
             enqueue(battleSystem->actionQueue, 1, index, team->current);
 
-            // Se for troca forçada, não esperar ação do bot
             if (battleSystem->battleState == BATTLE_FORCED_SWITCH) {
                 actionQueueReady = true;
                 battleSystem->battleState = BATTLE_PREPARING_ACTIONS;
             } else {
-                // Passar o turno para o bot escolher
                 battleSystem->playerTurn = false;
                 battleSystem->battleState = BATTLE_SELECT_ACTION;
             }
@@ -678,6 +659,11 @@ void drawMonsterSelectionMenu(Rectangle bounds) {
 
         current = current->next;
         index++;
+    }
+
+    // Overlay escuro para troca forçada
+    if (battleSystem->battleState == BATTLE_FORCED_SWITCH) {
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), ColorAlpha(BLACK, 0.5f));
     }
 }
 
@@ -950,6 +936,11 @@ void drawBattleScreen(void) {
             break;
 
         case BATTLE_SELECT_ACTION:
+            if (isMonsterFainted(battleSystem->playerTeam->current)) {
+                battleSystem->battleState = BATTLE_FORCED_SWITCH;
+                battleSystem->playerTurn = true;
+                return; // Sair imediatamente
+            }
             if (battleSystem->playerTurn) {
                 // CORREÇÃO: Imprimir informação de debug para verificar se está entrando aqui
                 printf("[DEBUG RENDER] Desenhando menu de ações para o jogador\n");
@@ -970,8 +961,17 @@ void drawBattleScreen(void) {
             break;
 
         case BATTLE_SELECT_MONSTER:
-        case BATTLE_FORCED_SWITCH:
+            // Reduzir a área do menu para garantir que caiba na tela
+            actionBox = (Rectangle){50, GetScreenHeight() - 320, GetScreenWidth() - 100, 300};
             drawMonsterSelectionMenu(actionBox);
+
+
+        case BATTLE_FORCED_SWITCH:
+            // Reduzir a área do menu para garantir que caiba na tela
+            actionBox = (Rectangle){50, GetScreenHeight() - 320, GetScreenWidth() - 100, 300};
+            drawMonsterSelectionMenu(actionBox);
+
+
             break;
 
         case BATTLE_ITEM_MENU:
@@ -1088,4 +1088,14 @@ void resetBattleSprites(void) {
     playerSprite.currentFrame = 0;
     enemySprite.frameCount = 0;
     enemySprite.currentFrame = 0;
+}
+
+int countMonsters(MonsterList* team) {
+    int count = 0;
+    PokeMonster* current = team->first;
+    while (current != NULL) {
+        count++;
+        current = current->next;
+    }
+    return count;
 }
