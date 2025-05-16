@@ -33,12 +33,12 @@ void drawOpponentSelection(void) {
     // Fundo padronizado
     ClearBackground((Color){240, 248, 255, 255});
 
-    // Conteúdo
+    // Título
     const char* title = "Selecione o Modo de Jogo";
     float fontSize = ScaleFontSize(30);
     Vector2 titleSize = MeasureTextEx(gameFont, title, fontSize, 2);
 
-    // Dimensões e espaçamentos
+    // Dimensões
     float buttonWidth = 300 * GetScaleX();
     float buttonHeight = 60 * GetScaleY();
     float spacing = 30 * GetScaleY();
@@ -48,7 +48,7 @@ void drawOpponentSelection(void) {
     float startY = (GetScreenHeight() - totalHeight) / 2;
     float centerX = GetScreenWidth() / 2 - buttonWidth / 2;
 
-    // Desenhar título
+    // Título centralizado
     Vector2 titlePos = { GetScreenWidth() / 2 - titleSize.x / 2, startY };
     DrawTextEx(gameFont, title, titlePos, fontSize, 2, DARKGRAY);
 
@@ -56,7 +56,6 @@ void drawOpponentSelection(void) {
     Rectangle freeBattleBtn = { centerX, startY + titleSize.y + titleSpacing, buttonWidth, buttonHeight };
     Rectangle careerBtn = { centerX, freeBattleBtn.y + buttonHeight + spacing, buttonWidth, buttonHeight };
 
-    // Hover detection
     Vector2 mouse = GetMousePosition();
     bool hoveringFree = CheckCollisionPointRec(mouse, freeBattleBtn);
     bool hoveringCareer = CheckCollisionPointRec(mouse, careerBtn);
@@ -86,25 +85,33 @@ void drawOpponentSelection(void) {
 
         playerTeam = createMonsterList();
         opponentTeam = createMonsterList();
-        // Aqui futuramente pode-se iniciar a lógica de carreira
     }
 
-    // Mensagens de ajuda
+    // Caixa de ajuda (sem ícones)
     const char* helpText = NULL;
     if (hoveringFree) {
-        helpText = "Você seleciona 3 monstros e batalha contra um bot com 3 monstros aleatórios.";
+        helpText = "Selecione 3 monstros e batalhe contra um bot com 3 monstros aleatórios.";
     } else if (hoveringCareer) {
         helpText = "Enfrente uma sequência de 9 batalhas contra monstros chefes exclusivos.";
     }
 
     if (helpText != NULL) {
+        float boxWidth = 600 * GetScaleX();
+        float boxHeight = 80 * GetScaleY();
+        float boxX = GetScreenWidth() / 2 - boxWidth / 2;
+        float boxY = careerBtn.y + buttonHeight + 30 * GetScaleY();
+
+        Rectangle helpBox = { boxX, boxY, boxWidth, boxHeight };
+        DrawRectangleRec(helpBox, (Color){ 248, 248, 255, 255 });
+        DrawRectangleLinesEx(helpBox, 2, (Color){ 40, 40, 40, 255 });
+
         float helpFontSize = ScaleFontSize(18);
         Vector2 textSize = MeasureTextEx(gameFont, helpText, helpFontSize, 1);
-        Vector2 helpPos = {
-            GetScreenWidth() / 2 - textSize.x / 2,
-            careerBtn.y + buttonHeight + 20 * GetScaleY()
+        Vector2 textPos = {
+            helpBox.x + (helpBox.width - textSize.x) / 2,
+            helpBox.y + (helpBox.height - textSize.y) / 2
         };
-        DrawTextEx(gameFont, helpText, helpPos, helpFontSize, 1, DARKGRAY);
+        DrawTextEx(gameFont, helpText, textPos, helpFontSize, 1, DARKGRAY);
     }
 
     // Botão "Voltar"
