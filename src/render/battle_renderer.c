@@ -170,16 +170,25 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
             float yOffset = 0;
             float scale = 3.0f;
 
+            // Criar um retângulo fonte que seleciona apenas o frame atual da sprite sheet
+            Rectangle sourceRect = {
+                monster->currentBackFrame * monster->frameWidth,  // X correto
+                0,                                                // Y
+                monster->frameWidth,                              // Largura exata
+                monster->frameHeight                              // Altura exata
+            };
+
+            // Criar um retângulo destino para desenhar o frame na tela
             Rectangle destRect = {
-                monsterPos.x - (monster->backTexture.width * scale) / 2,
-                monsterPos.y - (monster->backTexture.height * scale) / 2 + yOffset,
-                monster->backTexture.width * scale,
-                monster->backTexture.height * scale
+                monsterPos.x - (monster->frameWidth * scale) / 2,
+                monsterPos.y - (monster->frameHeight * scale) / 2 + yOffset,
+                monster->frameWidth * scale,
+                monster->frameHeight * scale
             };
 
             DrawTexturePro(
                 monster->backTexture,
-                (Rectangle){0, 0, monster->backTexture.width, monster->backTexture.height},
+                sourceRect,
                 destRect,
                 (Vector2){0, 0},
                 0.0f,
@@ -212,16 +221,20 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
             float yOffset = 0;
             float scale = 2.5f;
 
+            // Criar um retângulo fonte que seleciona apenas o frame atual da sprite sheet
+            Rectangle sourceRect = monster->frontFrameRect;
+
+            // Criar um retângulo destino para desenhar o frame na tela
             Rectangle destRect = {
-                monsterPos.x - (monster->frontTexture.width * scale) / 2,
-                monsterPos.y - (monster->frontTexture.height * scale) / 2 + yOffset,
-                monster->frontTexture.width * scale,
-                monster->frontTexture.height * scale
+                monsterPos.x - (monster->frameWidth * scale) / 2,
+                monsterPos.y - (monster->frameHeight * scale) / 2 + yOffset,
+                monster->frameWidth * scale,
+                monster->frameHeight * scale
             };
 
             DrawTexturePro(
                 monster->frontTexture,
-                (Rectangle){0, 0, monster->frontTexture.width, monster->frontTexture.height},
+                sourceRect,
                 destRect,
                 (Vector2){0, 0},
                 0.0f,
