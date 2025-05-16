@@ -52,6 +52,15 @@ typedef struct Attack {
     int statusChance;
 } Attack;
 
+typedef struct {
+    Texture2D *frames;     // Array de texturas
+    int frameCount;        // Número total de frames
+    int currentFrame;      // Frame atual
+    float frameDelay;      // Tempo entre frames (em segundos)
+    float elapsedTime;     // Tempo acumulado
+} Animation;
+
+
 // Estrutura para um PokeMonstro
 struct PokeMonster {
     char name[32];
@@ -66,11 +75,12 @@ struct PokeMonster {
     int statusCondition;
     int statusCounter;
     int statusTurns;
-    Texture2D frontTexture;    // Textura da sprite sheet frontal
-    Texture2D backTexture;     // Textura da sprite sheet traseira
+    Animation frontAnimation;  // Substitui frontTexture
+    Animation backAnimation;   // Substitui backTexture
     struct PokeMonster* next;
     struct PokeMonster* prev;
 };
+
 
 // Estrutura para lista duplamente encadeada de monstros
 typedef struct MonsterList {
