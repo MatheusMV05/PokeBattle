@@ -137,94 +137,61 @@ void updateTypewriter(void) {
 void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
     if (monster == NULL) return;
 
-    // Posições de plataforma e monstro
     Vector2 platformPos, monsterPos;
     float platformScale;
-    static float battleTimer = 0.0f;
-
-    battleTimer += GetFrameTime();
+    Animation* currentAnim = NULL;
+    float baseScale = isPlayer ? 3.0f : 2.5f;
 
     if (isPlayer) {
-        platformPos = (Vector2){
-            GetScreenWidth() / 4,
-            GetScreenHeight() / 1.5f + 50 + platformYOffset1
-        };
-        monsterPos = (Vector2){
-            GetScreenWidth() / 4,
-            GetScreenHeight() / 1.5f - 20
-        };
+        platformPos = (Vector2){GetScreenWidth() / 4, GetScreenHeight() / 1.5f + 50};
+        monsterPos = (Vector2){GetScreenWidth() / 4, GetScreenHeight() / 1.5f - 20};
         platformScale = 1.5f;
-
-        // Desenhar plataforma
-        DrawEllipse(
-            platformPos.x,
-            platformPos.y,
-            100 * platformScale,
-            30 * platformScale,
-            (Color){100, 120, 140, 200}
-        );
-
-        // Desenhar sprite do jogador
-        if (monster->backTexture.id != 0) {
-            // Aplicar efeito de bounce
-            float yOffset = 0;
-            float scale = 3.0f;
-
-            Rectangle destRect = {
-                monsterPos.x - (monster->backTexture.width * scale) / 2,
-                monsterPos.y - (monster->backTexture.height * scale) / 2 + yOffset,
-                monster->backTexture.width * scale,
-                monster->backTexture.height * scale
-            };
-
-            DrawTexturePro(
-                monster->backTexture,
-                (Rectangle){0, 0, monster->backTexture.width, monster->backTexture.height},
-                destRect,
-                (Vector2){0, 0},
-                0.0f,
-                WHITE
-            );
-        }
+        currentAnim = &monster->backAnimation;
     } else {
-        platformPos = (Vector2){
-            GetScreenWidth() * 3 / 4,
-            GetScreenHeight() / 3 + 50 + platformYOffset2
-        };
-        monsterPos = (Vector2){
-            GetScreenWidth() * 3 / 4,
-            GetScreenHeight() / 3 - 20
-        };
+        platformPos = (Vector2){GetScreenWidth() * 3 / 4, GetScreenHeight() / 3 + 50};
+        monsterPos = (Vector2){GetScreenWidth() * 3 / 4, GetScreenHeight() / 3 - 20};
         platformScale = 1.2f;
+        currentAnim = &monster->frontAnimation;
+    }
 
-        // Desenhar plataforma
-        DrawEllipse(
-            platformPos.x,
-            platformPos.y,
-            80 * platformScale,
-            25 * platformScale,
-            (Color){100, 120, 140, 200}
+    // Desenhar plataforma
+    DrawEllipse(
+        platformPos.x,
+        platformPos.y,
+        (isPlayer ? 100 : 80) * platformScale,
+        (isPlayer ? 30 : 25) * platformScale,
+        (Color){100, 120, 140, 200}
+    );
+
+    // Atualizar e desenhar animação
+    if (currentAnim->frameCount > 0) {
+        UpdateAnimation(currentAnim);
+
+        Texture2D currentFrame = currentAnim->frames[currentAnim->currentFrame];
+        float scale = baseScale * (isPlayer ? 1.0f : 0.9f);
+
+        DrawTextureEx(
+            currentFrame,
+            (Vector2){
+                monsterPos.x - (currentFrame.width * scale) / 2,
+                monsterPos.y - (currentFrame.height * scale) / 2
+            },
+            0.0f,
+            scale,
+            WHITE
         );
-
-        // Desenhar sprite do oponente
-        if (monster->frontTexture.id != 0) {
-            // Aplicar efeito de bounce
-            float yOffset = 0;
-            float scale = 2.5f;
-
-            Rectangle destRect = {
-                monsterPos.x - (monster->frontTexture.width * scale) / 2,
-                monsterPos.y - (monster->frontTexture.height * scale) / 2 + yOffset,
-                monster->frontTexture.width * scale,
-                monster->frontTexture.height * scale
-            };
-
-            DrawTexturePro(
-                monster->frontTexture,
-                (Rectangle){0, 0, monster->frontTexture.width, monster->frontTexture.height},
-                destRect,
-                (Vector2){0, 0},
+    } else {
+        // Fallback estático caso a animação falhe
+        Texture2D fallback = isPlayer ? monster->backAnimation.frames[0] : monster->frontAnimation.frames[0];
+        if (fallback.id != 0) {
+            DrawTextureEx(
+                fallback,
+                (Vector2){
+                    monsterPos.x - (fallback.width * baseScale) / 2,
+                    monsterPos.y - (fallback.height * baseScale) / 2
+                },
                 0.0f,
+                baseScale,
                 WHITE
             );
         }
@@ -270,20 +237,18 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
                 break;
         }
 
-        // Desenhar bolha de status pulsante
-        float pulseScale = 1.0f + sinf(battleTimer * 5.0f) * 0.1f;
-
+        // Desenhar bolha de status
         DrawCircle(
             statusPos.x,
             statusPos.y,
-            20 * pulseScale,
+            20,
             statusColor
         );
 
         DrawCircleLines(
             statusPos.x,
             statusPos.y,
-            20 * pulseScale,
+            20,
             BLACK
         );
 
@@ -1097,7 +1062,6 @@ void updateBattleScreen(void) {
             hpAnimTimer = 0.0f;
         }
     }
-    updateMonsterAnimations();
     // Chamada para atualizar a lógica de batalha
     updateBattle();
 }

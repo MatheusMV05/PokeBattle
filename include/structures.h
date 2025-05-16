@@ -39,16 +39,6 @@ typedef struct {
     int pokedexNum;
 } MonsterMapping;
 
-// Estrutura para manter informações de animação
-typedef struct {
-    Texture2D* textures;      // Array de texturas para frames da animação
-    int frameCount;           // Número de frames
-    float frameDuration;      // Duração de cada frame em segundos
-    float timer;              // Timer para controlar a animação
-    int currentFrame;         // Frame atual
-    bool isAnimated;          // Flag indicando se é uma textura animada
-} AnimatedTexture;
-
 // Estrutura para os ataques
 typedef struct Attack {
     char name[32];
@@ -61,6 +51,15 @@ typedef struct Attack {
     int statusPower;
     int statusChance;
 } Attack;
+
+typedef struct {
+    Texture2D *frames;     // Array de texturas
+    int frameCount;        // Número total de frames
+    int currentFrame;      // Frame atual
+    float frameDelay;      // Tempo entre frames (em segundos)
+    float elapsedTime;     // Tempo acumulado
+} Animation;
+
 
 // Estrutura para um PokeMonstro
 struct PokeMonster {
@@ -76,20 +75,12 @@ struct PokeMonster {
     int statusCondition;
     int statusCounter;
     int statusTurns;
-
-    // Texturas e animação
-    Texture2D frontTexture;    // Textura frontal
-    Texture2D backTexture;     // Textura traseira
-    Image frontImage;          // Imagem GIF com todos os frames (frontal)
-    Image backImage;           // Imagem GIF com todos os frames (traseira)
-    int frontFrames;           // Número de frames do GIF frontal
-    int backFrames;            // Número de frames do GIF traseiro
-    int currentFrontFrame;     // Frame atual do GIF frontal
-    int currentBackFrame;      // Frame atual do GIF traseiro
-
+    Animation frontAnimation;  // Substitui frontTexture
+    Animation backAnimation;   // Substitui backTexture
     struct PokeMonster* next;
     struct PokeMonster* prev;
 };
+
 
 // Estrutura para lista duplamente encadeada de monstros
 typedef struct MonsterList {

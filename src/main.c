@@ -149,34 +149,35 @@ int main(void) {
 }
 
  // Atualiza o estado do jogo
- void updateGame(void) {
-     // Processamento específico para cada tela
-     switch (currentScreen) {
-         case MAIN_MENU:
-             updateMainMenu();
-             break;
-         case OPPONENT_SELECTION:
-             updateOpponentSelection();
-             break;
-         case MONSTER_SELECTION:
-             updateMonsterSelection();
-             break;
-         case BATTLE_SCREEN:
-             updateBattleScreen();
-             break;
-         case TYPES_TABLE:
-             updateTypesTable();
-             break;
-         case SETTINGS:
-             updateSettings();
-             break;
-         case CREDITS:
-             updateCredits();
-             break;
-         default:
-             break;
-     }
- }
+void updateGame(void) {
+    // Processamento específico para cada tela
+    switch (currentScreen) {
+        case MAIN_MENU:
+            updateMainMenu();
+            break;
+        case OPPONENT_SELECTION:
+            updateOpponentSelection();
+            break;
+        case MONSTER_SELECTION:
+            updateMonsterSelection();
+            break;
+        case BATTLE_SCREEN:
+            updateBattleScreen();
+            // Remover updateMonsterAnimations() se estiver aqui
+            break;
+        case TYPES_TABLE:
+            updateTypesTable();
+            break;
+        case SETTINGS:
+            updateSettings();
+            break;
+        case CREDITS:
+            updateCredits();
+            break;
+        default:
+            break;
+    }
+}
 
  // Limpa recursos alocados
  void cleanupGame(void) {
