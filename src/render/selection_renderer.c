@@ -30,76 +30,99 @@ static float initialScrollOffset = 0;
 
 // Seleção de adversário
 void drawOpponentSelection(void) {
-    // Desenhar fundo
-    ClearBackground(DARKBLUE);
+    // Fundo padronizado
+    ClearBackground((Color){240, 248, 255, 255});
 
-    // Desenhar título com escala
-    const char* title = "Selecione seu Adversário";
-    float fontSize = ScaleFontSize(40);
+    // Título
+    const char* title = "Selecione o Modo de Jogo";
+    float fontSize = ScaleFontSize(30);
     Vector2 titleSize = MeasureTextEx(gameFont, title, fontSize, 2);
-    Vector2 titlePos = ScalePosition(GetScreenWidth()/2 - titleSize.x/2, 50);
-    DrawTextEx(gameFont, title, titlePos, fontSize, 2, WHITE);
 
-    // Desenhar botões de seleção com escala
-    float buttonWidth = 250 * GetScaleX();
-    float buttonHeight = 80 * GetScaleY();
-    float buttonSpacing = 40 * GetScaleY();
-    float startY = GetScreenHeight()/2 - buttonHeight - buttonSpacing/2;
+    // Dimensões
+    float buttonWidth = 300 * GetScaleX();
+    float buttonHeight = 60 * GetScaleY();
+    float spacing = 30 * GetScaleY();
+    float titleSpacing = 40 * GetScaleY();
 
-    Rectangle botBtnRect = ScaleRectangle(
-        GetScreenWidth()/(2*GetScaleX()) - 125,
-        (startY/GetScaleY()),
-        250,
-        80
-    );
+    float totalHeight = titleSize.y + titleSpacing + buttonHeight * 2 + spacing;
+    float startY = (GetScreenHeight() - totalHeight) / 2;
+    float centerX = GetScreenWidth() / 2 - buttonWidth / 2;
 
-    if (drawButton(botBtnRect, "Computador (Bot)", DARKGREEN)) {
+    // Título centralizado
+    Vector2 titlePos = { GetScreenWidth() / 2 - titleSize.x / 2, startY };
+    DrawTextEx(gameFont, title, titlePos, fontSize, 2, DARKGRAY);
+
+    // Botões
+    Rectangle freeBattleBtn = { centerX, startY + titleSize.y + titleSpacing, buttonWidth, buttonHeight };
+    Rectangle careerBtn = { centerX, freeBattleBtn.y + buttonHeight + spacing, buttonWidth, buttonHeight };
+
+    Vector2 mouse = GetMousePosition();
+    bool hoveringFree = CheckCollisionPointRec(mouse, freeBattleBtn);
+    bool hoveringCareer = CheckCollisionPointRec(mouse, careerBtn);
+
+    // Botão "Batalha Livre"
+    if (GuiPokemonButton(freeBattleBtn, "BATALHA LIVRE", true)) {
         PlaySound(selectSound);
         vsBot = true;
         currentScreen = MONSTER_SELECTION;
         teamSelectionCount = 0;
-        scrollOffset = 0; // Resetar posição da barra de rolagem
+        scrollOffset = 0;
 
-        // Liberar time anterior se existir
-        if (playerTeam != NULL) {
-            freeMonsterList(playerTeam);
-        }
-
-        // Criar novo time do jogador
+        if (playerTeam != NULL) freeMonsterList(playerTeam);
         playerTeam = createMonsterList();
     }
 
-    Rectangle humanBtnRect = ScaleRectangle(
-        GetScreenWidth()/(2*GetScaleX()) - 125,
-        (startY/GetScaleY()) + 120,
-        250,
-        80
-    );
-
-    if (drawButton(humanBtnRect, "Outro Jogador", MAROON)) {
+    // Botão "Modo Carreira"
+    if (GuiPokemonButton(careerBtn, "MODO CARREIRA", true)) {
         PlaySound(selectSound);
         vsBot = false;
         currentScreen = MONSTER_SELECTION;
         teamSelectionCount = 0;
-        scrollOffset = 0; // Resetar posição da barra de rolagem
+        scrollOffset = 0;
 
-        // Liberar times anteriores se existirem
-        if (playerTeam != NULL) {
-            freeMonsterList(playerTeam);
-        }
-        if (opponentTeam != NULL) {
-            freeMonsterList(opponentTeam);
-        }
+        if (playerTeam != NULL) freeMonsterList(playerTeam);
+        if (opponentTeam != NULL) freeMonsterList(opponentTeam);
 
-        // Criar novos times
         playerTeam = createMonsterList();
         opponentTeam = createMonsterList();
     }
 
-    // Botão de voltar com escala
-    Rectangle backBtnRect = ScaleRectangle(20, GetScreenHeight()/GetScaleY() - 70, 150, 50);
+    // Caixa de ajuda (sem ícones)
+    const char* helpText = NULL;
+    if (hoveringFree) {
+        helpText = "Selecione 3 monstros e batalhe contra um bot com 3 monstros aleatórios.";
+    } else if (hoveringCareer) {
+        helpText = "Enfrente uma sequência de 9 batalhas contra monstros chefes exclusivos.";
+    }
 
-    if (drawButton(backBtnRect, "Voltar", GRAY)) {
+    if (helpText != NULL) {
+        float boxWidth = 600 * GetScaleX();
+        float boxHeight = 80 * GetScaleY();
+        float boxX = GetScreenWidth() / 2 - boxWidth / 2;
+        float boxY = careerBtn.y + buttonHeight + 30 * GetScaleY();
+
+        Rectangle helpBox = { boxX, boxY, boxWidth, boxHeight };
+        DrawRectangleRec(helpBox, (Color){ 248, 248, 255, 255 });
+        DrawRectangleLinesEx(helpBox, 2, (Color){ 40, 40, 40, 255 });
+
+        float helpFontSize = ScaleFontSize(18);
+        Vector2 textSize = MeasureTextEx(gameFont, helpText, helpFontSize, 1);
+        Vector2 textPos = {
+            helpBox.x + (helpBox.width - textSize.x) / 2,
+            helpBox.y + (helpBox.height - textSize.y) / 2
+        };
+        DrawTextEx(gameFont, helpText, textPos, helpFontSize, 1, DARKGRAY);
+    }
+
+    // Botão "Voltar"
+    Rectangle backBtnRect = {
+        20 * GetScaleX(),
+        GetScreenHeight() - 70 * GetScaleY(),
+        150 * GetScaleX(),
+        50 * GetScaleY()
+    };
+
+    if (GuiPokemonButton(backBtnRect, "VOLTAR", true)) {
         PlaySound(selectSound);
         currentScreen = MAIN_MENU;
     }
