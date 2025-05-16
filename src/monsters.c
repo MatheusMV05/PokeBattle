@@ -1569,19 +1569,10 @@ void loadMonsterTextures(void) {
     char fallbackPath[256];
     int pokedexNum;
 
-    printf("Iniciando carregamento de texturas dos monstros...\n");
+    printf("Iniciando carregamento de texturas estáticas dos monstros...\n");
 
     // Para cada monstro no banco de dados
     for (int i = 0; i < monsterDB.count; i++) {
-        // Inicializar valores
-        monsterDB.monsters[i].frontFrameCount = 0;
-        monsterDB.monsters[i].backFrameCount = 0;
-        monsterDB.monsters[i].currentFrontFrame = 0;
-        monsterDB.monsters[i].currentBackFrame = 0;
-        monsterDB.monsters[i].frameWidth = 0;
-        monsterDB.monsters[i].frameHeight = 0;
-        monsterDB.monsters[i].frameTimer = 0.0f;
-
         // Obter o número da Pokedex para este monstro
         pokedexNum = getPokedexNumber(monsterDB.monsters[i].name);
 
@@ -1591,144 +1582,40 @@ void loadMonsterTextures(void) {
             continue;
         }
 
-        // Caminhos das sprite sheets
-        snprintf(frontPath, sizeof(frontPath), "resources/sprites/pokemon/%03df.png", pokedexNum);
-        snprintf(backPath, sizeof(backPath), "resources/sprites/pokemon/%03db.png", pokedexNum);
+        // Caminhos dos GIFs (que serão tratados como estáticos)
+        snprintf(frontPath, sizeof(frontPath), "resources/sprites/pokemon/%03df.gif", pokedexNum);
+        snprintf(backPath, sizeof(backPath), "resources/sprites/pokemon/%03db.gif", pokedexNum);
 
-        // Carregar sprite sheet frontal e determinar o número de frames
+        // Carregar textura frontal (GIF como estático)
         if (FileExists(frontPath)) {
-            // Carregar a textura da sprite sheet
             monsterDB.monsters[i].frontTexture = LoadTexture(frontPath);
-
-            // Ler arquivo de metadados com número de frames (se existir)
-            char metadataPath[256];
-            snprintf(metadataPath, sizeof(metadataPath), "resources/sprites/pokemon/%03df_frames.txt", pokedexNum);
-
-            if (FileExists(metadataPath)) {
-                // Ler número de frames do arquivo de metadados
-                char buffer[32];
-                FILE* file = fopen(metadataPath, "r");
-                if (file != NULL) {
-                    if (fgets(buffer, sizeof(buffer), file) != NULL) {
-                        monsterDB.monsters[i].frontFrameCount = atoi(buffer);
-                    }
-                    fclose(file);
-                }
-            } else {
-                // Estimar número de frames baseado na proporção da imagem
-                // Assuma que a largura e altura de um frame são iguais (quadrado)
-                int estimatedFrames = monsterDB.monsters[i].frontTexture.width / monsterDB.monsters[i].frontTexture.height;
-                if (estimatedFrames < 1) estimatedFrames = 1;
-                monsterDB.monsters[i].frontFrameCount = estimatedFrames;
-            }
-
-            // Calcular dimensões de cada frame
-            monsterDB.monsters[i].frameWidth = monsterDB.monsters[i].frontTexture.width / monsterDB.monsters[i].frontFrameCount;
-            monsterDB.monsters[i].frameHeight = monsterDB.monsters[i].frontTexture.height;
-
-            // Inicializar o retângulo do frame atual
-            monsterDB.monsters[i].frontFrameRect = (Rectangle){
-                0,
-                0,
-                monsterDB.monsters[i].frameWidth,
-                monsterDB.monsters[i].frameHeight
-            };
-
-            printf("Sprite sheet frontal carregada para %s: %d frames, %dx%d cada\n",
-                  monsterDB.monsters[i].name,
-                  monsterDB.monsters[i].frontFrameCount,
-                  monsterDB.monsters[i].frameWidth,
-                  monsterDB.monsters[i].frameHeight);
+            printf("Sprite frontal carregado para %s\n", monsterDB.monsters[i].name);
         } else {
-            // Fallback para textura estática
+            // Fallback
             snprintf(fallbackPath, sizeof(fallbackPath), "resources/fallback/%03d.png", pokedexNum % 10);
-            Image frontImage = LoadImage(fallbackPath);
-
-            if (!frontImage.data) {
-                frontImage = GenImageColor(64, 64, getTypeColor(monsterDB.monsters[i].type1));
+            if (FileExists(fallbackPath)) {
+                monsterDB.monsters[i].frontTexture = LoadTexture(fallbackPath);
+            } else {
+                // Gerar uma cor baseada no tipo
+                Image frontImage = GenImageColor(64, 64, getTypeColor(monsterDB.monsters[i].type1));
+                monsterDB.monsters[i].frontTexture = LoadTextureFromImage(frontImage);
+                UnloadImage(frontImage);
             }
-
-            monsterDB.monsters[i].frontTexture = LoadTextureFromImage(frontImage);
-            UnloadImage(frontImage);
-
-            // Para fallback, definir apenas 1 frame
-            monsterDB.monsters[i].frontFrameCount = 1;
-            monsterDB.monsters[i].frameWidth = monsterDB.monsters[i].frontTexture.width;
-            monsterDB.monsters[i].frameHeight = monsterDB.monsters[i].frontTexture.height;
-            monsterDB.monsters[i].frontFrameRect = (Rectangle){
-                0, 0, monsterDB.monsters[i].frameWidth, monsterDB.monsters[i].frameHeight
-            };
-
             printf("Usando fallback para sprite frontal de %s\n", monsterDB.monsters[i].name);
         }
 
-        // Carregar sprite sheet traseira e determinar o número de frames
+        // Carregar textura traseira (GIF como estático)
         if (FileExists(backPath)) {
             monsterDB.monsters[i].backTexture = LoadTexture(backPath);
-
-            // Ler arquivo de metadados com número de frames (se existir)
-            char metadataPath[256];
-            snprintf(metadataPath, sizeof(metadataPath), "resources/sprites/pokemon/%03db_frames.txt", pokedexNum);
-
-            if (FileExists(metadataPath)) {
-                // Ler número de frames do arquivo de metadados
-                char buffer[32];
-                FILE* file = fopen(metadataPath, "r");
-                if (file != NULL) {
-                    if (fgets(buffer, sizeof(buffer), file) != NULL) {
-                        monsterDB.monsters[i].backFrameCount = atoi(buffer);
-                    }
-                    fclose(file);
-                }
-            } else {
-                // Estimar número de frames baseado na proporção da imagem
-                int estimatedFrames = monsterDB.monsters[i].backTexture.width / monsterDB.monsters[i].backTexture.height;
-                if (estimatedFrames < 1) estimatedFrames = 1;
-                monsterDB.monsters[i].backFrameCount = estimatedFrames;
-            }
-
-            // Calcular dimensões de cada frame
-            int backFrameWidth = monsterDB.monsters[i].backTexture.width / monsterDB.monsters[i].backFrameCount;
-
-
-            if (monsterDB.monsters[i].frameWidth == 0) {
-                monsterDB.monsters[i].frameWidth = backFrameWidth;
-                monsterDB.monsters[i].frameHeight = monsterDB.monsters[i].backTexture.height;
-            }
-
-            monsterDB.monsters[i].backFrameRect = (Rectangle){
-                0,
-                0,
-                monsterDB.monsters[i].frameWidth,
-                monsterDB.monsters[i].backTexture.height
-            };
-
-            printf("Sprite sheet traseira carregada para %s: %d frames, %dx%d cada\n",
-                  monsterDB.monsters[i].name,
-                  monsterDB.monsters[i].backFrameCount,
-                  backFrameWidth,
-                  monsterDB.monsters[i].backTexture.height);
+            printf("Sprite traseiro carregado para %s\n", monsterDB.monsters[i].name);
         } else {
             // Se não encontrar sprite traseiro, usar o frontal como fallback
-            if (monsterDB.monsters[i].frontFrameCount > 0) {
-                monsterDB.monsters[i].backTexture = monsterDB.monsters[i].frontTexture;
-                monsterDB.monsters[i].backFrameCount = monsterDB.monsters[i].frontFrameCount;
-                monsterDB.monsters[i].backFrameRect = monsterDB.monsters[i].frontFrameRect;
-            } else {
-                // Fallback para textura estática
-                Image backImage = GenImageColor(64, 64, getTypeColor(monsterDB.monsters[i].type1));
-                monsterDB.monsters[i].backTexture = LoadTextureFromImage(backImage);
-                UnloadImage(backImage);
-
-                monsterDB.monsters[i].backFrameCount = 1;
-                monsterDB.monsters[i].backFrameRect = (Rectangle){
-                    0, 0, monsterDB.monsters[i].backTexture.width, monsterDB.monsters[i].backTexture.height
-                };
-            }
-
-            printf("Usando fallback para sprite traseiro de %s\n", monsterDB.monsters[i].name);
+            monsterDB.monsters[i].backTexture = monsterDB.monsters[i].frontTexture;
+            printf("Usando sprite frontal como fallback para o traseiro de %s\n", monsterDB.monsters[i].name);
         }
     }
+
+    printf("Texturas estáticas carregadas com sucesso!\n");
 }
 
 
@@ -1739,13 +1626,13 @@ void unloadMonsterTextures(void) {
     printf("Descarregando texturas dos monstros...\n");
 
     for (int i = 0; i < monsterDB.count; i++) {
-        // Descarregar texturas
+        // Descarregar textura frontal
         if (monsterDB.monsters[i].frontTexture.id != 0) {
             UnloadTexture(monsterDB.monsters[i].frontTexture);
             monsterDB.monsters[i].frontTexture.id = 0;
         }
 
-        // Verificar se backTexture não é a mesma que frontTexture antes de descarregar
+        // Descarregar textura traseira se for diferente da frontal
         if (monsterDB.monsters[i].backTexture.id != 0 &&
             monsterDB.monsters[i].backTexture.id != monsterDB.monsters[i].frontTexture.id) {
             UnloadTexture(monsterDB.monsters[i].backTexture);
@@ -1756,47 +1643,7 @@ void unloadMonsterTextures(void) {
     printf("Texturas de monstros descarregadas com sucesso.\n");
 }
 
-void updateMonsterAnimations(void) {
-    static int frameCounter = 0;
-    static int frameDelay = 8; // Velocidade de animação
 
-    frameCounter++;
-    if (frameCounter >= frameDelay) {
-        frameCounter = 0;
-
-        if (battleSystem && battleSystem->playerTeam && battleSystem->opponentTeam) {
-            // Atualizar animação do monstro do jogador
-            PokeMonster* playerMonster = battleSystem->playerTeam->current;
-            if (playerMonster && playerMonster->backFrameCount > 1) {
-                // Avançar para o próximo frame
-                playerMonster->currentBackFrame = (playerMonster->currentBackFrame + 1) % playerMonster->backFrameCount;
-
-                // CORREÇÃO: Definir corretamente o retângulo do frame
-                playerMonster->backFrameRect = (Rectangle){
-                    playerMonster->currentBackFrame * playerMonster->frameWidth,
-                    0,
-                    playerMonster->frameWidth,
-                    playerMonster->frameHeight
-                };
-            }
-
-            // Atualizar animação do monstro do oponente
-            PokeMonster* enemyMonster = battleSystem->opponentTeam->current;
-            if (enemyMonster && enemyMonster->frontFrameCount > 1) {
-                // Avançar para o próximo frame
-                enemyMonster->currentFrontFrame = (enemyMonster->currentFrontFrame + 1) % enemyMonster->frontFrameCount;
-
-                // CORREÇÃO: Definir corretamente o retângulo do frame
-                enemyMonster->frontFrameRect = (Rectangle){
-                    enemyMonster->currentFrontFrame * enemyMonster->frameWidth,
-                    0,
-                    enemyMonster->frameWidth,
-                    enemyMonster->frameHeight
-                };
-            }
-        }
-    }
-}
 
 void verifyMonsterSprites(void) {
     char path[256];

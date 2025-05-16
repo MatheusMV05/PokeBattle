@@ -140,14 +140,11 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
     // Posições de plataforma e monstro
     Vector2 platformPos, monsterPos;
     float platformScale;
-    static float battleTimer = 0.0f;
-
-    battleTimer += GetFrameTime();
 
     if (isPlayer) {
         platformPos = (Vector2){
             GetScreenWidth() / 4,
-            GetScreenHeight() / 1.5f + 50 + platformYOffset1
+            GetScreenHeight() / 1.5f + 50
         };
         monsterPos = (Vector2){
             GetScreenWidth() / 4,
@@ -164,41 +161,24 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
             (Color){100, 120, 140, 200}
         );
 
-        // Desenhar sprite do jogador
+        // Desenhar sprite estático do jogador
         if (monster->backTexture.id != 0) {
-            // Aplicar efeito de bounce
-            float yOffset = 0;
             float scale = 3.0f;
-
-            // Criar um retângulo fonte que seleciona apenas o frame atual da sprite sheet
-            Rectangle sourceRect = {
-                monster->currentBackFrame * monster->frameWidth,  // X correto
-                0,                                                // Y
-                monster->frameWidth,                              // Largura exata
-                monster->frameHeight                              // Altura exata
-            };
-
-            // Criar um retângulo destino para desenhar o frame na tela
-            Rectangle destRect = {
-                monsterPos.x - (monster->frameWidth * scale) / 2,
-                monsterPos.y - (monster->frameHeight * scale) / 2 + yOffset,
-                monster->frameWidth * scale,
-                monster->frameHeight * scale
-            };
-
-            DrawTexturePro(
+            DrawTextureEx(
                 monster->backTexture,
-                sourceRect,
-                destRect,
-                (Vector2){0, 0},
+                (Vector2){
+                    monsterPos.x - (monster->backTexture.width * scale) / 2,
+                    monsterPos.y - (monster->backTexture.height * scale) / 2
+                },
                 0.0f,
+                scale,
                 WHITE
             );
         }
     } else {
         platformPos = (Vector2){
             GetScreenWidth() * 3 / 4,
-            GetScreenHeight() / 3 + 50 + platformYOffset2
+            GetScreenHeight() / 3 + 50
         };
         monsterPos = (Vector2){
             GetScreenWidth() * 3 / 4,
@@ -215,29 +195,17 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
             (Color){100, 120, 140, 200}
         );
 
-        // Desenhar sprite do oponente
+        // Desenhar sprite estático do oponente
         if (monster->frontTexture.id != 0) {
-            // Aplicar efeito de bounce
-            float yOffset = 0;
             float scale = 2.5f;
-
-            // Criar um retângulo fonte que seleciona apenas o frame atual da sprite sheet
-            Rectangle sourceRect = monster->frontFrameRect;
-
-            // Criar um retângulo destino para desenhar o frame na tela
-            Rectangle destRect = {
-                monsterPos.x - (monster->frameWidth * scale) / 2,
-                monsterPos.y - (monster->frameHeight * scale) / 2 + yOffset,
-                monster->frameWidth * scale,
-                monster->frameHeight * scale
-            };
-
-            DrawTexturePro(
+            DrawTextureEx(
                 monster->frontTexture,
-                sourceRect,
-                destRect,
-                (Vector2){0, 0},
+                (Vector2){
+                    monsterPos.x - (monster->frontTexture.width * scale) / 2,
+                    monsterPos.y - (monster->frontTexture.height * scale) / 2
+                },
                 0.0f,
+                scale,
                 WHITE
             );
         }
@@ -283,20 +251,18 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
                 break;
         }
 
-        // Desenhar bolha de status pulsante
-        float pulseScale = 1.0f + sinf(battleTimer * 5.0f) * 0.1f;
-
+        // Desenhar bolha de status
         DrawCircle(
             statusPos.x,
             statusPos.y,
-            20 * pulseScale,
+            20,
             statusColor
         );
 
         DrawCircleLines(
             statusPos.x,
             statusPos.y,
-            20 * pulseScale,
+            20,
             BLACK
         );
 
@@ -1110,7 +1076,6 @@ void updateBattleScreen(void) {
             hpAnimTimer = 0.0f;
         }
     }
-    updateMonsterAnimations();
     // Chamada para atualizar a lógica de batalha
     updateBattle();
 }
