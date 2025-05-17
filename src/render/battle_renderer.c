@@ -1018,8 +1018,14 @@ void drawBattleScreen(void)
     // Atualizar música
     UpdateMusicStream(battleMusic);
 
-    // Fundo branco puro (removido o uso de texturas de fundo)
-    ClearBackground(WHITE);
+    DrawTexturePro(
+        battleBackground,
+        (Rectangle){0, 0, (float)battleBackground.width, (float)battleBackground.height},
+        (Rectangle){0, 0, (float)GetScreenWidth(), (float)GetScreenHeight()},
+        (Vector2){0, 0},
+        0.0f,
+        WHITE
+    );
 
     // Verificar se a batalha está inicializada
     if (battleSystem == NULL ||
