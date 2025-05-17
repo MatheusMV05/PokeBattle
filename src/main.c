@@ -1,8 +1,8 @@
 // main.c - ATUALIZADO
 #ifdef _WIN32
-    #define WIN32_LEAN_AND_MEAN
-    #define NOGDI
-    #define NOUSER
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI
+#define NOUSER
 #endif
 
 #include "raygui.h"
@@ -24,7 +24,6 @@
 #include "resources.h"
 #include "gui.h"
 
-
 // Declarações das funções
 void initializeGame(void);
 void updateGame(void);
@@ -36,10 +35,11 @@ void initBattleEffects(void);
 bool testAIConnection(void);
 
 // Função principal
-int main(void) {
+int main(void)
+{
     // Inicialização do Raylib
     const int screenWidth = 1920;
-    const int screenHeight =  1080;
+    const int screenHeight = 1080;
 
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 
@@ -51,12 +51,13 @@ int main(void) {
     srand(time(NULL));
 
     // Inicializar recursos do jogo
-    initializeGlobals();  // Inicialização das variáveis globais
+    initializeGlobals(); // Inicialização das variáveis globais
     verifyMonsterSprites();
     initializeGame();
 
     // Loop principal do jogo
-    while (!WindowShouldClose() && gameRunning) {
+    while (!WindowShouldClose() && gameRunning)
+    {
         // Atualização
         updateGame();
 
@@ -65,55 +66,58 @@ int main(void) {
         ClearBackground(RAYWHITE);
 
         // Debug para verificar o estado atual
-        if (currentScreen == EXIT) {
+        if (currentScreen == EXIT)
+        {
             printf("[DEBUG] currentScreen é EXIT, saindo do jogo\n");
         }
 
         // Renderizar a tela atual
-        switch (currentScreen) {
-            case MAIN_MENU:
-                drawMainMenu();
-                break;
-            case OPPONENT_SELECTION:
-                drawOpponentSelection();
-                break;
-            case MONSTER_SELECTION:
-                drawMonsterSelection();
-                break;
-            case BATTLE_SCREEN:
-                drawBattleScreen();
-                break;
-            case TYPES_TABLE:
-                drawTypesTable();
-                break;
-            case SETTINGS:
-                drawSettings();
-                break;
-            case CREDITS:
-                drawCredits();
-                break;
-            case EXIT:
-                gameRunning = false;
-                break;
-            default:
-                printf("[DEBUG] Estado desconhecido: %d\n", currentScreen);
-                break;
+        switch (currentScreen)
+        {
+        case MAIN_MENU:
+            drawMainMenu();
+            break;
+        case OPPONENT_SELECTION:
+            drawOpponentSelection();
+            break;
+        case MONSTER_SELECTION:
+            drawMonsterSelection();
+            break;
+        case BATTLE_SCREEN:
+            drawBattleScreen();
+            break;
+        case TYPES_TABLE:
+            drawTypesTable();
+            break;
+        case SETTINGS:
+            drawSettings();
+            break;
+        case CREDITS:
+            drawCredits();
+            break;
+        case EXIT:
+            gameRunning = false;
+            break;
+        default:
+            printf("[DEBUG] Estado desconhecido: %d\n", currentScreen);
+            break;
         }
 
         EndDrawing();
     }
 
-     // Limpeza e encerramento
-     cleanupGame();
-     cleanupGlobals();  // Limpeza das variáveis globais
-     CloseAudioDevice();
-     CloseWindow();
+    // Limpeza e encerramento
+    cleanupGame();
+    cleanupGlobals(); // Limpeza das variáveis globais
+    CloseAudioDevice();
+    CloseWindow();
 
-     return 0;
- }
+    return 0;
+}
 
- // Inicializa todos os recursos do jogo
- void initializeGame(void) {
+// Inicializa todos os recursos do jogo
+void initializeGame(void)
+{
     // Inicializar banco de monstros
     initializeMonsterDatabase();
 
@@ -129,17 +133,21 @@ int main(void) {
     LoadPokemonTheme();
     // Inicializar recursos visuais
     loadTextures();
+    battleBackground = LoadTexture("resources/battle_background.png");
     loadSounds(musicVolume, soundVolume);
 
     // Carregar texturas dos monstros
     loadMonsterTextures();
 
     // Inicializar API de IA
-    if (initializeAI()) {
+    if (initializeAI())
+    {
         printf("\n=== TESTANDO CONEXÃO COM IA ===\n");
         testAIConnection();
         printf("==============================\n\n");
-    } else {
+    }
+    else
+    {
         printf("\n=== IA INDISPONÍVEL ===\n");
         printf("Usando sistema de IA local (simples) para o bot.\n");
         printf("======================\n\n");
@@ -148,39 +156,42 @@ int main(void) {
     gameInitialized = true;
 }
 
- // Atualiza o estado do jogo
-void updateGame(void) {
+// Atualiza o estado do jogo
+void updateGame(void)
+{
     // Processamento específico para cada tela
-    switch (currentScreen) {
-        case MAIN_MENU:
-            updateMainMenu();
-            break;
-        case OPPONENT_SELECTION:
-            updateOpponentSelection();
-            break;
-        case MONSTER_SELECTION:
-            updateMonsterSelection();
-            break;
-        case BATTLE_SCREEN:
-            updateBattleScreen();
-            // Remover updateMonsterAnimations() se estiver aqui
-            break;
-        case TYPES_TABLE:
-            updateTypesTable();
-            break;
-        case SETTINGS:
-            updateSettings();
-            break;
-        case CREDITS:
-            updateCredits();
-            break;
-        default:
-            break;
+    switch (currentScreen)
+    {
+    case MAIN_MENU:
+        updateMainMenu();
+        break;
+    case OPPONENT_SELECTION:
+        updateOpponentSelection();
+        break;
+    case MONSTER_SELECTION:
+        updateMonsterSelection();
+        break;
+    case BATTLE_SCREEN:
+        updateBattleScreen();
+        // Remover updateMonsterAnimations() se estiver aqui
+        break;
+    case TYPES_TABLE:
+        updateTypesTable();
+        break;
+    case SETTINGS:
+        updateSettings();
+        break;
+    case CREDITS:
+        updateCredits();
+        break;
+    default:
+        break;
     }
 }
 
- // Limpa recursos alocados
- void cleanupGame(void) {
+// Limpa recursos alocados
+void cleanupGame(void)
+{
     // Descarregar texturas dos monstros
     unloadMonsterTextures();
 
@@ -190,6 +201,8 @@ void updateGame(void) {
     // Liberar estruturas de batalha
     freeBattleSystem();
     UnloadPokemonTheme();
+    UnloadTexture(battleBackground);
+
     // Liberar recursos visuais
     unloadTextures();
     unloadSounds();
@@ -198,7 +211,8 @@ void updateGame(void) {
     shutdownAI();
 }
 
- // Função para alterar a tela atual
- void changeScreen(GameState newScreen) {
-     currentScreen = newScreen;
- }
+// Função para alterar a tela atual
+void changeScreen(GameState newScreen)
+{
+    currentScreen = newScreen;
+}
