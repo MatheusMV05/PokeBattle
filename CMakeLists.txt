@@ -43,6 +43,8 @@ add_executable(pokebattle ${SOURCES}
         src/raygui_impl.c
         src/render/types_table_renderer.c
         src/render/credits_renderer.c
+        src/render/loading_renderer.c
+        include/render/loading_renderer.h
 )
 
 # Linkar bibliotecas necessárias no Windows
