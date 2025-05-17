@@ -7,8 +7,21 @@
 
 // Constantes e estruturas para efeitos
 #define MAX_EFFECTS 10
+// Configuração de estilo
+#define UI_PANEL_COLOR     CLITERAL(Color){ 50, 70, 100, 255 }   // Azul escuro
+#define UI_ACCENT_COLOR    CLITERAL(Color){ 230, 50, 70, 255 }   // Vermelho pokémon
+#define UI_TEXT_COLOR      WHITE
+#define HEALTH_BAR_WIDTH   200
+#define HEALTH_BAR_HEIGHT  20
 
-
+// Elementos de interface
+typedef enum {
+    BATTLE_BTN_FIGHT = 0,
+    BATTLE_BTN_BAG,
+    BATTLE_BTN_POKEMON,
+    BATTLE_BTN_RUN,
+    BATTLE_BTN_COUNT
+} BattleButtons;
 
 
 // Funções para renderização da batalha
