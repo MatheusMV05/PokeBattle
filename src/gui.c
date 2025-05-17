@@ -60,7 +60,7 @@ void UnloadPokemonTheme(void) {
     // Descarregar texturas se tivéssemos carregado
 }
 
-// Botão estilo Pokémon Crystal
+// Botão estilo Pokémon Black/White
 bool GuiPokemonButton(Rectangle bounds, const char *text, bool active) {
     bool pressed = false;
     int state = GuiGetState();
@@ -108,7 +108,7 @@ bool GuiPokemonButton(Rectangle bounds, const char *text, bool active) {
         (Color){0, 0, 0, 100}
     );
 
-    // Botão principal
+    // Botão principal com bordas mais consistentes
     DrawRectangleRounded(bounds, 0.3f, 8, baseColor);
 
     // Adicionar brilho sutil no topo (estilo BW)
@@ -118,17 +118,31 @@ bool GuiPokemonButton(Rectangle bounds, const char *text, bool active) {
         (Color){255, 255, 255, 30}
     );
 
-    // Borda
+    // Borda mais visível e consistente
     DrawRectangleRoundedLines(bounds, 0.3f, 8, borderColor);
 
-    // Texto
+    // Texto centralizado verticalmente e horizontalmente
     int fontSize = 18;
+    if (bounds.width < 100 || bounds.height < 40) {
+        fontSize = 16; // Texto um pouco menor para botões pequenos
+    }
+
     Vector2 textSize = MeasureTextEx(GetFontDefault(), text, fontSize, 1);
-    DrawText(text,
-             bounds.x + bounds.width/2 - textSize.x/2,
-             bounds.y + bounds.height/2 - textSize.y/2,
-             fontSize,
-             textColor);
+
+    // Garantir que o texto fique centralizado e não transborde
+    float textX = bounds.x + bounds.width/2 - textSize.x/2;
+    float textY = bounds.y + bounds.height/2 - textSize.y/2;
+
+    // Verificar se o texto cabe na largura do botão
+    if (textSize.x > bounds.width - 10) {
+        // Reduzir tamanho da fonte se texto é muito grande
+        fontSize -= 2;
+        textSize = MeasureTextEx(GetFontDefault(), text, fontSize, 1);
+        textX = bounds.x + bounds.width/2 - textSize.x/2;
+        textY = bounds.y + bounds.height/2 - textSize.y/2;
+    }
+
+    DrawText(text, textX, textY, fontSize, textColor);
 
     return pressed;
 }

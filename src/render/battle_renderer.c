@@ -440,13 +440,20 @@ void drawBattleActionMenu(Rectangle bounds) {
         "FUGIR"
     };
 
-    // Layout de 2x2
-    int cols = 2;
-    int rows = 2;
-    float width = (bounds.width - 60) / cols;
-    float height = (bounds.height - 70) / rows; // Deixar mais espaço para o título
-    float startX = bounds.x + 20;
-    float startY = bounds.y + 50; // Deixar espaço para o título
+    // Calcular o tamanho adequado para os botões para não vazar
+    // Deixar margens adequadas de todos os lados
+    float marginX = 30;    // Margens laterais
+    float marginY = 60;    // Margem do topo (maior para acomodar o título) + margem inferior
+    float spacingX = 20;   // Espaço entre botões horizontalmente
+    float spacingY = 15;   // Espaço entre botões verticalmente
+
+    // Calcular o tamanho de cada botão
+    float buttonWidth = (bounds.width - 2 * marginX - spacingX) / 2;    // 2 colunas
+    float buttonHeight = (bounds.height - marginY - spacingY) / 2;      // 2 linhas
+
+    // Posição inicial dos botões
+    float startX = bounds.x + marginX;
+    float startY = bounds.y + 50;  // Deslocado para dar espaço para o título
 
     // Cores dos botões no estilo BW
     Color buttonColors[] = {
@@ -456,15 +463,16 @@ void drawBattleActionMenu(Rectangle bounds) {
         (Color){180, 140, 40, 255}  // FUGIR - Amarelo
     };
 
+    // Desenhar os 4 botões em grid 2x2
     for (int i = 0; i < 4; i++) {
-        int row = i / cols;
-        int col = i % cols;
+        int row = i / 2;
+        int col = i % 2;
 
         Rectangle optionRect = {
-            startX + col * (width + 20),
-            startY + row * (height + 15),
-            width,
-            height
+            startX + col * (buttonWidth + spacingX),
+            startY + row * (buttonHeight + spacingY),
+            buttonWidth,
+            buttonHeight
         };
 
         // Verificar se a opção está disponível (MOCHILA só disponível se item não foi usado)
@@ -504,20 +512,24 @@ void drawBattleActionMenu(Rectangle bounds) {
 /**
  * Desenha os ataques disponíveis
  */
-void drawBattleAttackMenu(Rectangle bounds)
-{
+void drawBattleAttackMenu(Rectangle bounds) {
+    // Cores do estilo BW
+    Color bgColor = (Color){40, 40, 40, 230};
+    Color frameColor = (Color){0, 0, 0, 255};
+    Color textColor = (Color){255, 255, 255, 255};
+
     // Fundo da caixa de ataques
-    DrawRectangleRounded(bounds, 0.2f, 6, (Color){240, 240, 240, 230});
-    DrawRectangleRoundedLines(bounds, 0.2f, 6, BLACK);
+    DrawRectangleRounded(bounds, 0.3f, 8, bgColor);
+    DrawRectangleRoundedLines(bounds, 0.3f, 8, frameColor);
 
     // Título
     DrawText("SELECIONE UM ATAQUE",
              bounds.x + 20,
              bounds.y + 15,
              20,
-             BLACK);
+             textColor);
 
-    // Botão de voltar
+    // Botão de voltar no estilo BW
     Rectangle backBtn = {
         bounds.x + bounds.width - 100,
         bounds.y + 10,
@@ -525,8 +537,7 @@ void drawBattleAttackMenu(Rectangle bounds)
         30
     };
 
-    if (GuiPokemonButton(backBtn, "VOLTAR", true))
-    {
+    if (GuiPokemonButton(backBtn, "VOLTAR", true)) {
         PlaySound(selectSound);
         battleSystem->battleState = BATTLE_SELECT_ACTION;
     }
@@ -534,19 +545,25 @@ void drawBattleAttackMenu(Rectangle bounds)
     // Mostrar ataques disponíveis
     PokeMonster* monster = battleSystem->playerTeam->current;
 
-    float attackWidth = (bounds.width - 60) / 2;
-    float attackHeight = 50;
-    float startX = bounds.x + 20;
-    float startY = bounds.y + 50;
+    // Calcular o tamanho adequado para os botões de ataque
+    float marginX = 25;    // Margens laterais
+    float marginY = 55;    // Margem superior (para acomodar título) + inferior
+    float spacingX = 20;   // Espaço entre botões horizontalmente
+    float spacingY = 15;   // Espaço entre botões verticalmente
 
-    for (int i = 0; i < 4; i++)
-    {
+    float attackWidth = (bounds.width - 2 * marginX - spacingX) / 2;    // 2 colunas
+    float attackHeight = (bounds.height - marginY - spacingY) / 2;     // 2 linhas
+
+    float startX = bounds.x + marginX;
+    float startY = bounds.y + marginY;  // Posicionado abaixo do título
+
+    for (int i = 0; i < 4; i++) {
         int row = i / 2;
         int col = i % 2;
 
         Rectangle attackRect = {
-            startX + col * (attackWidth + 20),
-            startY + row * (attackHeight + 10),
+            startX + col * (attackWidth + spacingX),
+            startY + row * (attackHeight + spacingY),
             attackWidth,
             attackHeight
         };
@@ -554,17 +571,22 @@ void drawBattleAttackMenu(Rectangle bounds)
         // Cor baseada no tipo
         Color attackColor = getTypeColor(monster->attacks[i].type);
 
+        // Ajustar cor para o estilo BW
+        // Tornar cores menos saturadas e mais padronizadas
+        attackColor.r = (attackColor.r * 3 + 40) / 4;
+        attackColor.g = (attackColor.g * 3 + 40) / 4;
+        attackColor.b = (attackColor.b * 3 + 40) / 4;
+
         // Desativar se não tiver PP
         bool canUse = monster->attacks[i].ppCurrent > 0;
-        if (!canUse)
-        {
+        if (!canUse) {
             attackColor.r = (attackColor.r + 200) / 3;
             attackColor.g = (attackColor.g + 200) / 3;
             attackColor.b = (attackColor.b + 200) / 3;
+            attackColor.a = 180;
         }
 
-        if (GuiPokemonButton(attackRect, monster->attacks[i].name, canUse))
-        {
+        if (GuiPokemonButton(attackRect, monster->attacks[i].name, canUse)) {
             PlaySound(selectSound);
             battleSystem->selectedAttack = i;
 
@@ -576,35 +598,42 @@ void drawBattleAttackMenu(Rectangle bounds)
             battleSystem->battleState = BATTLE_SELECT_ACTION;
         }
 
-        // Informações do ataque
+        // Desenhar informações do ataque em posições calculadas para caber bem
+        Rectangle infoRect = {
+            attackRect.x + 10,
+            attackRect.y + attackRect.height - 22,
+            attackRect.width - 20,
+            18
+        };
+
+        // PP à esquerda
         char ppText[20];
         sprintf(ppText, "PP: %d/%d",
                 monster->attacks[i].ppCurrent,
                 monster->attacks[i].ppMax);
 
         DrawText(ppText,
-                 attackRect.x + 10,
-                 attackRect.y + 30,
+                 infoRect.x,
+                 infoRect.y,
                  14,
                  WHITE);
 
-        // Poder do ataque
-        if (monster->attacks[i].power > 0)
-        {
+        // Poder à direita (se tiver)
+        if (monster->attacks[i].power > 0) {
             char powerText[20];
             sprintf(powerText, "Poder: %d", monster->attacks[i].power);
 
+            // Calcular posição para alinhar à direita
+            int powerWidth = MeasureText(powerText, 14);
             DrawText(powerText,
-                     attackRect.x + attackRect.width - 100,
-                     attackRect.y + 30,
+                     infoRect.x + infoRect.width - powerWidth,
+                     infoRect.y,
                      14,
                      WHITE);
-        }
-        else
-        {
+        } else {
             DrawText("Status",
-                     attackRect.x + attackRect.width - 70,
-                     attackRect.y + 30,
+                     infoRect.x + infoRect.width - MeasureText("Status", 14),
+                     infoRect.y,
                      14,
                      WHITE);
         }
