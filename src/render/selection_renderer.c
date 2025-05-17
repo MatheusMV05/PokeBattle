@@ -151,8 +151,10 @@ void drawMonsterSelection(void) {
 
     float titleFontSize = ScaleFontSize(30);
     Vector2 instrSize = MeasureTextEx(gameFont, instruction, titleFontSize, 2);
-    Vector2 instrPos = ScalePosition(GetScreenWidth()/2 - instrSize.x/2, 20);
-    DrawTextEx(gameFont, instruction, instrPos, titleFontSize, 2, DARKGRAY);
+    float instrX = (GetScreenWidth() - instrSize.x) / 2;
+    float instrY = 20 * GetScaleY();
+    DrawTextEx(gameFont, instruction, (Vector2){instrX, instrY}, titleFontSize, 2, DARKGRAY);
+
 
     // Se estiver visualizando estatísticas de um monstro
     if (viewingStats && currentViewedMonster != NULL) {
@@ -600,11 +602,25 @@ void drawMonsterSelection(void) {
 }
 
 void updateMonsterSelection(void) {
-    // Processar rolagem com a roda do mouse
     if (!viewingStats) {
         float wheelMove = GetMouseWheelMove();
         if (wheelMove != 0) {
             scrollOffset -= wheelMove * 30 * GetScaleY(); // 30 pixels por tick da roda
+
+            // Limites do scroll
+            int monsterCount = getMonsterCount();
+            float cardHeight = 180 * GetScaleY();
+            float spacingY = 20 * GetScaleY();
+            int columns = (int)((GetScreenWidth() - spacingY) / (230 * GetScaleX() + spacingY));
+            if (columns < 1) columns = 1;
+
+            int totalRows = (monsterCount + columns - 1) / columns;
+            float contentHeight = GetScreenHeight() - (80 * GetScaleY()) - (80 * GetScaleY());
+            float contentTotalHeight = totalRows * (cardHeight + spacingY);
+
+            if (scrollOffset < 0) scrollOffset = 0;
+            if (scrollOffset > contentTotalHeight - contentHeight)
+                scrollOffset = contentTotalHeight - contentHeight;
         }
     }
 }
