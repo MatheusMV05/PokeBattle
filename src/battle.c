@@ -17,12 +17,10 @@
 #include "monsters.h"
 #include "ia_integration.h"
 #include "resources.h"
-#include "decision_tree.h"
 #include "globals.h"
 #include "battle_renderer.h"
 
-// Variável global para armazenar a árvore de decisão
-static DecisionNode* botDecisionTree = NULL;
+
 
 // Inicializa o sistema de batalha
 void initializeBattleSystem(void) {
@@ -50,7 +48,7 @@ void initializeBattleSystem(void) {
     battleSystem->selectedAction = 0;
     battleSystem->itemUsed = false;
     battleSystem->itemType = ITEM_POTION; // Padrão
-    initBotDecisionTree();
+
 
     // Verificar se tudo foi alocado corretamente
     if (battleSystem->actionQueue == NULL || battleSystem->effectStack == NULL) {
@@ -189,9 +187,9 @@ void updateBattle(void) {
             // Aguardando seleção do jogador ou bot
             if (battleSystem->playerTurn) {
                 // Jogador está selecionando - Interface cuida disso
-                printf("[DEBUG] BATTLE_SELECT_ACTION: Vez do jogador\n");
+
             } else {
-                printf("[DEBUG] BATTLE_SELECT_ACTION: Vez do bot\n");
+
                 // Dar um pequeno delay antes do bot escolher
                 stateTransitionDelay += deltaTime;
                 if (stateTransitionDelay >= 0.5f) {
@@ -750,16 +748,7 @@ void applyStatusEffect(PokeMonster* target, int statusEffect, int statusPower, i
     push(battleSystem->effectStack, statusEffect, duration, statusPower, target);
 }
 
-/**
- * Inicializa a árvore de decisão do bot
- */
-void initBotDecisionTree(void) {
-    if (botDecisionTree != NULL) {
-        freeDecisionTree(botDecisionTree);
-    }
 
-    botDecisionTree = createBotDecisionTree();
-}
 
 /**
  * Libera o sistema de batalha
@@ -889,12 +878,43 @@ void botChooseAction(void) {
     PokeMonster* botMonster = battleSystem->opponentTeam->current;
     PokeMonster* playerMonster = battleSystem->playerTeam->current;
 
-    printf("[DEBUG BOT] Bot escolhendo ação usando árvore de decisão...\n");
+    // Decidir qual ação tomar usando a IA ou fallback
+    int action = getAISuggestedAction(botMonster, playerMonster);
 
-    // Simples por enquanto - sempre atacar
-    int attackIndex = botChooseAttack(botMonster, playerMonster);
-    enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
-    printf("[DEBUG BOT] Bot enfileirou ataque %d\n", attackIndex);
+    // Com base na ação escolhida pela IA
+    switch (action) {
+        case 0: // Atacar
+        {
+            int attackIndex = getAISuggestedAttack(botMonster, playerMonster);
+            printf("[DEBUG BOT] Bot vai atacar usando ataque %d\n", attackIndex);
+            enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+        }
+        break;
+
+        case 1: // Trocar
+        {
+            int monsterIndex = getAISuggestedMonster(battleSystem->opponentTeam, playerMonster);
+            printf("[DEBUG BOT] Bot vai trocar para monstro %d\n", monsterIndex);
+            enqueue(battleSystem->actionQueue, 1, monsterIndex, botMonster);
+        }
+        break;
+
+        case 2: // Usar item
+        {
+            printf("[DEBUG BOT] Bot vai usar item %d\n", battleSystem->itemType);
+            enqueue(battleSystem->actionQueue, 2, battleSystem->itemType, botMonster);
+            battleSystem->itemUsed = true;  // Marcar que o item foi usado neste turno
+        }
+        break;
+
+        default: // Fallback - sempre atacar
+        {
+            int attackIndex = botChooseAttack(botMonster, playerMonster);
+            printf("[DEBUG BOT] Bot vai atacar (fallback) usando ataque %d\n", attackIndex);
+            enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+        }
+        break;
+    }
 
     // Verificar se ambos jogadores fizeram suas escolhas
     printf("[DEBUG BOT] Ações na fila: %d\n", battleSystem->actionQueue->count);
@@ -908,19 +928,28 @@ void botChooseAction(void) {
 /**
  * Escolhe um ataque para o bot
  */
+/**
+ * Escolhe um ataque para o bot (usado pelo sistema de fallback)
+ */
 int botChooseAttack(PokeMonster* botMonster, PokeMonster* playerMonster) {
     if (botMonster == NULL || playerMonster == NULL) {
-        return 0;
+        return 0; // Primeiro ataque como padrão
     }
 
-    // Por enquanto retorna apenas o primeiro ataque válido
+    // Se temos um ataque previamente determinado pelo getAISuggestedActionSimple
+    if (botMonster->statusCounter >= 0 && botMonster->statusCounter < 4 &&
+        botMonster->attacks[botMonster->statusCounter].ppCurrent > 0) {
+        return botMonster->statusCounter;
+        }
+
+    // Fallback: encontrar o primeiro ataque com PP
     for (int i = 0; i < 4; i++) {
         if (botMonster->attacks[i].ppCurrent > 0) {
             return i;
         }
     }
 
-    return 0; // Fallback: primeiro ataque
+    return 0; // Primeiro ataque como última opção
 }
 
 /**
@@ -1065,29 +1094,140 @@ void useItem(ItemType itemType, PokeMonster* target) {
 }
 
 /**
- * Versão simplificada para IA quando não quiser usar Gemini
+ * Sistema de fallback simples para quando a IA não estiver disponível
+ * Faz decisões básicas baseadas no estado do jogo
  */
 int getAISuggestedActionSimple(PokeMonster* botMonster, PokeMonster* playerMonster) {
-    // Decisão simples sem IA avançada
     if (botMonster == NULL || playerMonster == NULL) {
         return 0; // Atacar por padrão
     }
 
-    // Se o monstro atual do bot está com pouca vida
-    if (botMonster->hp < botMonster->maxHp * 0.25f) {
-        // Tentar usar item (se disponível)
+    // Calcular porcentagem de HP
+    float botHpPercent = (float)botMonster->hp / botMonster->maxHp * 100.0f;
+    float playerHpPercent = (float)playerMonster->hp / playerMonster->maxHp * 100.0f;
+
+    // 1. Verificar se há necessidade de curar (HP baixo)
+    if (botHpPercent < 25.0f) {
+        // Se tiver item de cura e ele não foi usado ainda neste turno
         if (!battleSystem->itemUsed && battleSystem->itemType == ITEM_POTION) {
-            return 2;
+            return 2; // Usar item
         }
 
-        // Trocar de monstro se possível
-        PokeMonster* newMonster = botChooseMonster(battleSystem->opponentTeam, playerMonster);
-        if (newMonster && newMonster != botMonster) {
-            return 1;
+        // Se HP muito baixo e não puder usar item, considerar trocar
+        if (botHpPercent < 15.0f) {
+            // Verificar se há algum monstro saudável para trocar
+            PokeMonster* current = battleSystem->opponentTeam->first;
+            while (current != NULL) {
+                if (current != botMonster && !isMonsterFainted(current) &&
+                    (float)current->hp / current->maxHp > 0.5f) {
+                    return 1; // Trocar
+                }
+                current = current->next;
+            }
         }
     }
 
-    return 0; // Atacar por padrão
+    // 2. Verificar se tem vantagem de tipo - atacar se tiver
+    float bestEffectiveness = 0.0f;
+    int bestAttackIndex = -1;
+
+    for (int i = 0; i < 4; i++) {
+        if (botMonster->attacks[i].ppCurrent <= 0) continue;
+
+        float effectiveness = calculateTypeEffectiveness(
+            botMonster->attacks[i].type,
+            playerMonster->type1,
+            playerMonster->type2
+        );
+
+        if (effectiveness > bestEffectiveness) {
+            bestEffectiveness = effectiveness;
+            bestAttackIndex = i;
+        }
+    }
+
+    // Se encontrar um ataque super efetivo (>=2x), usar
+    if (bestEffectiveness >= 2.0f && bestAttackIndex >= 0) {
+        // Armazenar o melhor ataque para a próxima função
+        botMonster->statusCounter = bestAttackIndex; // Usar statusCounter para armazenar temporariamente
+        return 0; // Atacar
+    }
+
+    // 3. Se o oponente estiver com pouca vida, tentar finalizar
+    if (playerHpPercent < 25.0f) {
+        // Encontrar o ataque com maior poder
+        int highestPower = 0;
+        int powerfulAttackIndex = 0;
+
+        for (int i = 0; i < 4; i++) {
+            if (botMonster->attacks[i].ppCurrent <= 0) continue;
+
+            if (botMonster->attacks[i].power > highestPower) {
+                highestPower = botMonster->attacks[i].power;
+                powerfulAttackIndex = i;
+            }
+        }
+
+        // Armazenar o ataque mais poderoso
+        botMonster->statusCounter = powerfulAttackIndex;
+        return 0; // Atacar
+    }
+
+    // 4. Considerar aplicar efeitos de status
+    // Se o inimigo estiver saudável, tentar causar status negativo
+    if (playerHpPercent > 50.0f && playerMonster->statusCondition == STATUS_NONE) {
+        for (int i = 0; i < 4; i++) {
+            if (botMonster->attacks[i].ppCurrent <= 0) continue;
+
+            // Verificar se o ataque causa algum efeito de status
+            if (botMonster->attacks[i].statusEffect > 0 &&
+                botMonster->attacks[i].statusChance > 30) {
+                botMonster->statusCounter = i;
+                return 0; // Atacar com movimento de status
+            }
+        }
+    }
+
+    // 5. Opções aleatórias com pesos para adicionar variedade (20% de chance)
+    if (rand() % 100 < 20) {
+        int action = rand() % 10;
+
+        if (action < 7) { // 70% chance de atacar aleatoriamente
+            botMonster->statusCounter = rand() % 4;
+            // Verificar se o ataque tem PP
+            if (botMonster->attacks[botMonster->statusCounter].ppCurrent <= 0) {
+                // Encontrar primeiro ataque com PP
+                for (int i = 0; i < 4; i++) {
+                    if (botMonster->attacks[i].ppCurrent > 0) {
+                        botMonster->statusCounter = i;
+                        break;
+                    }
+                }
+            }
+            return 0; // Atacar
+        }
+        else if (action < 9 && !battleSystem->itemUsed) { // 20% chance de usar item
+            return 2; // Usar item
+        }
+        else { // 10% chance de trocar
+            return 1; // Trocar
+        }
+    }
+
+    // 6. Padrão: usar o melhor ataque disponível conforme determinado anteriormente
+    if (bestAttackIndex >= 0) {
+        botMonster->statusCounter = bestAttackIndex;
+    } else {
+        // Simplesmente usar o primeiro ataque com PP
+        for (int i = 0; i < 4; i++) {
+            if (botMonster->attacks[i].ppCurrent > 0) {
+                botMonster->statusCounter = i;
+                break;
+            }
+        }
+    }
+
+    return 0; // Atacar como ação padrão
 }
 
 /**

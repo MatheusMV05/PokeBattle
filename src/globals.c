@@ -9,7 +9,6 @@
 #include "monsters.h"
 #include <string.h>
 #include <curl/curl.h>
-#include "decision_tree.h"
 #include "hud_elements.h"
 #include "resources.h"
 
@@ -38,7 +37,7 @@ float pendingSoundVolume = 0.8f;
 bool pendingFullscreen = false;
 int pendingDifficultyIndex = 1;
 int pendingAnimSpeedIndex = 1;
-DecisionNode* botDecisionTree = NULL;
+
 
 // Integração com IA
 bool initialized = false;
