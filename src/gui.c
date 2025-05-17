@@ -84,28 +84,51 @@ bool GuiPokemonButton(Rectangle bounds, const char *text, bool active) {
         }
     }
 
-    // Desenhar botão
-    Color baseColor = active ? PKMN_DARK_BLUE : PKMN_BLACK;
-    if (state == STATE_FOCUSED) baseColor = (Color){ 36, 164, 212, 255 };
-    if (state == STATE_PRESSED) baseColor = PKMN_RED;
+    // Definir cores no estilo BW
+    Color baseColor = (Color){60, 60, 60, 255}; // Cinza escuro base
+    Color borderColor = BLACK;
+    Color textColor = WHITE;
 
-    // Sombra
-    DrawRectangle(bounds.x + 2, bounds.y + 2, bounds.width, bounds.height, ColorAlpha(PKMN_BLACK, 0.5f));
+    // Modificar baseado no estado
+    if (state == STATE_FOCUSED) {
+        baseColor = (Color){80, 80, 80, 255}; // Cinza um pouco mais claro quando hover
+    }
+    if (state == STATE_PRESSED) {
+        baseColor = (Color){100, 100, 100, 255}; // Ainda mais claro quando pressionado
+    }
+    if (!active) {
+        baseColor = (Color){40, 40, 40, 180}; // Mais escuro quando inativo
+        textColor = (Color){200, 200, 200, 180}; // Texto cinza claro quando inativo
+    }
 
-    // Base
-    DrawRectangleRec(bounds, baseColor);
+    // Desenhar sombra sutil
+    DrawRectangleRounded(
+        (Rectangle){bounds.x + 2, bounds.y + 2, bounds.width, bounds.height},
+        0.3f, 8,
+        (Color){0, 0, 0, 100}
+    );
+
+    // Botão principal
+    DrawRectangleRounded(bounds, 0.3f, 8, baseColor);
+
+    // Adicionar brilho sutil no topo (estilo BW)
+    DrawRectangleRounded(
+        (Rectangle){bounds.x + 2, bounds.y + 2, bounds.width - 4, bounds.height/3},
+        0.3f, 4,
+        (Color){255, 255, 255, 30}
+    );
 
     // Borda
-    DrawRectangleLinesEx(bounds, 2, PKMN_BLACK);
+    DrawRectangleRoundedLines(bounds, 0.3f, 8, borderColor);
 
     // Texto
-    int fontSize = 20;
+    int fontSize = 18;
     Vector2 textSize = MeasureTextEx(GetFontDefault(), text, fontSize, 1);
     DrawText(text,
              bounds.x + bounds.width/2 - textSize.x/2,
              bounds.y + bounds.height/2 - textSize.y/2,
              fontSize,
-             PKMN_WHITE);
+             textColor);
 
     return pressed;
 }
