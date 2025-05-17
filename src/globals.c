@@ -1,8 +1,8 @@
 // Define macros de prevenção de conflitos antes de qualquer include
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOGDI
-#define NOUSER
+    #define WIN32_LEAN_AND_MEAN
+    #define NOGDI
+    #define NOUSER
 #endif
 
 #include "globals.h"
@@ -68,8 +68,7 @@ float musicVolume = 0.7f;
 float soundVolume = 0.8f;
 
 
-void initializeGlobals(void)
-{
+void initializeGlobals(void) {
     // Inicializar valores padrão
     currentScreen = MAIN_MENU;
     gameRunning = true;
@@ -105,18 +104,27 @@ void initializeGlobals(void)
     currentBattleBackground = 0;
 }
 
-void cleanupGlobals(void)
-{
+void cleanupGlobals(void) {
     // Liberação de recursos
-    if (playerTeam != NULL)
-    {
+    if (playerTeam != NULL) {
         freeMonsterList(playerTeam);
         playerTeam = NULL;
     }
 
-    if (opponentTeam != NULL)
-    {
+    if (opponentTeam != NULL) {
         freeMonsterList(opponentTeam);
         opponentTeam = NULL;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

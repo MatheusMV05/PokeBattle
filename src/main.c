@@ -24,6 +24,7 @@
 #include "resources.h"
 #include "gui.h"
 
+
 // Declarações das funções
 void initializeGame(void);
 void updateGame(void);
@@ -128,7 +129,6 @@ int main(void) {
     LoadPokemonTheme();
     // Inicializar recursos visuais
     loadTextures();
-    battleBackground = LoadTexture("resources/battle_background.png");
     loadSounds(musicVolume, soundVolume);
 
     // Carregar texturas dos monstros
@@ -191,8 +191,6 @@ void updateGame(void) {
     freeBattleSystem();
     UnloadPokemonTheme();
     // Liberar recursos visuais
-    UnloadTexture(battleBackground);
-
     unloadTextures();
     unloadSounds();
 
