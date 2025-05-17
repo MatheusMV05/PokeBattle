@@ -830,6 +830,46 @@ void drawItemMenu(Rectangle bounds)
     }
 }
 
+// Divide texto em linhas para caber no limite de largura
+int wrapTextLines(const char* text, char lines[][256], int maxLines, int maxWidth, int fontSize)
+{
+    int lineCount = 0;
+    const char* ptr = text;
+    char buffer[256] = "";
+    int bufferLen = 0;
+
+    while (*ptr && lineCount < maxLines)
+    {
+        buffer[bufferLen++] = *ptr;
+        buffer[bufferLen] = '\0';
+
+        if (*ptr == ' ' || *(ptr + 1) == '\0')
+        {
+            int width = MeasureText(buffer, fontSize);
+            if (width >= maxWidth)
+            {
+                if (lineCount < maxLines)
+                {
+                    buffer[bufferLen - 1] = '\0'; // remove space
+                    strcpy(lines[lineCount++], buffer);
+                    bufferLen = 0;
+                    buffer[0] = '\0';
+                }
+            }
+        }
+
+        ptr++;
+    }
+
+    if (bufferLen > 0 && lineCount < maxLines)
+    {
+        strcpy(lines[lineCount++], buffer);
+    }
+
+    return lineCount;
+}
+
+
 /**
  * Desenha a mensagem de batalha
  */
@@ -861,7 +901,19 @@ void drawBattleMessage(Rectangle bounds)
 
         // Desenhar texto com efeito typewriter
         int fontSize = 24;
-        DrawText(typewriter.displayText, textPos.x, textPos.y, fontSize, BLACK);
+        // Renderizar texto com quebras manuais
+        char wrappedLines[5][256]; // Até 5 linhas de texto
+        int lineCount = wrapTextLines(typewriter.displayText, wrappedLines, 5, bounds.width - 40, fontSize);
+
+        for (int i = 0; i < lineCount; i++)
+        {
+            DrawText(wrappedLines[i],
+                     bounds.x + 20,
+                     bounds.y + 20 + i * (fontSize + 8),
+                     fontSize,
+                     BLACK);
+        }
+
 
         // Indicador de continuar se o texto estiver completo
         if (typewriter.isComplete && typewriter.waitingForInput)
@@ -908,12 +960,22 @@ void drawConfirmDialog(const char* message, const char* yesText, const char* noT
     DrawRectangleRounded(dialogBox, 0.2f, 6, (Color){240, 240, 240, 255});
     DrawRectangleRoundedLines(dialogBox, 0.2f, 6, BLACK);
 
-    // Mensagem
-    DrawText(message,
-             dialogBox.x + dialogBox.width / 2 - MeasureText(message, 24) / 2,
-             dialogBox.y + 40,
+    // Dividir texto longo manualmente para caber na caixa
+    const char* line1 = "Tem certeza que deseja";
+    const char* line2 = "fugir da batalha?";
+
+    DrawText(line1,
+             dialogBox.x + dialogBox.width / 2 - MeasureText(line1, 24) / 2,
+             dialogBox.y + 35,
              24,
              BLACK);
+
+    DrawText(line2,
+             dialogBox.x + dialogBox.width / 2 - MeasureText(line2, 24) / 2,
+             dialogBox.y + 65,
+             24,
+             BLACK);
+
 
     // Botões
     Rectangle yesBtn = {
