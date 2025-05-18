@@ -89,7 +89,7 @@ pokebattle/
 ## 🕹️ Como Jogar
 
 1. Na tela inicial, clique em **JOGAR**
-2. Escolha o modo: **BATALHA LIVRE** ou **MODO CARREIRA**
+2. Escolha o modo: **BATALHA LIVRE** 
 3. Selecione **3 monstros** para o seu time
 4. Durante a batalha:
 
