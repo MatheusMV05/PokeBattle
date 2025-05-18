@@ -1,127 +1,224 @@
-# PokeBattle
 
-PokeBattle é um jogo de batalha por turnos inspirado em Pokémon Stadium, desenvolvido em C utilizando a biblioteca gráfica Raylib e integração com a API de IA Gemini.
 
-## Requisitos
 
-Para compilar e executar o jogo, você precisa das seguintes dependências:
+## 🎮 PokeBattle
 
-- GCC (GNU Compiler Collection)
-- Make
-- Biblioteca Raylib (versão 4.0 ou superior)
-- Biblioteca libcurl (para integração com a API de IA)
-- Uma chave de API do Google AI Studio (Gemini)
+Um jogo de batalhas inspirado em **Pokémon**, desenvolvido como projeto para a disciplina de **Algoritmos e Estruturas de Dados** no CESAR School.
 
-## Instalação das Dependências
+---
 
-### Ubuntu/Debian
+## 📌 Sobre o Projeto
 
-```bash
-# Instalação do GCC e Make
-sudo apt-get update
-sudo apt-get install gcc make
+**PokeBattle** é um jogo de **batalha por turnos** inspirado nos clássicos **Pokémon Stadium** e **Black/White**. Os jogadores montam suas equipes de monstros e participam de combates estratégicos, baseados em **tipos**, **ataques** e **estatísticas**.
 
-# Instalação da libcurl
-sudo apt-get install libcurl4-openssl-dev
+---
 
-# Instalação da Raylib
-sudo apt-get install libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev
+## ✨ Características Principais
 
-# Clonar e compilar Raylib
-git clone https://github.com/raysan5/raylib.git
-cd raylib/src
-make PLATFORM=PLATFORM_DESKTOP
-sudo make install
-```
+* 🔁 Sistema de batalha por turnos com mecânicas baseadas em Pokémon
+* 🤖 Integração com **IA (Gemini API)** para controle do oponente
+* 🧠 Estruturas de dados implementadas:
 
-### Windows com MinGW
+  * Lista **duplamente encadeada** para os times
+  * **Fila** para ordenação das ações
+  * **Pilha** para efeitos de status
+  * **Quick Sort** para ordenação por velocidade
+* 🎨 Interface gráfica com **Raylib**, estilo visual inspirado em jogos Pokémon
 
-1. Instale o [MinGW](https://osdn.net/projects/mingw/releases/)
-2. Instale [CMake](https://cmake.org/download/)
-3. Baixe e compile a Raylib:
-   ```bash
-   git clone https://github.com/raysan5/raylib.git
-   cd raylib
-   mkdir build && cd build
-   cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release ..
-   mingw32-make
-   ```
-4. Instale o [libcurl](https://curl.se/windows/)
+---
 
-## Configuração da API Gemini
+## ⚙️ Instruções de Execução
 
-1. Obtenha uma chave de API gratuita do Google AI Studio em [https://makersuite.google.com/app](https://makersuite.google.com/app)
-2. Edite o arquivo `ai_integration.c` e substitua o valor da constante `API_KEY` pela sua chave:
-   ```c
-   static const char* API_KEY = "SUA_CHAVE_AQUI"; // Substitua pela sua chave real
-   ```
+### ✅ Pré-requisitos
 
-## Compilação
+* Compilador C (GCC ou MinGW)
+* **CMake** (versão 3.20+)
+* Biblioteca **Raylib**
+* Biblioteca **libcurl**
 
-Para compilar o jogo, execute o seguinte comando no diretório raiz do projeto:
+### 🛠️ Compilação
+
+Clone o repositório:
 
 ```bash
-make
+git clone https://github.com/MatheusMV05/PokeBattle
+cd pokebattle
 ```
 
-Isso irá gerar o executável `pokebattle`.
+Configure o projeto com CMake:
 
-## Execução
+```bash
+mkdir build
+cd build
+cmake .. -DRAYLIB_DIR="caminho/para/raylib" -DCURL_DIR="caminho/para/curl"
+```
 
-Para executar o jogo:
+Compile o projeto:
+
+```bash
+cmake --build .
+```
+
+### ▶️ Execução
+
+Execute o jogo na pasta `build`:
 
 ```bash
 ./pokebattle
 ```
 
-Ou use o comando:
+---
 
-```bash
-make run
+## 📁 Estrutura do Projeto
+
+```
+pokebattle/
+├── include/              # Arquivos de cabeçalho (.h)
+│   └── render/           # Cabeçalhos de renderização
+├── src/                  # Código-fonte (.c)
+│   └── render/           # Implementações gráficas
+├── resources/            # Recursos do jogo (sprites, sons, etc.)
+│   ├── sprites/          # Imagens dos monstros
+│   ├── sounds/           # Efeitos sonoros
+├── CMakeLists.txt        # Configuração CMake
+└── README.md             # Este arquivo
 ```
 
-## Estruturas de Dados Utilizadas
+---
 
-O jogo implementa as seguintes estruturas de dados:
+## 🕹️ Como Jogar
 
-- **Lista Duplamente Encadeada**: Para armazenar os times de monstros
-- **Fila**: Para a sequência de ações durante a batalha
-- **Pilha**: Para os efeitos de status aplicados durante a batalha
+1. Na tela inicial, clique em **JOGAR**
+2. Escolha o modo: **BATALHA LIVRE** ou **MODO CARREIRA**
+3. Selecione **3 monstros** para o seu time
+4. Durante a batalha:
 
-## Algoritmo de Ordenação
+   * **LUTAR**: escolha um dos 4 ataques
+   * **MOCHILA**: use itens disponíveis
+   * **POKÉMON**: troque de monstro
+   * **FUGIR**: encerra a batalha
 
-O jogo utiliza o algoritmo QuickSort para ordenar os monstros por velocidade, determinando a ordem das ações durante a batalha.
+---
 
-## Controles
+## 🎒 Itens da Mochila
 
-- **Mouse**: Use o mouse para clicar nos botões e interagir com a interface
-- **Teclado**: 
-  - Teclas direcionais para navegar nos menus (em algumas telas)
-  - Espaço/Enter para confirmar ações
+Durante a batalha, a mochila pode conter os seguintes itens:
 
-## Mecânica de Jogo
+* 🧪 **Poção** (sempre disponível):
+  Restaura **20 pontos de vida** do Pokémon atual.
 
-1. Selecione seu adversário (Bot ou outro jogador)
-2. Escolha 3 monstros para formar seu time
-3. Durante a batalha, escolha entre:
-   - Lutar: Use um dos 4 ataques do seu monstro
-   - Monstros: Troque para outro monstro do seu time
-   - Mochila: Use o item disponível para a batalha
-   - Desistir: Encerre a batalha atual
+* 🪙 **Moeda** (item aleatório):
+  Possui **50% de chance** de **curar totalmente** o Pokémon e **50% de chance** de **fazê-lo desmaiar**.
 
-A integração com a API de IA influencia o comportamento do bot adversário, gerando descrições criativas para os ataques e fornecendo dicas estratégicas ao jogador.
+* 🟥 **Cartão Vermelho** (item aleatório):
+  Força a **troca imediata** do Pokémon em campo.
 
-## Solução de Problemas
+> ⚠️ Apenas **um item aleatório** estará disponível por batalha, selecionado de forma randômica. A **poção** está sempre fixa na mochila.
 
-Se você encontrar erro relacionado à libcurl, verifique se a biblioteca está instalada corretamente e se os caminhos estão configurados no Makefile.
+---
 
-Se a API de IA não estiver funcionando, verifique:
-1. Se sua chave de API está correta
-2. Se você tem uma conexão ativa com a internet
-3. Se o modelo especificado (`gemini-1.5-flash-latest`) está disponível
+## 🤖 Integração com IA
 
-## Créditos
+O jogo utiliza a **API Gemini (Google)** para:
 
-- Desenvolvido por Julia Torres, Maria Claudia, Matheus Martins e Vinicius Jose para a disciplina de Algoritmos e Estruturas de Dados
-- Utilizando a biblioteca Raylib para gráficos
-- Integração com a API Gemini do Google AI
+* 🧠 Controlar o Pokémon oponente
+
+> 💡 Um indicador **"IA ON/OFF"** aparece no canto superior direito. Se a conexão falhar, o jogo usa um modo offline alternativo.
+
+---
+
+## 🧩 Estruturas de Dados Implementadas
+
+### 🔗 Lista Duplamente Encadeada
+
+```c
+typedef struct MonsterList {
+    PokeMonster* first;
+    PokeMonster* last;
+    PokeMonster* current;
+    int count;
+} MonsterList;
+```
+
+### 📤 Fila de Ações
+
+```c
+typedef struct {
+    int* actions;
+    int* parameters;
+    PokeMonster** monsters;
+    int front;
+    int rear;
+    int capacity;
+    int count;
+} ActionQueue;
+```
+
+### 🧱 Pilha de Efeitos
+
+```c
+typedef struct {
+    int* types;
+    int* durations;
+    int* values;
+    PokeMonster** targets;
+    int top;
+    int capacity;
+} EffectStack;
+```
+
+### ⚡ Quick Sort
+
+```c
+void quickSortMonstersBySpeed(PokeMonster** monsters, int left, int right) {
+    if (left < right) {
+        int pivotIndex = partitionMonsters(monsters, left, right);
+        quickSortMonstersBySpeed(monsters, left, pivotIndex - 1);
+        quickSortMonstersBySpeed(monsters, pivotIndex + 1, right);
+    }
+}
+
+int partitionMonsters(PokeMonster** monsters, int left, int right) {
+    PokeMonster* pivot = monsters[right];
+    int i = left - 1;
+    for (int j = left; j < right; j++) {
+        if (monsters[j]->speed > pivot->speed) {
+            i++;
+            PokeMonster* temp = monsters[i];
+            monsters[i] = monsters[j];
+            monsters[j] = temp;
+        }
+    }
+    PokeMonster* temp = monsters[i + 1];
+    monsters[i + 1] = monsters[right];
+    monsters[right] = temp;
+    return i + 1;
+}
+```
+
+---
+
+## 👥 Contribuidores
+
+* Julia Torres
+* Fatima Beatriz
+* Maria Claudia
+* Matheus Martins
+* Vinicius Jose
+
+---
+
+## 🙏 Agradecimentos
+
+* Professora Natacha da disciplina de AED
+* CESAR School
+* Comunidade Raylib
+* Nintendo e Game Freak pela inspiração
+
+---
+
+## 📄 Licença
+
+> Este projeto foi desenvolvido **exclusivamente para fins educacionais**, como parte de uma atividade acadêmica.
+
+---
