@@ -62,7 +62,6 @@ void initializeBattleSystem(void) {
     }
 }
 
-
 // Inicia uma nova batalha
 void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     if (battleSystem == NULL || playerTeam == NULL || opponentTeam == NULL) {
@@ -248,72 +247,87 @@ void updateBattle(void) {
             break;
 
         case BATTLE_EXECUTING_ACTIONS:
-            // Resto da implementação existente...
-            if (!isQueueEmpty(battleSystem->actionQueue)) {
-                int action, parameter;
-                PokeMonster* monster;
+    // Resto da implementação existente...
+    if (!isQueueEmpty(battleSystem->actionQueue)) {
+        int action, parameter;
+        PokeMonster* monster;
 
-                dequeue(battleSystem->actionQueue, &action, &parameter, &monster);
-                printf("[DEBUG] Dequeue executando ação: tipo=%d, param=%d\n", action, parameter);
+        dequeue(battleSystem->actionQueue, &action, &parameter, &monster);
+        printf("[DEBUG] Dequeue executando ação: tipo=%d, param=%d\n", action, parameter);
 
-                switch (action) {
-                    case 0: // Ataque
-                    {
-                        PokeMonster* target = (monster == battleSystem->playerTeam->current) ?
-                                              battleSystem->opponentTeam->current :
-                                              battleSystem->playerTeam->current;
+        switch (action) {
+            case 0: // Ataque
+            {
+                PokeMonster* target = (monster == battleSystem->playerTeam->current) ?
+                                      battleSystem->opponentTeam->current :
+                                      battleSystem->playerTeam->current;
 
-                        executeAttack(monster, target, parameter);
+                executeAttack(monster, target, parameter);
 
-                        // Mostrar mensagem do ataque
-                        if (strlen(battleMessage) > 0) {
-                            // Configurar a mensagem atual para exibição
-                            currentMessage.displayTime = 2.0f;
-                            currentMessage.elapsedTime = 0.0f;
-                            currentMessage.waitingForInput = false;
-                            currentMessage.autoAdvance = true;
-                            strcpy(currentMessage.message, battleMessage);
-                            battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
-                        }
-                    }
-                    break;
-
-                    case 1: // Troca
-                        executeMonsterSwitch(monster, parameter);
-
-                        // Mostrar mensagem de troca
-                        if (strlen(battleMessage) > 0) {
-                            // Configurar a mensagem atual para exibição
-                            currentMessage.displayTime = 1.5f;
-                            currentMessage.elapsedTime = 0.0f;
-                            currentMessage.waitingForInput = false;
-                            currentMessage.autoAdvance = true;
-                            strcpy(currentMessage.message, battleMessage);
-                            battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
-                        }
-                        break;
-
-                    case 2: // Item
-                        executeItemUse(monster, parameter);
-
-                        // Mostrar mensagem de uso de item
-                        if (strlen(battleMessage) > 0) {
-                            // Configurar a mensagem atual para exibição
-                            currentMessage.displayTime = 1.5f;
-                            currentMessage.elapsedTime = 0.0f;
-                            currentMessage.waitingForInput = false;
-                            currentMessage.autoAdvance = true;
-                            strcpy(currentMessage.message, battleMessage);
-                            battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
-                        }
-                        break;
+                // Mostrar mensagem do ataque
+                if (strlen(battleMessage) > 0) {
+                    // Configurar a mensagem atual para exibição
+                    currentMessage.displayTime = 2.0f;
+                    currentMessage.elapsedTime = 0.0f;
+                    currentMessage.waitingForInput = false;
+                    currentMessage.autoAdvance = true;
+                    strcpy(currentMessage.message, battleMessage);
+                    battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
                 }
-            } else {
-                // Todas ações executadas, fim de turno
-                printf("[DEBUG] Fila vazia, indo para BATTLE_TURN_END\n");
-                battleSystem->battleState = BATTLE_TURN_END;
             }
             break;
+
+            case 1: // Troca
+                // Verificar se a troca já foi executada pela determineAndExecuteTurnOrder
+                // para o caso de ambos trocarem no mesmo turno
+                if (strlen(battleMessage) > 0 &&
+                    (strstr(battleMessage, "Volte") != NULL ||
+                     strstr(battleMessage, "trocou") != NULL)) {
+                    // A troca já foi executada, apenas exibir a mensagem
+                    currentMessage.displayTime = 1.5f;
+                    currentMessage.elapsedTime = 0.0f;
+                    currentMessage.waitingForInput = false;
+                    currentMessage.autoAdvance = true;
+                    strcpy(currentMessage.message, battleMessage);
+                    battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
+                } else {
+                    // Executar a troca normalmente
+                    executeMonsterSwitch(monster, parameter);
+
+                    // Mostrar mensagem de troca
+                    if (strlen(battleMessage) > 0) {
+                        // Configurar a mensagem atual para exibição
+                        currentMessage.displayTime = 1.5f;
+                        currentMessage.elapsedTime = 0.0f;
+                        currentMessage.waitingForInput = false;
+                        currentMessage.autoAdvance = true;
+                        strcpy(currentMessage.message, battleMessage);
+                        battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
+                    }
+                }
+                break;
+
+            case 2: // Item
+                executeItemUse(monster, parameter);
+
+                // Mostrar mensagem de uso de item
+                if (strlen(battleMessage) > 0) {
+                    // Configurar a mensagem atual para exibição
+                    currentMessage.displayTime = 1.5f;
+                    currentMessage.elapsedTime = 0.0f;
+                    currentMessage.waitingForInput = false;
+                    currentMessage.autoAdvance = true;
+                    strcpy(currentMessage.message, battleMessage);
+                    battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
+                }
+                break;
+        }
+    } else {
+        // Todas ações executadas, fim de turno
+        printf("[DEBUG] Fila vazia, indo para BATTLE_TURN_END\n");
+        battleSystem->battleState = BATTLE_TURN_END;
+    }
+    break;
 
         case BATTLE_TURN_END:
             // Processar fim de turno
@@ -492,42 +506,108 @@ void executeAttack(PokeMonster* attacker, PokeMonster* defender, int attackIndex
     }
 }
 
-// Executa a troca de monstro
+/**
+ * Executa a troca de monstro
+ */
 void executeMonsterSwitch(PokeMonster* monster, int targetIndex) {
     MonsterList* team = NULL;
     bool isPlayer = false;
 
     // Determinar qual time
-    if (monster == battleSystem->playerTeam->current) {
+    if (battleSystem->playerTeam && monster == battleSystem->playerTeam->current) {
         team = battleSystem->playerTeam;
         isPlayer = true;
-    } else {
+    } else if (battleSystem->opponentTeam && monster == battleSystem->opponentTeam->current) {
         team = battleSystem->opponentTeam;
+    } else {
+        // Aqui ocorre o problema - o monster não corresponde a nenhum dos atuais
+        // Vamos tentar deduzir o time de outra forma
+        if (monster) {
+            printf("DEBUG: Monster %s não é o atual de nenhum time, detectando time...\n", monster->name);
+
+            // Verificar se monster pertence ao time do jogador
+            PokeMonster* current = battleSystem->playerTeam->first;
+            while (current) {
+                if (current == monster) {
+                    team = battleSystem->playerTeam;
+                    isPlayer = true;
+                    printf("DEBUG: Monster %s pertence ao time do jogador\n", monster->name);
+                    break;
+                }
+                current = current->next;
+            }
+
+            // Se não encontrou no time do jogador, verificar no time do oponente
+            if (team == NULL) {
+                current = battleSystem->opponentTeam->first;
+                while (current) {
+                    if (current == monster) {
+                        team = battleSystem->opponentTeam;
+                        printf("DEBUG: Monster %s pertence ao time do oponente\n", monster->name);
+                        break;
+                    }
+                    current = current->next;
+                }
+            }
+        }
     }
 
-    // Encontrar o monstro alvo
+    if (team == NULL) {
+        printf("ERRO: Não foi possível determinar o time em executeMonsterSwitch\n");
+        return;
+    }
+
+    // IMPORTANTE: Armazenar explicitamente o nome do monstro que está saindo da batalha
+    char currentMonsterName[32] = {0};
+    if (team->current) {
+        strcpy(currentMonsterName, team->current->name);
+    } else {
+        strcpy(currentMonsterName, "???");
+    }
+
+    printf("DEBUG: Trocando %s (time %s) para monstro no índice %d\n",
+           currentMonsterName, isPlayer ? "jogador" : "oponente", targetIndex);
+
+    // Encontrar o monstro alvo pelo índice
     PokeMonster* newMonster = NULL;
     PokeMonster* current = team->first;
     int count = 0;
 
-    while (current != NULL && count < targetIndex) {
+    while (current != NULL) {
+        if (count == targetIndex) {
+            newMonster = current;
+            break;
+        }
         current = current->next;
         count++;
     }
 
-    if (current != NULL && !isMonsterFainted(current)) {
-        newMonster = current->next;
+    // Verificar se encontrou o monstro e se ele não está desmaiado
+    if (newMonster != NULL && !isMonsterFainted(newMonster)) {
+        // Trocar para o novo monstro
         switchMonster(team, newMonster);
 
-        // Mensagem de troca
+        // Formatar mensagem de troca - usando o nome armazenado
         if (isPlayer) {
-            sprintf(battleMessage, "Volte, %s! Vai, %s!",
-                    monster->name, newMonster->name);
+            sprintf(battleMessage, "Vai, %s!",newMonster->name);
         } else {
             sprintf(battleMessage, "O oponente trocou para %s!", newMonster->name);
         }
+
+        printf("DEBUG: Troca realizada de %s para %s (isPlayer=%d)\n",
+               currentMonsterName, newMonster->name, isPlayer);
+    } else {
+        // Informar erro ao trocar
+        if (newMonster == NULL) {
+            printf("ERRO: Não foi possível encontrar o monstro com índice %d\n", targetIndex);
+            sprintf(battleMessage, "Não foi possível realizar a troca!");
+        } else if (isMonsterFainted(newMonster)) {
+            printf("ERRO: Tentativa de trocar para monstro desmaiado: %s\n", newMonster->name);
+            sprintf(battleMessage, "%s está desmaiado e não pode entrar em batalha!", newMonster->name);
+        }
     }
 }
+
 
 
 /**
@@ -554,18 +634,60 @@ void determineAndExecuteTurnOrder(void) {
         return;
     }
 
-    int actions[2];
-    int parameters[2];
-    PokeMonster* monsters[2];
+    int actions[2] = {-1, -1};        // Tipo da ação: 0=ataque, 1=troca, 2=item
+    int parameters[2] = {-1, -1};     // Parâmetro da ação (índice do ataque, do monstro, ou do item)
+    PokeMonster* monsters[2] = {NULL, NULL};  // Quem está executando a ação
+    MonsterList* teams[2] = {NULL, NULL};     // Time do executor
     int actionCount = 0;
 
     // Retirar todas as ações da fila
     while (!isQueueEmpty(battleSystem->actionQueue) && actionCount < 2) {
         dequeue(battleSystem->actionQueue, &actions[actionCount],
                 &parameters[actionCount], &monsters[actionCount]);
+
+        // Determinar qual time o monstro pertence
+        if (monsters[actionCount] != NULL) {
+            if (battleSystem->playerTeam &&
+                monsters[actionCount] == battleSystem->playerTeam->current) {
+                teams[actionCount] = battleSystem->playerTeam;
+            } else if (battleSystem->opponentTeam &&
+                      monsters[actionCount] == battleSystem->opponentTeam->current) {
+                teams[actionCount] = battleSystem->opponentTeam;
+            }
+        }
+
         actionCount++;
     }
 
+    printf("[DEBUG] Extraídas %d ações da fila\n", actionCount);
+
+    // Caso especial: Ambos trocam Pokémon no mesmo turno
+    if (actionCount == 2 && actions[0] == 1 && actions[1] == 1) {
+        printf("[DEBUG] Caso especial: Ambos trocam Pokémon no mesmo turno\n");
+
+        // Guardar os monstros atuais para referência na mensagem
+        PokeMonster* player1Current = teams[0]->current;
+        PokeMonster* player2Current = teams[1]->current;
+
+        // Executar ambas as trocas
+        executeMonsterSwitch(monsters[0], parameters[0]);
+
+        // Salvar a mensagem da primeira troca
+        char firstSwitchMessage[256];
+        strcpy(firstSwitchMessage, battleMessage);
+
+        // Executar a segunda troca
+        executeMonsterSwitch(monsters[1], parameters[1]);
+
+        // Combinar as mensagens
+        char combinedMessage[256];
+        sprintf(combinedMessage, "%s\n%s", firstSwitchMessage, battleMessage);
+        strcpy(battleMessage, combinedMessage);
+
+        return;  // Ambas as trocas foram executadas, sair da função
+    }
+
+    // Caso normal: Ordem de prioridade padrão
     if (actionCount == 2) {
         // Ordem de prioridade:
         // 1. Trocas (action = 1) - SEMPRE primeiro
@@ -578,14 +700,19 @@ void determineAndExecuteTurnOrder(void) {
             int tempAction = actions[0];
             int tempParam = parameters[0];
             PokeMonster* tempMonster = monsters[0];
+            MonsterList* tempTeam = teams[0];
 
             actions[0] = actions[1];
             parameters[0] = parameters[1];
             monsters[0] = monsters[1];
+            teams[0] = teams[1];
 
             actions[1] = tempAction;
             parameters[1] = tempParam;
             monsters[1] = tempMonster;
+            teams[1] = tempTeam;
+
+            printf("[DEBUG] Invertendo ordem: troca vai primeiro\n");
         }
         // Se ambos não são trocas, verificar itens
         else if (actions[0] != 1 && actions[1] != 1) {
@@ -595,14 +722,19 @@ void determineAndExecuteTurnOrder(void) {
                 int tempAction = actions[0];
                 int tempParam = parameters[0];
                 PokeMonster* tempMonster = monsters[0];
+                MonsterList* tempTeam = teams[0];
 
                 actions[0] = actions[1];
                 parameters[0] = parameters[1];
                 monsters[0] = monsters[1];
+                teams[0] = teams[1];
 
                 actions[1] = tempAction;
                 parameters[1] = tempParam;
                 monsters[1] = tempMonster;
+                teams[1] = tempTeam;
+
+                printf("[DEBUG] Invertendo ordem: item vai primeiro\n");
             }
             // Se ambos são ataques, ordenar por velocidade
             else if (actions[0] == 0 && actions[1] == 0) {
@@ -611,14 +743,19 @@ void determineAndExecuteTurnOrder(void) {
                     int tempAction = actions[0];
                     int tempParam = parameters[0];
                     PokeMonster* tempMonster = monsters[0];
+                    MonsterList* tempTeam = teams[0];
 
                     actions[0] = actions[1];
                     parameters[0] = parameters[1];
                     monsters[0] = monsters[1];
+                    teams[0] = teams[1];
 
                     actions[1] = tempAction;
                     parameters[1] = tempParam;
                     monsters[1] = tempMonster;
+                    teams[1] = tempTeam;
+
+                    printf("[DEBUG] Invertendo ordem: monstro mais rápido ataca primeiro\n");
                 }
             }
         }
@@ -627,6 +764,8 @@ void determineAndExecuteTurnOrder(void) {
     // Recolocar na fila na ordem correta
     for (int i = 0; i < actionCount; i++) {
         enqueue(battleSystem->actionQueue, actions[i], parameters[i], monsters[i]);
+        printf("[DEBUG] Recolocando ação %d na fila: tipo=%d, param=%d\n",
+               i, actions[i], parameters[i]);
     }
 }
 
@@ -946,9 +1085,27 @@ void botChooseAction(void) {
         {
             int monsterIndex = getAISuggestedMonster(battleSystem->opponentTeam, playerMonster);
             printf("[DEBUG BOT] Bot vai trocar para monstro %d\n", monsterIndex);
-            enqueue(battleSystem->actionQueue, 1, monsterIndex, botMonster);
+
+            // IMPORTANTE: Usar o monstro atual como parâmetro
+            PokeMonster* currentMonster = battleSystem->opponentTeam->current;
+            enqueue(battleSystem->actionQueue, 1, monsterIndex, currentMonster);
+
+            // Opcional: Atualizar o monstro atual para atualizar a UI
+            // Este código assumindo que getAISuggestedMonster retorna o índice do monstro
+            PokeMonster* newMonster = NULL;
+            PokeMonster* temp = battleSystem->opponentTeam->first;
+            int count = 0;
+
+            while (temp != NULL && count < monsterIndex) {
+                temp = temp->next;
+                count++;
+            }
+
+            if (temp != NULL && !isMonsterFainted(temp)) {
+                switchMonster(battleSystem->opponentTeam, temp);
+            }
         }
-        break;
+            break;
 
         case 2: // Usar item
         {
@@ -1095,7 +1252,7 @@ void switchMonster(MonsterList* team, PokeMonster* newMonster) {
     if (team == NULL || newMonster == NULL) {
         return;
     }
-    ResetHPBarAnimations();
+
     team->current = newMonster;
 }
 
@@ -1412,7 +1569,6 @@ void resetBattle(void) {
     clearQueue(battleSystem->actionQueue);
     clearStack(battleSystem->effectStack);
 
-    ResetHPBarAnimations();
     // Limpar mensagem
     battleMessage[0] = '\0';
 }
