@@ -28,15 +28,59 @@ static bool draggingScrollbar = false;
 static float dragStartY = 0;
 static float initialScrollOffset = 0;
 
+// Efeitos visuais para o novo estilo
+static float selectionTimer = 0.0f;
+static float cardPulseAnimations[50] = {0}; // Para animar os cards
+
 // Seleção de adversário
 void drawOpponentSelection(void) {
-    // Fundo padronizado
-    ClearBackground((Color){240, 248, 255, 255});
+    // Atualizar temporizador para animações
+    selectionTimer += GetFrameTime();
+    float bgScroll = selectionTimer * 15.0f;
+
+    // Fundo com gradiente azul estilo Pokémon Crystal (mesmo do menu principal)
+    for (int i = 0; i < GetScreenHeight(); i++) {
+        float factor = (float)i / GetScreenHeight();
+        Color lineColor = (Color){
+            (unsigned char)(50 * (1.0f - factor) + 10 * factor),
+            (unsigned char)(100 * (1.0f - factor) + 50 * factor),
+            (unsigned char)(200 * (1.0f - factor) + 150 * factor),
+            255
+        };
+        DrawRectangle(0, i, GetScreenWidth(), 1, lineColor);
+    }
+
+    // Desenhar padrão de listras horizontais (como no menu principal)
+    for (int i = 0; i < GetScreenHeight(); i += 20) {
+        int yPos = i + (int)bgScroll % 20;
+        if (yPos < 0) yPos += 20;
+        DrawRectangle(0, yPos, GetScreenWidth(), 2, (Color){255, 255, 255, 20});
+    }
+
+    // Título com animação de pulso
+    const char* title = "Selecione o Modo de Jogo";
+    float titleScale = 1.0f + sinf(selectionTimer * 1.5f) * 0.05f;
+    int titleFontSize = (int)(40 * titleScale);
+
+    // Sombra do título
+    DrawText(title,
+             GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2 + 3,
+             50 + 3,
+             titleFontSize,
+             (Color){0, 0, 0, 150});
 
     // Título
-    const char* title = "Selecione o Modo de Jogo";
-    float fontSize = ScaleFontSize(30);
-    Vector2 titleSize = MeasureTextEx(gameFont, title, fontSize, 2);
+    Color titleColor = (Color){
+        (unsigned char)(220 + sinf(selectionTimer * 2.0f) * 35),
+        (unsigned char)(220 + sinf(selectionTimer * 2.5f) * 35),
+        255,
+        255
+    };
+    DrawText(title,
+             GetScreenWidth()/2 - MeasureText(title, titleFontSize)/2,
+             50,
+             titleFontSize,
+             titleColor);
 
     // Dimensões
     float buttonWidth = 300 * GetScaleX();
@@ -44,24 +88,23 @@ void drawOpponentSelection(void) {
     float spacing = 30 * GetScaleY();
     float titleSpacing = 40 * GetScaleY();
 
-    float totalHeight = titleSize.y + titleSpacing + buttonHeight * 2 + spacing;
-    float startY = (GetScreenHeight() - totalHeight) / 2;
+    float totalHeight = titleSpacing + buttonHeight * 2 + spacing;
+    float startY = 150;
     float centerX = GetScreenWidth() / 2 - buttonWidth / 2;
 
-    // Título centralizado
-    Vector2 titlePos = { GetScreenWidth() / 2 - titleSize.x / 2, startY };
-    DrawTextEx(gameFont, title, titlePos, fontSize, 2, DARKGRAY);
-
-    // Botões
-    Rectangle freeBattleBtn = { centerX, startY + titleSize.y + titleSpacing, buttonWidth, buttonHeight };
-    Rectangle careerBtn = { centerX, freeBattleBtn.y + buttonHeight + spacing, buttonWidth, buttonHeight };
-
-    Vector2 mouse = GetMousePosition();
-    bool hoveringFree = CheckCollisionPointRec(mouse, freeBattleBtn);
-    bool hoveringCareer = CheckCollisionPointRec(mouse, careerBtn);
-
     // Botão "Batalha Livre"
-    if (GuiPokemonButton(freeBattleBtn, "BATALHA LIVRE", true)) {
+    Rectangle freeBattleBtn = { centerX, startY, buttonWidth, buttonHeight };
+
+    // Efeito de pulso para o botão
+    float pulseFactor = 1.0f + sinf(selectionTimer * 3.0f) * 0.05f;
+    Rectangle pulsedFreeBattleBtn = {
+        freeBattleBtn.x - (freeBattleBtn.width * pulseFactor - freeBattleBtn.width) / 2,
+        freeBattleBtn.y - (freeBattleBtn.height * pulseFactor - freeBattleBtn.height) / 2,
+        freeBattleBtn.width * pulseFactor,
+        freeBattleBtn.height * pulseFactor
+    };
+
+    if (GuiPokemonButton(pulsedFreeBattleBtn, "BATALHA LIVRE", true)) {
         PlaySound(selectSound);
         vsBot = true;
         currentScreen = MONSTER_SELECTION;
@@ -72,38 +115,56 @@ void drawOpponentSelection(void) {
         playerTeam = createMonsterList();
     }
 
-    // Botão "Modo Carreira"
-    if (GuiPokemonButton(careerBtn, "MODO CARREIRA", true)) {
-        PlaySound(selectSound);
-        vsBot = false;
-        currentScreen = MONSTER_SELECTION;
-        teamSelectionCount = 0;
-        scrollOffset = 0;
+    // Botão "Modo Carreira" (desabilitado com W.I.P)
+    Rectangle careerBtn = { centerX, freeBattleBtn.y + buttonHeight + spacing, buttonWidth, buttonHeight };
 
-        if (playerTeam != NULL) freeMonsterList(playerTeam);
-        if (opponentTeam != NULL) freeMonsterList(opponentTeam);
+    // Desenhar o botão desabilitado manualmente
+    Color disabledColor = (Color){100, 100, 100, 200}; // Cinza para botão desabilitado
+    DrawRectangleRounded(careerBtn, 0.3f, 8, disabledColor);
+    DrawRectangleRoundedLines(careerBtn, 0.3f, 8, BLACK);
 
-        playerTeam = createMonsterList();
-        opponentTeam = createMonsterList();
-    }
+    // Texto com W.I.P.
+    const char* careerText = "MODO CARREIRA";
+    DrawText(careerText,
+            careerBtn.x + careerBtn.width/2 - MeasureText(careerText, 20)/2,
+            careerBtn.y + careerBtn.height/2 - 15,
+            20,
+            (Color){200, 200, 200, 200});
 
-    // Caixa de ajuda (sem ícones)
-    const char* helpText = NULL;
+    // Rótulo W.I.P.
+    const char* wipText = "W.I.P.";
+    float wipScale = 0.8f + sinf(selectionTimer * 4.0f) * 0.2f; // Fazendo o W.I.P. pulsar
+    DrawText(wipText,
+            careerBtn.x + careerBtn.width/2 - MeasureText(wipText, 16 * wipScale)/2,
+            careerBtn.y + careerBtn.height/2 + 5,
+            16 * wipScale,
+            (Color){255, 200, 50, (unsigned char)(150 + 100 * fabsf(sinf(selectionTimer * 2.0f)))});
+
+    // Adicionar descrição do W.I.P.
+    const char* wipDesc = "Em desenvolvimento";
+    DrawText(wipDesc,
+            careerBtn.x + careerBtn.width + 10,
+            careerBtn.y + careerBtn.height/2 - 8,
+            16,
+            (Color){255, 200, 50, 200});
+
+    // Caixa de ajuda para Batalha Livre
+    Vector2 mouse = GetMousePosition();
+    bool hoveringFree = CheckCollisionPointRec(mouse, freeBattleBtn);
+
     if (hoveringFree) {
-        helpText = "Selecione 3 monstros e batalhe contra um bot com 3 monstros aleatórios.";
-    } else if (hoveringCareer) {
-        helpText = "Enfrente uma sequência de 9 batalhas contra monstros chefes exclusivos.";
-    }
+        const char* helpText = "Selecione 3 monstros e batalhe contra um bot com 3 monstros aleatórios.";
 
-    if (helpText != NULL) {
         float boxWidth = 600 * GetScaleX();
         float boxHeight = 80 * GetScaleY();
         float boxX = GetScreenWidth() / 2 - boxWidth / 2;
         float boxY = careerBtn.y + buttonHeight + 30 * GetScaleY();
 
         Rectangle helpBox = { boxX, boxY, boxWidth, boxHeight };
-        DrawRectangleRec(helpBox, (Color){ 248, 248, 255, 255 });
-        DrawRectangleLinesEx(helpBox, 2, (Color){ 40, 40, 40, 255 });
+
+        // Estilo consistente com o menu principal
+        DrawRectangleRounded(helpBox, 0.3f, 8, (Color){40, 40, 40, 230});
+        DrawRectangleRoundedLines(helpBox, 0.3f, 8, (Color){255, 255, 255, 150});
 
         float helpFontSize = ScaleFontSize(18);
         Vector2 textSize = MeasureTextEx(gameFont, helpText, helpFontSize, 1);
@@ -111,7 +172,21 @@ void drawOpponentSelection(void) {
             helpBox.x + (helpBox.width - textSize.x) / 2,
             helpBox.y + (helpBox.height - textSize.y) / 2
         };
-        DrawTextEx(gameFont, helpText, textPos, helpFontSize, 1, DARKGRAY);
+        DrawTextEx(gameFont, helpText, textPos, helpFontSize, 1, WHITE);
+    }
+
+    // Desenhar pequenas Pokébolas animadas como decoração
+    for (int i = 0; i < 5; i++) {
+        float pokeX = (GetScreenWidth() / 6) * (i + 1);
+        float pokeY = GetScreenHeight() - 100 + sinf(selectionTimer * 1.5f + i * 0.5f) * 20;
+        float pokeSize = 12 + sinf(selectionTimer * 2.0f + i * 0.7f) * 3;
+
+        // Desenhar Pokébola
+        DrawCircle(pokeX, pokeY, pokeSize, RED);
+        DrawCircle(pokeX, pokeY, pokeSize - 2, WHITE);
+        DrawRectangle(pokeX - pokeSize, pokeY - 2, pokeSize * 2, 4, BLACK);
+        DrawCircle(pokeX, pokeY, 4, BLACK);
+        DrawCircle(pokeX, pokeY, 2, WHITE);
     }
 
     // Botão "Voltar"
@@ -134,42 +209,120 @@ void updateOpponentSelection(void) {
 
 // Seleção de monstros
 void drawMonsterSelection(void) {
-    // Desenhar fundo
-    ClearBackground((Color){240, 248, 255, 255});
+    // Atualizar timer
+    selectionTimer += GetFrameTime();
+    float bgScroll = selectionTimer * 15.0f;
 
-    // Título escalado
-    const char* instruction;
-    if (vsBot) {
-        instruction = "Selecione 3 monstros para seu time";
-    } else {
-        if (teamSelectionCount == 0) {
-            instruction = "Jogador 1: Selecione 3 monstros para seu time";
-        } else {
-            instruction = "Jogador 2: Selecione 3 monstros para seu time";
-        }
+    // Fundo com gradiente azul estilo Pokémon Crystal (mesmo do menu principal)
+    for (int i = 0; i < GetScreenHeight(); i++) {
+        float factor = (float)i / GetScreenHeight();
+        Color lineColor = (Color){
+            (unsigned char)(50 * (1.0f - factor) + 10 * factor),
+            (unsigned char)(100 * (1.0f - factor) + 50 * factor),
+            (unsigned char)(200 * (1.0f - factor) + 150 * factor),
+            255
+        };
+        DrawRectangle(0, i, GetScreenWidth(), 1, lineColor);
     }
 
-    float titleFontSize = ScaleFontSize(30);
-    Vector2 instrSize = MeasureTextEx(gameFont, instruction, titleFontSize, 2);
-    Vector2 instrPos = ScalePosition(GetScreenWidth()/2 - instrSize.x/2, 20);
-    DrawTextEx(gameFont, instruction, instrPos, titleFontSize, 2, DARKGRAY);
+    // Desenhar padrão de listras horizontais (como no menu principal)
+    for (int i = 0; i < GetScreenHeight(); i += 20) {
+        int yPos = i + (int)bgScroll % 20;
+        if (yPos < 0) yPos += 20;
+        DrawRectangle(0, yPos, GetScreenWidth(), 2, (Color){255, 255, 255, 20});
+    }
+
+    // Título com animação
+    const char* instruction = "Selecione 3 monstros para seu time";
+    float titleScale = 1.0f + sinf(selectionTimer * 1.5f) * 0.05f;
+    int titleFontSize = (int)(35 * titleScale);
+
+    // Sombra do título
+    DrawText(instruction,
+             GetScreenWidth()/2 - MeasureText(instruction, titleFontSize)/2 + 3,
+             25 + 3,
+             titleFontSize,
+             (Color){0, 0, 0, 150});
+
+    // Título
+    Color titleColor = (Color){
+        (unsigned char)(220 + sinf(selectionTimer * 2.0f) * 35),
+        (unsigned char)(220 + sinf(selectionTimer * 2.5f) * 35),
+        255,
+        255
+    };
+    DrawText(instruction,
+             GetScreenWidth()/2 - MeasureText(instruction, titleFontSize)/2,
+             25,
+             titleFontSize,
+             titleColor);
 
     // Se estiver visualizando estatísticas de um monstro
     if (viewingStats && currentViewedMonster != NULL) {
         // Área de estatísticas
-        Rectangle statsRect = ScaleRectangle(50, 80, GetScreenWidth()/GetScaleX() - 100, GetScreenHeight()/GetScaleY() - 160);
+        Rectangle statsRect = {
+            GetScreenWidth()/2 - 400,
+            80,
+            800,
+            GetScreenHeight() - 160
+        };
 
-        // Desenhar fundo
-        DrawRectangleRec(statsRect, (Color){ 248, 248, 255, 255 });
-        DrawRectangleLinesEx(statsRect, 3, (Color){ 40, 40, 40, 255 });
+        // Desenhar fundo com estilo consistente
+        DrawRectangleRounded(statsRect, 0.3f, 8, (Color){40, 40, 40, 230});
+        DrawRectangleRoundedLines(statsRect, 0.3f, 8, (Color){255, 255, 255, 150});
 
-        // Nome e tipos
-        DrawText(currentViewedMonster->name, statsRect.x + 20, statsRect.y + 20, 30, BLACK);
+        // Nome do Pokémon com efeito de título
+        float nameScale = 1.0f + sinf(selectionTimer * 2.0f) * 0.05f;
+        int nameFontSize = (int)(30 * nameScale);
+        DrawText(currentViewedMonster->name,
+                 statsRect.x + statsRect.width/2 - MeasureText(currentViewedMonster->name, nameFontSize)/2,
+                 statsRect.y + 20,
+                 nameFontSize,
+                 WHITE);
+
+        // Nova seção: Exibir o sprite frontal do Pokémon
+        // Usar a animação frontal do Pokémon
+        if (currentViewedMonster->frontAnimation.frameCount > 0) {
+            UpdateAnimation(&currentViewedMonster->frontAnimation);
+            Texture2D currentFrame = currentViewedMonster->frontAnimation.frames[currentViewedMonster->frontAnimation.currentFrame];
+
+            // Calcular posição central para o sprite
+            float scale = 3.0f; // Escala maior para melhor visualização
+            float spriteX = statsRect.x + 200 - (currentFrame.width * scale) / 2;
+            float spriteY = statsRect.y + 140;
+
+            // Efeito de flutuação suave
+            float floatEffect = sinf(selectionTimer * 1.2f) * 5.0f;
+
+            // Desenhar o sprite com efeito
+            DrawTextureEx(
+                currentFrame,
+                (Vector2){ spriteX, spriteY + floatEffect },
+                0.0f,
+                scale,
+                WHITE
+            );
+
+            // Adicionar sombra sob o sprite
+            DrawEllipse(
+                spriteX + currentFrame.width * scale / 2,
+                spriteY + currentFrame.height * scale + 10,
+                currentFrame.width * scale / 2.5f,
+                10,
+                (Color){ 0, 0, 0, 100 }
+            );
+        } else {
+            // Fallback caso a animação não esteja disponível
+            DrawText("Sprite indisponível", statsRect.x + 200 - MeasureText("Sprite indisponível", 20)/2,
+                    statsRect.y + 140, 20, GRAY);
+        }
 
         // Ícones de tipo
+        DrawText("Tipo:", statsRect.x + 450, statsRect.y + 90, 25, WHITE);
+
         Rectangle type1Rect = {
-            statsRect.x + 20,
-            statsRect.y + 60,
+            statsRect.x + 520,
+            statsRect.y + 90,
             80,
             30
         };
@@ -177,8 +330,8 @@ void drawMonsterSelection(void) {
 
         if (currentViewedMonster->type2 != TYPE_NONE) {
             Rectangle type2Rect = {
-                statsRect.x + 110,
-                statsRect.y + 60,
+                statsRect.x + 610,
+                statsRect.y + 90,
                 80,
                 30
             };
@@ -186,7 +339,7 @@ void drawMonsterSelection(void) {
         }
 
         // Estatísticas
-        DrawText("Estatísticas:", statsRect.x + 20, statsRect.y + 100, 25, BLACK);
+        DrawText("Estatísticas:", statsRect.x + 450, statsRect.y + 130, 25, WHITE);
 
         // Desenhar barras de stats
         const char* statNames[] = {"HP", "Ataque", "Defesa", "Velocidade"};
@@ -198,18 +351,14 @@ void drawMonsterSelection(void) {
         };
 
         for (int i = 0; i < 4; i++) {
-            DrawText(statNames[i], statsRect.x + 30, statsRect.y + 130 + i * 40, 20, BLACK);
+            DrawText(statNames[i], statsRect.x + 450, statsRect.y + 170 + i * 40, 20, WHITE);
 
             Rectangle statBar = {
-                statsRect.x + 120,
-                statsRect.y + 130 + i * 40,
+                statsRect.x + 550,
+                statsRect.y + 170 + i * 40,
                 200,
                 25
             };
-
-            // Calcular valor relativo para a barra (baseado em um máximo de 150)
-            float relativeValue = (float)statValues[i] / 150.0f;
-            if (relativeValue > 1.0f) relativeValue = 1.0f;
 
             // Cor específica para cada stat
             Color statColor;
@@ -218,7 +367,7 @@ void drawMonsterSelection(void) {
                 case 1: statColor = (Color){ 240, 128, 48, 255 }; break;  // Ataque
                 case 2: statColor = (Color){ 48, 96, 240, 255 }; break;   // Defesa
                 case 3: statColor = (Color){ 48, 240, 160, 255 }; break;  // Velocidade
-                default: statColor = BLACK;
+                default: statColor = WHITE;
             }
 
             GuiPokemonStatusBar(statBar, statValues[i], 150, NULL, statColor);
@@ -226,25 +375,27 @@ void drawMonsterSelection(void) {
             // Texto do valor
             char valueText[8];
             sprintf(valueText, "%d", statValues[i]);
-            DrawText(valueText, statBar.x + statBar.width + 10, statBar.y + 5, 18, BLACK);
+            DrawText(valueText, statBar.x + statBar.width + 10, statBar.y + 5, 18, WHITE);
         }
 
         // Ataques
-        DrawText("Ataques:", statsRect.x + statsRect.width/2 + 20, statsRect.y + 100, 25, BLACK);
+        DrawText("Ataques:", statsRect.x + 125, statsRect.y + 310, 25, WHITE);
 
         for (int i = 0; i < 4; i++) {
+            int col = i % 2;
+            int row = i / 2;
             Rectangle attackRect = {
-                statsRect.x + statsRect.width/2 + 20,
-                statsRect.y + 130 + i * 60,
-                statsRect.width/2 - 40,
-                50
+                statsRect.x + 50 + col * 350,
+                statsRect.y + 350 + row * 70,
+                300,
+                60
             };
 
             Color attackColor = getTypeColor(currentViewedMonster->attacks[i].type);
 
             // Desenhar retângulo do ataque
-            DrawRectangleRec(attackRect, attackColor);
-            DrawRectangleLinesEx(attackRect, 2, BLACK);
+            DrawRectangleRounded(attackRect, 0.3f, 8, attackColor);
+            DrawRectangleRoundedLines(attackRect, 0.3f, 8, BLACK);
 
             // Nome do ataque
             DrawText(currentViewedMonster->attacks[i].name,
@@ -264,7 +415,7 @@ void drawMonsterSelection(void) {
                        currentViewedMonster->attacks[i].accuracy);
             }
 
-            DrawText(attackStats, attackRect.x + 10, attackRect.y + 30, 15, WHITE);
+            DrawText(attackStats, attackRect.x + 10, attackRect.y + 35, 15, WHITE);
         }
 
         // Botão voltar
@@ -319,12 +470,25 @@ void drawMonsterSelection(void) {
             int row = i / columns - startRow;
             int col = i % columns;
 
+            // Inicializar animação de pulso se necessário
+            if (cardPulseAnimations[i] == 0) {
+                cardPulseAnimations[i] = (float)i * 0.2f; // Defasar as animações
+            }
+            cardPulseAnimations[i] += GetFrameTime();
+
+            // Calcular pulso para o card
+            float pulse = 1.0f + sinf(cardPulseAnimations[i] * 2.0f) * 0.02f;
+
             Rectangle bounds = {
                 startX + col * (cardWidth + spacingX),
                 startY + row * (cardHeight + spacingY) - scrollRemainder,
-                cardWidth,
-                cardHeight
+                cardWidth * pulse,
+                cardHeight * pulse
             };
+
+            // Centralizar o card pulsante
+            bounds.x -= (bounds.width - cardWidth) / 2;
+            bounds.y -= (bounds.height - cardHeight) / 2;
 
             if (bounds.y + bounds.height < startY || bounds.y > startY + contentHeight) {
                 continue;
@@ -333,27 +497,44 @@ void drawMonsterSelection(void) {
             PokeMonster* monster = getMonsterByIndex(i);
             if (monster == NULL) continue;
 
-            // Fundo do card
-            DrawRectangleRec(bounds, getTypeColor(monster->type1));
-            DrawRectangleLinesEx(bounds, 3, BLACK);
+            // Verificar se o mouse está sobre o card
+            Vector2 mousePoint = GetMousePosition();
+            bool isHovered = CheckCollisionPointRec(mousePoint, bounds);
 
-            // Área interna do card
+            // Fundo do card com efeito hover
+            Color cardBgColor = getTypeColor(monster->type1);
+            if (isHovered) {
+                // Destacar quando hover - evitando overflow com verificação explícita
+                cardBgColor.r = (cardBgColor.r + 40 > 255) ? 255 : cardBgColor.r + 40;
+                cardBgColor.g = (cardBgColor.g + 40 > 255) ? 255 : cardBgColor.g + 40;
+                cardBgColor.b = (cardBgColor.b + 40 > 255) ? 255 : cardBgColor.b + 40;
+            }
+
+            DrawRectangleRounded(bounds, 0.2f, 8, cardBgColor);
+            DrawRectangleRoundedLines(bounds, 0.3f, 8, BLACK);
+
+            // Área interna do card com efeito "inset"
             Rectangle innerBounds = {
                 bounds.x + 5,
                 bounds.y + 5,
                 bounds.width - 10,
                 bounds.height - 10
             };
-            DrawRectangleRec(innerBounds, (Color){ 248, 248, 255, 255 });
+            DrawRectangleRounded(innerBounds, 0.2f, 6, (Color){ 40, 40, 40, 230 });
 
-            // Nome
+            // Nome com efeito de sombra
+            DrawText(monster->name,
+                    innerBounds.x + 10 + 1,
+                    innerBounds.y + 10 + 1,
+                    24,
+                    BLACK);
             DrawText(monster->name,
                     innerBounds.x + 10,
                     innerBounds.y + 10,
                     24,
-                    BLACK);
+                    WHITE);
 
-            // Tipos
+            // Tipos com estilo Pokémon
             Rectangle type1Rect = {
                 innerBounds.x + 10,
                 innerBounds.y + 40,
@@ -372,17 +553,17 @@ void drawMonsterSelection(void) {
                 GuiPokemonTypeIcon(type2Rect, monster->type2);
             }
 
-            // Estatísticas básicas
+            // Estatísticas básicas com cores distintas
             char hpText[32], atkText[32], defText[32], spdText[32];
             sprintf(hpText, "HP: %d", monster->maxHp);
             sprintf(atkText, "ATK: %d", monster->attack);
             sprintf(defText, "DEF: %d", monster->defense);
             sprintf(spdText, "SPD: %d", monster->speed);
 
-            DrawText(hpText, innerBounds.x + 10, innerBounds.y + 75, 16, BLACK);
-            DrawText(atkText, innerBounds.x + 110, innerBounds.y + 75, 16, BLACK);
-            DrawText(defText, innerBounds.x + 10, innerBounds.y + 95, 16, BLACK);
-            DrawText(spdText, innerBounds.x + 110, innerBounds.y + 95, 16, BLACK);
+            DrawText(hpText, innerBounds.x + 10, innerBounds.y + 75, 16, (Color){255, 100, 100, 255});
+            DrawText(atkText, innerBounds.x + 110, innerBounds.y + 75, 16, (Color){255, 150, 50, 255});
+            DrawText(defText, innerBounds.x + 10, innerBounds.y + 95, 16, (Color){100, 100, 255, 255});
+            DrawText(spdText, innerBounds.x + 110, innerBounds.y + 95, 16, (Color){100, 255, 100, 255});
 
             // Verificar se o monstro já está no time
             bool alreadySelected = false;
@@ -467,9 +648,13 @@ void drawMonsterSelection(void) {
                     }
                 }
             } else {
-                // Mostrar que já está selecionado
-                DrawRectangleRec(selectBounds, GRAY);
-                DrawRectangleLinesEx(selectBounds, 1, BLACK);
+                // Mostrar que já está selecionado com estilo melhorado
+                Color selectedColor = (Color){100, 100, 100, 200};
+                float pulseFactor = 0.8f + sinf(selectionTimer * 3.0f + i) * 0.2f;
+
+                DrawRectangleRounded(selectBounds, 0.3f, 6, selectedColor);
+                DrawRectangleRoundedLines(selectBounds, 0.3f, 6, (Color){255, 255, 255, (unsigned char)(150 * pulseFactor)});
+
                 DrawText("SELECIONADO",
                         selectBounds.x + selectBounds.width/2 - MeasureText("SELECIONADO", 16)/2,
                         selectBounds.y + selectBounds.height/2 - 8,
@@ -495,21 +680,26 @@ void drawMonsterSelection(void) {
             float scrollbarHeight = contentHeight;
 
             // Trilho da barra
-            DrawRectangleV(
-                (Vector2){ scrollbarX, startY },
-                (Vector2){ scrollbarWidth, scrollbarHeight },
-                (Color){ 200, 200, 200, 150 }
+            DrawRectangleRounded(
+                (Rectangle){ scrollbarX, startY, scrollbarWidth, scrollbarHeight },
+                0.3f, 6,
+                (Color){ 40, 40, 40, 150 }
             );
 
             // Alça da barra
-            float handleHeight = max(30 * GetScaleY(), scrollbarHeight * (contentHeight / contentTotalHeight));
-            float scrollRatio = min(1.0f, scrollOffset / (contentTotalHeight - contentHeight));
+            float handleHeight = (handleHeight = 30 * GetScaleY()) > (scrollbarHeight * (contentHeight / contentTotalHeight)) ?
+                                   handleHeight : (scrollbarHeight * (contentHeight / contentTotalHeight));
+            float scrollRatio = scrollOffset / (contentTotalHeight - contentHeight);
+            if (scrollRatio > 1.0f) scrollRatio = 1.0f;
             float handleY = startY + scrollRatio * (scrollbarHeight - handleHeight);
 
-            DrawRectangleV(
-                (Vector2){ scrollbarX, handleY },
-                (Vector2){ scrollbarWidth, handleHeight },
-                (Color){ 80, 80, 80, 200 }
+            // Alça com animação de pulso
+            float handlePulse = 1.0f + (isQueueEmpty(battleSystem ? battleSystem->actionQueue : NULL) ? sinf(selectionTimer * 3.0f) * 0.1f : 0.0f);
+
+            DrawRectangleRounded(
+                (Rectangle){ scrollbarX, handleY, scrollbarWidth, handleHeight },
+                0.3f, 6,
+                (Color){ 100, 150, 250, 200 }
             );
 
             // Interação com a barra
@@ -544,8 +734,13 @@ void drawMonsterSelection(void) {
             }
         }
 
-        // Botão voltar
-        Rectangle backBtnRect = ScaleRectangle(20, GetScreenHeight()/GetScaleY() - 70, 150, 50);
+        // Botão voltar com estilo consistente
+        Rectangle backBtnRect = {
+            20,
+            GetScreenHeight() - 70,
+            150,
+            50
+        };
 
         if (GuiPokemonButton(backBtnRect, "VOLTAR", true)) {
             PlaySound(selectSound);
@@ -578,23 +773,83 @@ void drawMonsterSelection(void) {
             }
         }
 
-        // Contador de seleção
+        // Contador de seleção com visual melhorado
         if (teamSelectionCount == 0 && playerTeam != NULL) {
+            // Fundo para o contador
+            Rectangle countRect = {
+                GetScreenWidth() - 220,
+                GetScreenHeight() - 70,
+                200,
+                50
+            };
+
+            DrawRectangleRounded(countRect, 0.3f, 8, (Color){40, 40, 40, 230});
+            DrawRectangleRoundedLines(countRect, 0.3f, 8, (Color){255, 255, 255, 150});
+
+            // Texto
             char countText[32];
             sprintf(countText, "Selecionados: %d/3", playerTeam->count);
+
             DrawText(countText,
-                   GetScreenWidth() - MeasureText(countText, 24) - 20,
-                   GetScreenHeight() - 50,
+                   countRect.x + countRect.width/2 - MeasureText(countText, 24)/2,
+                   countRect.y + countRect.height/2 - 12,
                    24,
-                   BLACK);
+                   WHITE);
+
+            // Pokébolas representando o progresso
+            for (int i = 0; i < 3; i++) {
+                float pokeX = countRect.x + 50 + i * 50;
+                float pokeY = countRect.y + 70;
+                float pokeSize = 12;
+
+                if (i < playerTeam->count) {
+                    // Pokébola preenchida (selecionada)
+                    DrawCircle(pokeX, pokeY, pokeSize, RED);
+                    DrawCircle(pokeX, pokeY, pokeSize - 2, WHITE);
+                } else {
+                    // Pokébola vazia (não selecionada)
+                    DrawCircleLines(pokeX, pokeY, pokeSize, (Color){150, 150, 150, 200});
+                }
+
+                DrawRectangle(pokeX - pokeSize, pokeY - 2, pokeSize * 2, 4, i < playerTeam->count ? BLACK : (Color){150, 150, 150, 200});
+                DrawCircle(pokeX, pokeY, 3, i < playerTeam->count ? BLACK : (Color){150, 150, 150, 200});
+            }
         } else if (teamSelectionCount == 1 && opponentTeam != NULL) {
+            // Mesmo visual para o time 2
+            Rectangle countRect = {
+                GetScreenWidth() - 220,
+                GetScreenHeight() - 70,
+                200,
+                50
+            };
+
+            DrawRectangleRounded(countRect, 0.3f, 8, (Color){40, 40, 40, 230});
+            DrawRectangleRoundedLines(countRect, 0.3f, 8, (Color){255, 255, 255, 150});
+
             char countText[32];
             sprintf(countText, "Selecionados: %d/3", opponentTeam->count);
+
             DrawText(countText,
-                   GetScreenWidth() - MeasureText(countText, 24) - 20,
-                   GetScreenHeight() - 50,
+                   countRect.x + countRect.width/2 - MeasureText(countText, 24)/2,
+                   countRect.y + countRect.height/2 - 12,
                    24,
-                   BLACK);
+                   WHITE);
+
+            for (int i = 0; i < 3; i++) {
+                float pokeX = countRect.x + 50 + i * 50;
+                float pokeY = countRect.y + 70;
+                float pokeSize = 12;
+
+                if (i < opponentTeam->count) {
+                    DrawCircle(pokeX, pokeY, pokeSize, RED);
+                    DrawCircle(pokeX, pokeY, pokeSize - 2, WHITE);
+                } else {
+                    DrawCircleLines(pokeX, pokeY, pokeSize, (Color){150, 150, 150, 200});
+                }
+
+                DrawRectangle(pokeX - pokeSize, pokeY - 2, pokeSize * 2, 4, i < opponentTeam->count ? BLACK : (Color){150, 150, 150, 200});
+                DrawCircle(pokeX, pokeY, 3, i < opponentTeam->count ? BLACK : (Color){150, 150, 150, 200});
+            }
         }
     }
 }
@@ -605,6 +860,7 @@ void updateMonsterSelection(void) {
         float wheelMove = GetMouseWheelMove();
         if (wheelMove != 0) {
             scrollOffset -= wheelMove * 30 * GetScaleY(); // 30 pixels por tick da roda
+            if (scrollOffset < 0) scrollOffset = 0;
         }
     }
 }

@@ -172,8 +172,8 @@ void diagnoseTypeIssues(void) {
 
  // Cria o banco de dados de monstros com monstros pré-definidos
 void createMonsterDatabase(void) {
-    // Alocar espaço para todos os monstros (9 Pokitos + 45 Pokémon clássicos)
-    monsterDB.count = 54;
+    // Alocar espaço para todos os monstros (9 Pokitos(Engavetados),  45 Pokémon clássicos)
+    monsterDB.count = 43;
     monsterDB.monsters = (PokeMonster*)malloc(sizeof(PokeMonster) * monsterDB.count);
 
     if (monsterDB.monsters == NULL) {
@@ -186,184 +186,184 @@ void createMonsterDatabase(void) {
     // === POKITOS ORIGINAIS ===
 
     // Pokitos 1: Air fryer - Grillitron (Metal/Fogo)
-    strcpy(monsterDB.monsters[index].name, "Grillitron");
-    monsterDB.monsters[index].type1 = TYPE_STEEL;
-    monsterDB.monsters[index].type2 = TYPE_FIRE;
-    monsterDB.monsters[index].maxHp = 85;
-    monsterDB.monsters[index].hp = 85;
-    monsterDB.monsters[index].attack = 90;
-    monsterDB.monsters[index].defense = 100;
-    monsterDB.monsters[index].speed = 60;
-    monsterDB.monsters[index].statusCondition = STATUS_NONE;
-    monsterDB.monsters[index].statusCounter = 0;
-    monsterDB.monsters[index].statusTurns = 0;
-    monsterDB.monsters[index].next = NULL;
-    monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Grill Blast", TYPE_FIRE, 80, 100, 15, STATUS_BURNING, 0, 20);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Metal Slice", TYPE_STEEL, 75, 95, 20, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Heat Wave", TYPE_FIRE, 95, 90, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Steel Defense", TYPE_STEEL, 0, 100, 15, 7, 30, 100);
-    index++;
+    // strcpy(monsterDB.monsters[index].name, "Grillitron");
+    // monsterDB.monsters[index].type1 = TYPE_STEEL;
+    // monsterDB.monsters[index].type2 = TYPE_FIRE;
+    // monsterDB.monsters[index].maxHp = 85;
+    // monsterDB.monsters[index].hp = 85;
+    // monsterDB.monsters[index].attack = 90;
+    // monsterDB.monsters[index].defense = 100;
+    // monsterDB.monsters[index].speed = 60;
+    // monsterDB.monsters[index].statusCondition = STATUS_NONE;
+    // monsterDB.monsters[index].statusCounter = 0;
+    // monsterDB.monsters[index].statusTurns = 0;
+    // monsterDB.monsters[index].next = NULL;
+    // monsterDB.monsters[index].prev = NULL;
+    // addAttackToMonster(&monsterDB.monsters[index], 0, "Grill Blast", TYPE_FIRE, 80, 100, 15, STATUS_BURNING, 0, 20);
+    // addAttackToMonster(&monsterDB.monsters[index], 1, "Metal Slice", TYPE_STEEL, 75, 95, 20, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 2, "Heat Wave", TYPE_FIRE, 95, 90, 10, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 3, "Steel Defense", TYPE_STEEL, 0, 100, 15, 7, 30, 100);
+    // index++;
 
     // Pokitos 2: Boi tata - Tatárion (Dragão/Fogo)
-    strcpy(monsterDB.monsters[index].name, "Tatarion");
-    monsterDB.monsters[index].type1 = TYPE_DRAGON;
-    monsterDB.monsters[index].type2 = TYPE_FIRE;
-    monsterDB.monsters[index].maxHp = 95;
-    monsterDB.monsters[index].hp = 95;
-    monsterDB.monsters[index].attack = 110;
-    monsterDB.monsters[index].defense = 80;
-    monsterDB.monsters[index].speed = 90;
-    monsterDB.monsters[index].statusCondition = STATUS_NONE;
-    monsterDB.monsters[index].statusCounter = 0;
-    monsterDB.monsters[index].statusTurns = 0;
-    monsterDB.monsters[index].next = NULL;
-    monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Flame Charge", TYPE_FIRE, 85, 100, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Dragon Rage", TYPE_DRAGON, 90, 95, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Fire Blast", TYPE_FIRE, 110, 85, 5, STATUS_BURNING, 0, 30);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Dragon Pulse", TYPE_DRAGON, 95, 90, 10, 0, 0, 0);
-    index++;
+    // strcpy(monsterDB.monsters[index].name, "Tatarion");
+    // monsterDB.monsters[index].type1 = TYPE_DRAGON;
+    // monsterDB.monsters[index].type2 = TYPE_FIRE;
+    // monsterDB.monsters[index].maxHp = 95;
+    // monsterDB.monsters[index].hp = 95;
+    // monsterDB.monsters[index].attack = 110;
+    // monsterDB.monsters[index].defense = 80;
+    // monsterDB.monsters[index].speed = 90;
+    // monsterDB.monsters[index].statusCondition = STATUS_NONE;
+    // monsterDB.monsters[index].statusCounter = 0;
+    // monsterDB.monsters[index].statusTurns = 0;
+    // monsterDB.monsters[index].next = NULL;
+    // monsterDB.monsters[index].prev = NULL;
+    // addAttackToMonster(&monsterDB.monsters[index], 0, "Flame Charge", TYPE_FIRE, 85, 100, 15, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 1, "Dragon Rage", TYPE_DRAGON, 90, 95, 10, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 2, "Fire Blast", TYPE_FIRE, 110, 85, 5, STATUS_BURNING, 0, 30);
+    // addAttackToMonster(&monsterDB.monsters[index], 3, "Dragon Pulse", TYPE_DRAGON, 95, 90, 10, 0, 0, 0);
+    // index++;
 
     // Pokitos 3: Iara - Aquariah (Água/Fada)
-    strcpy(monsterDB.monsters[index].name, "Aquariah");
-    monsterDB.monsters[index].type1 = TYPE_WATER;
-    monsterDB.monsters[index].type2 = TYPE_FAIRY;
-    monsterDB.monsters[index].maxHp = 90;
-    monsterDB.monsters[index].hp = 90;
-    monsterDB.monsters[index].attack = 75;
-    monsterDB.monsters[index].defense = 85;
-    monsterDB.monsters[index].speed = 85;
-    monsterDB.monsters[index].statusCondition = STATUS_NONE;
-    monsterDB.monsters[index].statusCounter = 0;
-    monsterDB.monsters[index].statusTurns = 0;
-    monsterDB.monsters[index].next = NULL;
-    monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Aqua Jet", TYPE_WATER, 70, 100, 20, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Moonblast", TYPE_FAIRY, 95, 100, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Enchanted Voice", TYPE_FAIRY, 80, 100, 15, STATUS_SLEEPING, 0, 20);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Hydro Pump", TYPE_WATER, 120, 80, 5, 0, 0, 0);
-    index++;
+    // strcpy(monsterDB.monsters[index].name, "Aquariah");
+    // monsterDB.monsters[index].type1 = TYPE_WATER;
+    // monsterDB.monsters[index].type2 = TYPE_FAIRY;
+    // monsterDB.monsters[index].maxHp = 90;
+    // monsterDB.monsters[index].hp = 90;
+    // monsterDB.monsters[index].attack = 75;
+    // monsterDB.monsters[index].defense = 85;
+    // monsterDB.monsters[index].speed = 85;
+    // monsterDB.monsters[index].statusCondition = STATUS_NONE;
+    // monsterDB.monsters[index].statusCounter = 0;
+    // monsterDB.monsters[index].statusTurns = 0;
+    // monsterDB.monsters[index].next = NULL;
+    // monsterDB.monsters[index].prev = NULL;
+    // addAttackToMonster(&monsterDB.monsters[index], 0, "Aqua Jet", TYPE_WATER, 70, 100, 20, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 1, "Moonblast", TYPE_FAIRY, 95, 100, 15, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 2, "Enchanted Voice", TYPE_FAIRY, 80, 100, 15, STATUS_SLEEPING, 0, 20);
+    // addAttackToMonster(&monsterDB.monsters[index], 3, "Hydro Pump", TYPE_WATER, 120, 80, 5, 0, 0, 0);
+    // index++;
 
     // Pokitos 4: Mula sem cabeça - Pyromula (Fogo)
-    strcpy(monsterDB.monsters[index].name, "Pyromula");
-    monsterDB.monsters[index].type1 = TYPE_FIRE;
-    monsterDB.monsters[index].type2 = TYPE_GHOST;
-    monsterDB.monsters[index].maxHp = 80;
-    monsterDB.monsters[index].hp = 80;
-    monsterDB.monsters[index].attack = 100;
-    monsterDB.monsters[index].defense = 70;
-    monsterDB.monsters[index].speed = 115;
-    monsterDB.monsters[index].statusCondition = STATUS_NONE;
-    monsterDB.monsters[index].statusCounter = 0;
-    monsterDB.monsters[index].statusTurns = 0;
-    monsterDB.monsters[index].next = NULL;
-    monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Flame Kick", TYPE_FIRE, 85, 100, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Fire Gallop", TYPE_FIRE, 90, 95, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Headless Charge", TYPE_GHOST, 100, 90, 10, 0, 0, 20);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Quick Attack", TYPE_NORMAL, 60, 100, 30, 0, 0, 0);
-    index++;
+    // strcpy(monsterDB.monsters[index].name, "Pyromula");
+    // monsterDB.monsters[index].type1 = TYPE_FIRE;
+    // monsterDB.monsters[index].type2 = TYPE_GHOST;
+    // monsterDB.monsters[index].maxHp = 80;
+    // monsterDB.monsters[index].hp = 80;
+    // monsterDB.monsters[index].attack = 100;
+    // monsterDB.monsters[index].defense = 70;
+    // monsterDB.monsters[index].speed = 115;
+    // monsterDB.monsters[index].statusCondition = STATUS_NONE;
+    // monsterDB.monsters[index].statusCounter = 0;
+    // monsterDB.monsters[index].statusTurns = 0;
+    // monsterDB.monsters[index].next = NULL;
+    // monsterDB.monsters[index].prev = NULL;
+    // addAttackToMonster(&monsterDB.monsters[index], 0, "Flame Kick", TYPE_FIRE, 85, 100, 15, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 1, "Fire Gallop", TYPE_FIRE, 90, 95, 10, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 2, "Headless Charge", TYPE_GHOST, 100, 90, 10, 0, 0, 20);
+    // addAttackToMonster(&monsterDB.monsters[index], 3, "Quick Attack", TYPE_NORMAL, 60, 100, 30, 0, 0, 0);
+    // index++;
 
     // Pokitos 5: Cabeça de cuia - Netomon (Fantasma)
-    strcpy(monsterDB.monsters[index].name, "Netomon");
-    monsterDB.monsters[index].type1 = TYPE_GHOST;
-    monsterDB.monsters[index].type2 = TYPE_NONE;
-    monsterDB.monsters[index].maxHp = 70;
-    monsterDB.monsters[index].hp = 70;
-    monsterDB.monsters[index].attack = 85;
-    monsterDB.monsters[index].defense = 75;
-    monsterDB.monsters[index].speed = 100;
-    monsterDB.monsters[index].statusCondition = STATUS_NONE;
-    monsterDB.monsters[index].statusCounter = 0;
-    monsterDB.monsters[index].statusTurns = 0;
-    monsterDB.monsters[index].next = NULL;
-    monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Shadow Ball", TYPE_GHOST, 80, 100, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Nightmare", TYPE_GHOST, 60, 100, 15, STATUS_SLEEPING, 0, 20);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Phantom Force", TYPE_GHOST, 90, 90, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Shadow Sneak", TYPE_GHOST, 70, 100, 20, 0, 0, 0);
-    index++;
+    // strcpy(monsterDB.monsters[index].name, "Netomon");
+    // monsterDB.monsters[index].type1 = TYPE_GHOST;
+    // monsterDB.monsters[index].type2 = TYPE_NONE;
+    // monsterDB.monsters[index].maxHp = 70;
+    // monsterDB.monsters[index].hp = 70;
+    // monsterDB.monsters[index].attack = 85;
+    // monsterDB.monsters[index].defense = 75;
+    // monsterDB.monsters[index].speed = 100;
+    // monsterDB.monsters[index].statusCondition = STATUS_NONE;
+    // monsterDB.monsters[index].statusCounter = 0;
+    // monsterDB.monsters[index].statusTurns = 0;
+    // monsterDB.monsters[index].next = NULL;
+    // monsterDB.monsters[index].prev = NULL;
+    // addAttackToMonster(&monsterDB.monsters[index], 0, "Shadow Ball", TYPE_GHOST, 80, 100, 15, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 1, "Nightmare", TYPE_GHOST, 60, 100, 15, STATUS_SLEEPING, 0, 20);
+    // addAttackToMonster(&monsterDB.monsters[index], 2, "Phantom Force", TYPE_GHOST, 90, 90, 10, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 3, "Shadow Sneak", TYPE_GHOST, 70, 100, 20, 0, 0, 0);
+    // index++;
 
     // Pokitos 6: Brigadeiro - Brigadeli (Fada)
-    strcpy(monsterDB.monsters[index].name, "Brigadeli");
-    monsterDB.monsters[index].type1 = TYPE_FAIRY;
-    monsterDB.monsters[index].type2 = TYPE_NONE;
-    monsterDB.monsters[index].maxHp = 85;
-    monsterDB.monsters[index].hp = 85;
-    monsterDB.monsters[index].attack = 75;
-    monsterDB.monsters[index].defense = 85;
-    monsterDB.monsters[index].speed = 80;
-    monsterDB.monsters[index].statusCondition = STATUS_NONE;
-    monsterDB.monsters[index].statusCounter = 0;
-    monsterDB.monsters[index].statusTurns = 0;
-    monsterDB.monsters[index].next = NULL;
-    monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Sweet Kiss", TYPE_FAIRY, 50, 100, 20, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Dazzling Gleam", TYPE_FAIRY, 80, 100, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Play Rough", TYPE_FAIRY, 90, 90, 10, STATUS_ATK_DOWN, 20, 30);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Charm", TYPE_FAIRY, 0, 100, 15, STATUS_ATK_DOWN, 30, 100);
-    index++;
+    // strcpy(monsterDB.monsters[index].name, "Brigadeli");
+    // monsterDB.monsters[index].type1 = TYPE_FAIRY;
+    // monsterDB.monsters[index].type2 = TYPE_NONE;
+    // monsterDB.monsters[index].maxHp = 85;
+    // monsterDB.monsters[index].hp = 85;
+    // monsterDB.monsters[index].attack = 75;
+    // monsterDB.monsters[index].defense = 85;
+    // monsterDB.monsters[index].speed = 80;
+    // monsterDB.monsters[index].statusCondition = STATUS_NONE;
+    // monsterDB.monsters[index].statusCounter = 0;
+    // monsterDB.monsters[index].statusTurns = 0;
+    // monsterDB.monsters[index].next = NULL;
+    // monsterDB.monsters[index].prev = NULL;
+    // addAttackToMonster(&monsterDB.monsters[index], 0, "Sweet Kiss", TYPE_FAIRY, 50, 100, 20, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 1, "Dazzling Gleam", TYPE_FAIRY, 80, 100, 15, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 2, "Play Rough", TYPE_FAIRY, 90, 90, 10, STATUS_ATK_DOWN, 20, 30);
+    // addAttackToMonster(&monsterDB.monsters[index], 3, "Charm", TYPE_FAIRY, 0, 100, 15, STATUS_ATK_DOWN, 30, 100);
+    // index++;
 
     // Pokitos 7: Ventilador - Ventaforte (Voador/Elétrico)
-    strcpy(monsterDB.monsters[index].name, "Ventaforte");
-    monsterDB.monsters[index].type1 = TYPE_FLYING;
-    monsterDB.monsters[index].type2 = TYPE_ELECTRIC;
-    monsterDB.monsters[index].maxHp = 75;
-    monsterDB.monsters[index].hp = 75;
-    monsterDB.monsters[index].attack = 85;
-    monsterDB.monsters[index].defense = 70;
-    monsterDB.monsters[index].speed = 110;
-    monsterDB.monsters[index].statusCondition = STATUS_NONE;
-    monsterDB.monsters[index].statusCounter = 0;
-    monsterDB.monsters[index].statusTurns = 0;
-    monsterDB.monsters[index].next = NULL;
-    monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Air Slash", TYPE_FLYING, 80, 95, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Thunder Shock", TYPE_ELECTRIC, 75, 100, 20, STATUS_PARALYZED, 0, 30);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Gust", TYPE_FLYING, 65, 100, 25, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Discharge", TYPE_ELECTRIC, 90, 90, 10, STATUS_PARALYZED, 0, 30);
-    index++;
+    // strcpy(monsterDB.monsters[index].name, "Ventaforte");
+    // monsterDB.monsters[index].type1 = TYPE_FLYING;
+    // monsterDB.monsters[index].type2 = TYPE_ELECTRIC;
+    // monsterDB.monsters[index].maxHp = 75;
+    // monsterDB.monsters[index].hp = 75;
+    // monsterDB.monsters[index].attack = 85;
+    // monsterDB.monsters[index].defense = 70;
+    // monsterDB.monsters[index].speed = 110;
+    // monsterDB.monsters[index].statusCondition = STATUS_NONE;
+    // monsterDB.monsters[index].statusCounter = 0;
+    // monsterDB.monsters[index].statusTurns = 0;
+    // monsterDB.monsters[index].next = NULL;
+    // monsterDB.monsters[index].prev = NULL;
+    // addAttackToMonster(&monsterDB.monsters[index], 0, "Air Slash", TYPE_FLYING, 80, 95, 15, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 1, "Thunder Shock", TYPE_ELECTRIC, 75, 100, 20, STATUS_PARALYZED, 0, 30);
+    // addAttackToMonster(&monsterDB.monsters[index], 2, "Gust", TYPE_FLYING, 65, 100, 25, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 3, "Discharge", TYPE_ELECTRIC, 90, 90, 10, STATUS_PARALYZED, 0, 30);
+    // index++;
 
     // Pokitos 8: Extensão - Gambiarra (Elétrico)
-    strcpy(monsterDB.monsters[index].name, "Gambiarra");
-    monsterDB.monsters[index].type1 = TYPE_ELECTRIC;
-    monsterDB.monsters[index].type2 = TYPE_NONE;
-    monsterDB.monsters[index].maxHp = 70;
-    monsterDB.monsters[index].hp = 70;
-    monsterDB.monsters[index].attack = 90;
-    monsterDB.monsters[index].defense = 65;
-    monsterDB.monsters[index].speed = 105;
-    monsterDB.monsters[index].statusCondition = STATUS_NONE;
-    monsterDB.monsters[index].statusCounter = 0;
-    monsterDB.monsters[index].statusTurns = 0;
-    monsterDB.monsters[index].next = NULL;
-    monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Spark", TYPE_ELECTRIC, 75, 100, 20, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Power Surge", TYPE_ELECTRIC, 85, 90, 15, STATUS_PARALYZED, 0, 20);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Thunderbolt", TYPE_ELECTRIC, 95, 95, 10, STATUS_PARALYZED, 0, 10);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Charge", TYPE_ELECTRIC, 0, 100, 15, 0, 0, 0);
-    index++;
+    // strcpy(monsterDB.monsters[index].name, "Gambiarra");
+    // monsterDB.monsters[index].type1 = TYPE_ELECTRIC;
+    // monsterDB.monsters[index].type2 = TYPE_NONE;
+    // monsterDB.monsters[index].maxHp = 70;
+    // monsterDB.monsters[index].hp = 70;
+    // monsterDB.monsters[index].attack = 90;
+    // monsterDB.monsters[index].defense = 65;
+    // monsterDB.monsters[index].speed = 105;
+    // monsterDB.monsters[index].statusCondition = STATUS_NONE;
+    // monsterDB.monsters[index].statusCounter = 0;
+    // monsterDB.monsters[index].statusTurns = 0;
+    // monsterDB.monsters[index].next = NULL;
+    // monsterDB.monsters[index].prev = NULL;
+    // addAttackToMonster(&monsterDB.monsters[index], 0, "Spark", TYPE_ELECTRIC, 75, 100, 20, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 1, "Power Surge", TYPE_ELECTRIC, 85, 90, 15, STATUS_PARALYZED, 0, 20);
+    // addAttackToMonster(&monsterDB.monsters[index], 2, "Thunderbolt", TYPE_ELECTRIC, 95, 95, 10, STATUS_PARALYZED, 0, 10);
+    // addAttackToMonster(&monsterDB.monsters[index], 3, "Charge", TYPE_ELECTRIC, 0, 100, 15, 0, 0, 0);
+    // index++;
 
     // Pokitos 9: Goiaba + Mandragora - Mandragoiaba (Grama/Fada)
-    strcpy(monsterDB.monsters[index].name, "Mandragoiaba");
-    monsterDB.monsters[index].type1 = TYPE_GRASS;
-    monsterDB.monsters[index].type2 = TYPE_FAIRY;
-    monsterDB.monsters[index].maxHp = 80;
-    monsterDB.monsters[index].hp = 80;
-    monsterDB.monsters[index].attack = 80;
-    monsterDB.monsters[index].defense = 85;
-    monsterDB.monsters[index].speed = 75;
-    monsterDB.monsters[index].statusCondition = STATUS_NONE;
-    monsterDB.monsters[index].statusCounter = 0;
-    monsterDB.monsters[index].statusTurns = 0;
-    monsterDB.monsters[index].next = NULL;
-    monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Magical Leaf", TYPE_GRASS, 80, 100, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Petal Dance", TYPE_GRASS, 90, 90, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Fairy Wind", TYPE_FAIRY, 75, 100, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Screech", TYPE_NORMAL, 0, 90, 20, STATUS_DEF_DOWN, 30, 100);
-    index++;
+    // strcpy(monsterDB.monsters[index].name, "Mandragoiaba");
+    // monsterDB.monsters[index].type1 = TYPE_GRASS;
+    // monsterDB.monsters[index].type2 = TYPE_FAIRY;
+    // monsterDB.monsters[index].maxHp = 80;
+    // monsterDB.monsters[index].hp = 80;
+    // monsterDB.monsters[index].attack = 80;
+    // monsterDB.monsters[index].defense = 85;
+    // monsterDB.monsters[index].speed = 75;
+    // monsterDB.monsters[index].statusCondition = STATUS_NONE;
+    // monsterDB.monsters[index].statusCounter = 0;
+    // monsterDB.monsters[index].statusTurns = 0;
+    // monsterDB.monsters[index].next = NULL;
+    // monsterDB.monsters[index].prev = NULL;
+    // addAttackToMonster(&monsterDB.monsters[index], 0, "Magical Leaf", TYPE_GRASS, 80, 100, 15, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 1, "Petal Dance", TYPE_GRASS, 90, 90, 10, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 2, "Fairy Wind", TYPE_FAIRY, 75, 100, 15, 0, 0, 0);
+    // addAttackToMonster(&monsterDB.monsters[index], 3, "Screech", TYPE_NORMAL, 0, 90, 20, STATUS_DEF_DOWN, 30, 100);
+    // index++;
 
     // === POKÉMON CLÁSSICOS ===
 
@@ -427,25 +427,6 @@ void createMonsterDatabase(void) {
     addAttackToMonster(&monsterDB.monsters[index], 3, "Skull Bash", TYPE_NORMAL, 100, 100, 15, 0, 0, 0);
     index++;
 
-    // Caterpie (Inseto)
-    strcpy(monsterDB.monsters[index].name, "Caterpie");
-    monsterDB.monsters[index].type1 = TYPE_BUG;
-    monsterDB.monsters[index].type2 = TYPE_NONE;
-    monsterDB.monsters[index].maxHp = 45;
-    monsterDB.monsters[index].hp = 45;
-    monsterDB.monsters[index].attack = 30;
-    monsterDB.monsters[index].defense = 35;
-    monsterDB.monsters[index].speed = 45;
-    monsterDB.monsters[index].statusCondition = STATUS_NONE;
-    monsterDB.monsters[index].statusCounter = 0;
-    monsterDB.monsters[index].statusTurns = 0;
-    monsterDB.monsters[index].next = NULL;
-    monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Tackle", TYPE_NORMAL, 50, 100, 25, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "String Shot", TYPE_BUG, 0, 95, 20, STATUS_SPD_DOWN, 20, 100);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Bug Bite", TYPE_BUG, 60, 100, 20, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Struggle", TYPE_NORMAL, 40, 100, 10, 0, 0, 0);
-    index++;
 
 // Butterfree (Inseto/Voador)
 strcpy(monsterDB.monsters[index].name, "Butterfree");
@@ -927,25 +908,6 @@ addAttackToMonster(&monsterDB.monsters[index], 2, "Horn Drill", TYPE_NORMAL, 0, 
 addAttackToMonster(&monsterDB.monsters[index], 3, "Megahorn", TYPE_BUG, 120, 85, 10, 0, 0, 0);
 index++;
 
-// Chansey (Normal)
-strcpy(monsterDB.monsters[index].name, "Chansey");
-monsterDB.monsters[index].type1 = TYPE_NORMAL;
-monsterDB.monsters[index].type2 = TYPE_NONE;
-monsterDB.monsters[index].maxHp = 250;
-monsterDB.monsters[index].hp = 250;
-monsterDB.monsters[index].attack = 5;
-monsterDB.monsters[index].defense = 5;
-monsterDB.monsters[index].speed = 50;
-monsterDB.monsters[index].statusCondition = STATUS_NONE;
-monsterDB.monsters[index].statusCounter = 0;
-monsterDB.monsters[index].statusTurns = 0;
-monsterDB.monsters[index].next = NULL;
-monsterDB.monsters[index].prev = NULL;
-addAttackToMonster(&monsterDB.monsters[index], 0, "Soft-Boiled", TYPE_NORMAL, 0, 100, 10, 0, 0, 0);
-addAttackToMonster(&monsterDB.monsters[index], 1, "Ice Beam", TYPE_ICE, 90, 100, 10, 0, 0, 0);
-addAttackToMonster(&monsterDB.monsters[index], 2, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0, 10);
-addAttackToMonster(&monsterDB.monsters[index], 3, "Seismic Toss", TYPE_FIGHTING, 0, 100, 20, 0, 0, 0);
-index++;
 
 
 // Kangaskhan (Normal)
