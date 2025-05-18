@@ -97,14 +97,14 @@ static void drawStar(Vector2 position, float scale, float rotation, Color color)
 
 void initCreditSprites(void)
 {
-    creditSprites[0] = (CreditSprite){ LoadTexture("resources/spritesNeto/grilitron.png"), { 100, 300 }, 1.0f, true, 0.0f };
-    creditSprites[1] = (CreditSprite){ LoadTexture("resources/spritesNeto/aquariah.png"), { 700, 600 }, 1.0f, false, 0.5f };
-    creditSprites[2] = (CreditSprite){ LoadTexture("resources/spritesNeto/gambiarra.png"), { 150, 950 }, 0.9f, true, 1.0f };
-    creditSprites[3] = (CreditSprite){ LoadTexture("resources/spritesNeto/mandragoiaba.png"), { 600, 1250 }, 1.1f, false, 0.3f };
-    creditSprites[4] = (CreditSprite){ LoadTexture("resources/spritesNeto/netomon.png"), { 100, 1500 }, 1.0f, true, 0.7f };
-    creditSprites[5] = (CreditSprite){ LoadTexture("resources/spritesNeto/pyromula.png"), { 700, 1750 }, 1.0f, false, 1.2f };
-    creditSprites[6] = (CreditSprite){ LoadTexture("resources/spritesNeto/tatarion.png"), { 100, 2000 }, 1.0f, true, 0.4f };
-    creditSprites[7] = (CreditSprite){ LoadTexture("resources/spritesNeto/ventaforte.png"), { 700, 2300 }, 1.0f, true, 0.8f };
+    creditSprites[0] = (CreditSprite){ LoadTexture("resources/spritesNeto/grilitron.png"), { 150, 300 }, 1.0f, true, 0.0f };
+    creditSprites[1] = (CreditSprite){ LoadTexture("resources/spritesNeto/aquariah.png"), { 990, 500 }, 1.0f, false, 0.5f };
+    creditSprites[2] = (CreditSprite){ LoadTexture("resources/spritesNeto/gambiarra.png"), { 150, 700 }, 0.9f, true, 1.0f };
+    creditSprites[3] = (CreditSprite){ LoadTexture("resources/spritesNeto/mandragoiaba.png"), { 990, 900 }, 1.1f, false, 0.3f };
+    creditSprites[4] = (CreditSprite){ LoadTexture("resources/spritesNeto/netomon.png"), { 150, 1100 }, 1.0f, true, 0.7f };
+    creditSprites[5] = (CreditSprite){ LoadTexture("resources/spritesNeto/pyromula.png"), { 1000, 1297 }, 1.0f, false, 1.2f };
+    creditSprites[6] = (CreditSprite){ LoadTexture("resources/spritesNeto/tatarion.png"), { 120, 1400 }, 1.0f, true, 0.4f };
+    creditSprites[7] = (CreditSprite){ LoadTexture("resources/spritesNeto/ventaforte.png"), { 990, 1600 }, 1.0f, true, 0.8f };
     creditSpriteCount = 8;
 }
 
@@ -367,9 +367,17 @@ void drawCredits(void)
 
     sectionY += 150;
 
+    // Seção de versículos
+    DRAW_CENTERED_TEXT("Assim, quer comais, quer bebais, quer façais qualquer outra coisa, façam tudo para a glória de Deus.", sectionY, 16, YELLOW);
+    DRAW_CENTERED_TEXT("1 Coríntios 10.31", sectionY + 30, 16, YELLOW);
+    DRAW_CENTERED_TEXT("Em tudo dai graças, porque esta é a vontade de Deus para vocês em Cristo Jesus.", sectionY + 70, 16, YELLOW);
+    DRAW_CENTERED_TEXT("1 Tessalonicenses 5:18", sectionY + 100, 16, YELLOW);
+    DRAW_CENTERED_TEXT("Não temas, porque eu sou contigo; não te assombres, porque eu sou teu Deus; eu te fortaleço, e te ajudo, e te sustento com a destra da minha justiça.", sectionY + 140, 16, YELLOW);
+    DRAW_CENTERED_TEXT("Isaías 41:10", sectionY + 170, 16, YELLOW);
+
     // Seção final
-    DRAW_CENTERED_TEXT("© 2025 - Todos os direitos reservados", sectionY, 16, LIGHTGRAY);
-    DRAW_CENTERED_TEXT("Feito com <3 e muito café", sectionY + 30, 16, PINK);
+    DRAW_CENTERED_TEXT("© 2025 - Todos os direitos reservados", sectionY + 270, 16, LIGHTGRAY);
+    DRAW_CENTERED_TEXT("Feito com <3 e muito café", sectionY + 300, 16, PINK);
 
     // Desenhar barra de scroll na lateral
     if (totalHeight > screenHeight)
