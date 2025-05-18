@@ -166,7 +166,7 @@ void updateBattle(void) {
                     }
                     // Caso padrão
                     else {
-                        battleSystem->battleState = BATTLE_SELECT_ACTION;
+                        battleSystem->battleState = BATTLE_TURN_END;
                     }
                 }
             } else if (currentMessage.autoAdvance &&
@@ -175,11 +175,10 @@ void updateBattle(void) {
                 if (!isQueueEmpty(battleSystem->actionQueue)) {
                     battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
                 } else {
-                    // CORREÇÃO: Garantir que vamos para seleção de ação
-                    battleSystem->battleState = BATTLE_SELECT_ACTION;
-                    // CORREÇÃO: Garantir que a vez é do jogador no início do turno
-                    if (battleSystem->turn > 0) {
-                        battleSystem->playerTurn = true;
+                    if (isQueueEmpty(battleSystem->actionQueue) && actionQueueReady) {
+                        battleSystem->battleState = BATTLE_TURN_END;
+                    } else {
+                        battleSystem->battleState = BATTLE_SELECT_ACTION;
                     }
                 }
             }
