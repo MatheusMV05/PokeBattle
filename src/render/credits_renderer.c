@@ -30,6 +30,19 @@ typedef struct
 #define MAX_STARS 30
 static AnimStar stars[MAX_STARS];
 
+typedef struct {
+    Texture2D texture;
+    Vector2 basePosition;
+    float scale;
+    bool enableRotation;
+    float timeOffset;
+} CreditSprite;
+
+#define MAX_CREDIT_SPRITES 10
+static CreditSprite creditSprites[MAX_CREDIT_SPRITES];
+static int creditSpriteCount = 0;
+
+
 // Inicializar estrelas
 static void initStars(void)
 {
@@ -82,6 +95,27 @@ static void drawStar(Vector2 position, float scale, float rotation, Color color)
     }
 }
 
+void initCreditSprites(void)
+{
+    creditSprites[0] = (CreditSprite){ LoadTexture("resources/spritesNeto/grilitron.png"), { 100, 300 }, 1.0f, true, 0.0f };
+    creditSprites[1] = (CreditSprite){ LoadTexture("resources/spritesNeto/aquariah.png"), { 700, 600 }, 1.0f, false, 0.5f };
+    creditSprites[2] = (CreditSprite){ LoadTexture("resources/spritesNeto/gambiarra.png"), { 150, 950 }, 0.9f, true, 1.0f };
+    creditSprites[3] = (CreditSprite){ LoadTexture("resources/spritesNeto/mandragoiaba.png"), { 600, 1250 }, 1.1f, false, 0.3f };
+    creditSprites[4] = (CreditSprite){ LoadTexture("resources/spritesNeto/netomon.png"), { 100, 1500 }, 1.0f, true, 0.7f };
+    creditSprites[5] = (CreditSprite){ LoadTexture("resources/spritesNeto/pyromula.png"), { 700, 1750 }, 1.0f, false, 1.2f };
+    creditSprites[6] = (CreditSprite){ LoadTexture("resources/spritesNeto/tatarion.png"), { 100, 2000 }, 1.0f, true, 0.4f };
+    creditSprites[7] = (CreditSprite){ LoadTexture("resources/spritesNeto/ventaforte.png"), { 700, 2300 }, 1.0f, true, 0.8f };
+    creditSpriteCount = 8;
+}
+
+void unloadCreditSprites(void)
+{
+    for (int i = 0; i < creditSpriteCount; i++) {
+        UnloadTexture(creditSprites[i].texture);
+    }
+    creditSpriteCount = 0;
+}
+
 void drawCredits(void)
 {
     // Atualizar temporizadores
@@ -118,6 +152,31 @@ void drawCredits(void)
             stars[i].rotation * DEG2RAD,
             stars[i].color
         );
+    }
+
+    for (int i = 0; i < creditSpriteCount; i++)
+    {
+        CreditSprite *sprite = &creditSprites[i];
+        float animTime = creditsTimer + sprite->timeOffset;
+
+        float rotation = sprite->enableRotation ? sinf(animTime) * 5.0f : 0.0f;
+        float xOffset = sinf(animTime * 1.5f) * 5.0f; // oscilação horizontal opcional
+
+        Vector2 drawPos = {
+            sprite->basePosition.x + xOffset,
+            sprite->basePosition.y - creditsScroll
+        };
+
+        if (drawPos.y + sprite->texture.height * sprite->scale >= 0 &&
+            drawPos.y <= GetScreenHeight())
+        {
+            DrawTextureEx(
+                sprite->texture,
+                drawPos,
+                rotation,
+                sprite->scale,
+                WHITE);
+        }
     }
 
     // Auto-scroll
@@ -355,6 +414,7 @@ void drawCredits(void)
     {
         PlaySound(selectSound);
         currentScreen = MAIN_MENU;
+        unloadCreditSprites();
 
         // Resetar scroll para próxima visualização
         creditsScroll = 0;
@@ -374,6 +434,12 @@ void updateCredits(void)
     {
         initStars();
         starsInitialized = true;
+    }
+
+    static bool spritesInitialized = false;
+    if (!spritesInitialized) {
+        initCreditSprites();
+        spritesInitialized = true;
     }
 
     // Verificar scroll manual
