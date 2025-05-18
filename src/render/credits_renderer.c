@@ -16,6 +16,7 @@ static float creditsScroll = 0.0f;
 static float scrollSpeed = 40.0f;
 static bool autoScroll = true;
 static float starTimer = 0.0f;
+static bool creditsActive = false;  // Flag para controlar quando os créditos estão ativos
 
 // Estrutura para estrela animada
 typedef struct
@@ -95,8 +96,17 @@ static void drawStar(Vector2 position, float scale, float rotation, Color color)
     }
 }
 
+// Declaração ANTECIPADA da função para corrigir erro de compilação
+void unloadCreditSprites(void);
+
 void initCreditSprites(void)
 {
+    // Limpar sprites anteriores se existirem
+    if (creditSpriteCount > 0) {
+        unloadCreditSprites();
+    }
+
+    // Carregar novos sprites
     creditSprites[0] = (CreditSprite){ LoadTexture("resources/spritesNeto/grilitron.png"), { 150, 300 }, 1.0f, true, 0.0f };
     creditSprites[1] = (CreditSprite){ LoadTexture("resources/spritesNeto/aquariah.png"), { 990, 500 }, 1.0f, false, 0.5f };
     creditSprites[2] = (CreditSprite){ LoadTexture("resources/spritesNeto/gambiarra.png"), { 150, 700 }, 0.9f, true, 1.0f };
@@ -106,12 +116,22 @@ void initCreditSprites(void)
     creditSprites[6] = (CreditSprite){ LoadTexture("resources/spritesNeto/tatarion.png"), { 120, 1400 }, 1.0f, true, 0.4f };
     creditSprites[7] = (CreditSprite){ LoadTexture("resources/spritesNeto/ventaforte.png"), { 990, 1600 }, 1.0f, true, 0.8f };
     creditSpriteCount = 8;
+
+    // Verificar se os sprites foram carregados corretamente
+    for (int i = 0; i < creditSpriteCount; i++) {
+        if (creditSprites[i].texture.id == 0) {
+            printf("Aviso: Falha ao carregar sprite %d na tela de créditos\n", i);
+        }
+    }
 }
 
 void unloadCreditSprites(void)
 {
     for (int i = 0; i < creditSpriteCount; i++) {
-        UnloadTexture(creditSprites[i].texture);
+        if (creditSprites[i].texture.id != 0) {
+            UnloadTexture(creditSprites[i].texture);
+            creditSprites[i].texture.id = 0;
+        }
     }
     creditSpriteCount = 0;
 }
@@ -154,28 +174,37 @@ void drawCredits(void)
         );
     }
 
-    for (int i = 0; i < creditSpriteCount; i++)
-    {
-        CreditSprite *sprite = &creditSprites[i];
-        float animTime = creditsTimer + sprite->timeOffset;
-
-        float rotation = sprite->enableRotation ? sinf(animTime) * 5.0f : 0.0f;
-        float xOffset = sinf(animTime * 1.5f) * 5.0f; // oscilação horizontal opcional
-
-        Vector2 drawPos = {
-            sprite->basePosition.x + xOffset,
-            sprite->basePosition.y - creditsScroll
-        };
-
-        if (drawPos.y + sprite->texture.height * sprite->scale >= 0 &&
-            drawPos.y <= GetScreenHeight())
+    // Desenhar sprites apenas se houver sprites carregados
+    if (creditSpriteCount > 0) {
+        for (int i = 0; i < creditSpriteCount; i++)
         {
-            DrawTextureEx(
-                sprite->texture,
-                drawPos,
-                rotation,
-                sprite->scale,
-                WHITE);
+            CreditSprite *sprite = &creditSprites[i];
+
+            // Verificar se a textura é válida
+            if (sprite->texture.id == 0) {
+                continue;  // Pular este sprite se a textura não for válida
+            }
+
+            float animTime = creditsTimer + sprite->timeOffset;
+
+            float rotation = sprite->enableRotation ? sinf(animTime) * 5.0f : 0.0f;
+            float xOffset = sinf(animTime * 1.5f) * 5.0f; // oscilação horizontal opcional
+
+            Vector2 drawPos = {
+                sprite->basePosition.x + xOffset,
+                sprite->basePosition.y - creditsScroll
+            };
+
+            if (drawPos.y + sprite->texture.height * sprite->scale >= 0 &&
+                drawPos.y <= GetScreenHeight())
+            {
+                DrawTextureEx(
+                    sprite->texture,
+                    drawPos,
+                    rotation,
+                    sprite->scale,
+                    WHITE);
+            }
         }
     }
 
@@ -193,7 +222,7 @@ void drawCredits(void)
     int centerX = screenWidth / 2;
 
     // Calcular altura total do conteúdo (para auto-scroll)
-    int totalHeight = 1200; // Altura aproximada de todo conteúdo
+    int totalHeight = 1800; // Altura aproximada de todo conteúdo (aumentada para dar mais espaço)
 
     // Limitar scroll
     if (creditsScroll > totalHeight)
@@ -339,11 +368,10 @@ void drawCredits(void)
         "Lista Duplamente Encadeada para os times",
         "Fila para ordenação de ações",
         "Pilha para efeitos de status",
-        "Árvore de Decisão para IA do oponente",
         "Quick Sort para ordenação de velocidade"
     };
 
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 4; i++) // Corrigido para 4 itens em vez de 5
     {
         DRAW_CENTERED_TEXT(dataStructures[i], sectionY + i * 30, 18, RAYWHITE);
     }
@@ -354,7 +382,7 @@ void drawCredits(void)
     DRAW_SECTION_HEADER("Agradecimentos", sectionY);
 
     const char* thanks[] = {
-        "Professores e monitores",
+        "Professores",
         "Colegas de classe",
         "Nintendo e Game Freak (inspiração)",
         "Raylib e comunidade de código aberto"
@@ -422,6 +450,11 @@ void drawCredits(void)
     {
         PlaySound(selectSound);
         currentScreen = MAIN_MENU;
+
+        // Marcar que os créditos não estão mais ativos
+        creditsActive = false;
+
+        // Descarregar sprites ao sair para liberar memória
         unloadCreditSprites();
 
         // Resetar scroll para próxima visualização
@@ -436,26 +469,31 @@ void drawCredits(void)
 
 void updateCredits(void)
 {
-    // Inicializar estrelas na primeira vez
-    static bool starsInitialized = false;
-    if (!starsInitialized)
-    {
+    // Verificar transição de telas
+    if (currentScreen == CREDITS && !creditsActive) {
+        // Acabamos de entrar na tela de créditos
+        creditsActive = true;
+
+        // Resetar configurações
+        creditsTimer = 0.0f;
+        starTimer = 0.0f;
+        creditsScroll = 0.0f;
+        autoScroll = true;
+
+        // Inicializar recursos
         initStars();
-        starsInitialized = true;
+        initCreditSprites();  // Recarregar sprites toda vez que entramos na tela
     }
 
-    static bool spritesInitialized = false;
-    if (!spritesInitialized) {
-        initCreditSprites();
-        spritesInitialized = true;
-    }
+    // Se saímos da tela de créditos, a flag será resetada no botão VOLTAR
 
-    // Verificar scroll manual
+    // Controle de scroll manual
     int wheel = GetMouseWheelMove();
     if (wheel != 0)
     {
         autoScroll = false;
         creditsScroll -= wheel * 60.0f;
+        if (creditsScroll < 0) creditsScroll = 0;
     }
 
     // Verificar teclas de navegação
@@ -463,6 +501,7 @@ void updateCredits(void)
     {
         autoScroll = false;
         creditsScroll -= GetFrameTime() * 300.0f;
+        if (creditsScroll < 0) creditsScroll = 0;
     }
     else if (IsKeyDown(KEY_DOWN))
     {
@@ -476,3 +515,6 @@ void updateCredits(void)
         pendingFullscreen = !pendingFullscreen;
     }
 }
+
+
+
