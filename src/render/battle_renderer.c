@@ -19,6 +19,7 @@
 #include "scaling.h"
 #include "globals.h"
 #include "gui.h"
+#include "hp_bar.h"
 
 // Sistema de typewriter para textos
 typedef struct
@@ -281,6 +282,9 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
 /**
  * Desenha a caixa de status de um monstro no estilo Pokémon Black/White
  */
+/**
+ * Desenha a caixa de status de um monstro no estilo Pokémon Black/White
+ */
 void drawMonsterStatusBox(PokeMonster* monster, Rectangle bounds, bool isPlayer) {
     if (monster == NULL) return;
 
@@ -352,65 +356,8 @@ void drawMonsterStatusBox(PokeMonster* monster, Rectangle bounds, bool isPlayer)
         12
     };
 
-    // Fundo branco da barra com borda preta
-    DrawRectangleRec(hpBarOutline, WHITE);
-    DrawRectangleLinesEx(hpBarOutline, 1, BLACK);
-
-    // Preenchimento colorido baseado no HP com animação suave
-    float hpRatio = (float)monster->hp / monster->maxHp;
-    if (hpRatio < 0) hpRatio = 0;
-    if (hpRatio > 1) hpRatio = 1;
-
-    // Cores estilo Pokémon BW
-    Color hpColor;
-    if (hpRatio > 0.5f)
-        hpColor = (Color){0, 200, 0, 255}; // Verde
-    else if (hpRatio > 0.2f)
-        hpColor = (Color){255, 180, 0, 255}; // Amarelo
-    else
-        hpColor = (Color){200, 0, 0, 255}; // Vermelho
-
-    // Adicionar efeito de animação suave
-    static float animatedHPRatio = 1.0f;
-
-    // Animar suavemente a barra para o valor atual
-    animatedHPRatio += (hpRatio - animatedHPRatio) * 0.1f;
-
-    // Desenhar preenchimento da barra
-    Rectangle hpBarFill = {
-        hpBarOutline.x + 1,
-        hpBarOutline.y + 1,
-        (hpBarOutline.width - 2) * animatedHPRatio,
-        hpBarOutline.height - 2
-    };
-    DrawRectangleRec(hpBarFill, hpColor);
-
-    // Adicionar efeito de gradiente sutil na barra de HP
-    for (int i = 0; i < hpBarFill.height; i += 2) {
-        DrawLine(
-            hpBarFill.x,
-            hpBarFill.y + i,
-            hpBarFill.x + hpBarFill.width,
-            hpBarFill.y + i,
-            (Color){
-                (unsigned char)fmin(255, hpColor.r + 40),
-                (unsigned char)fmin(255, hpColor.g + 40),
-                (unsigned char)fmin(255, hpColor.b + 40),
-                hpColor.a
-            }
-        );
-    }
-
-    // Adicionar efeito piscante para HP baixo
-    if (hpRatio <= 0.2f) {
-        float blinkTime = GetTime() * 2.0f;
-        if (sinf(blinkTime) > 0.0f) {
-            DrawRectangleRec(
-                hpBarFill,
-                (Color){255, 255, 255, 100}
-            );
-        }
-    }
+    // Usar nossa função avançada de barra de HP em vez da implementação estática
+    DrawHealthBar(hpBarOutline, monster->hp, monster->maxHp, monster);
 }
 
 /**

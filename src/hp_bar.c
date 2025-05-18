@@ -1,8 +1,9 @@
 #include "hp_bar.h"
-#include  <math.h>
-
+#include <math.h> // Para funções min/max
+#include <stdio.h>
 #include "structures.h"
 
+// Armazenamento para animações de várias barras de HP
 #define MAX_BARS 10
 static HPBarAnimation hpBars[MAX_BARS] = {0};
 
@@ -28,6 +29,7 @@ void ResetHPBarAnimations(void) {
 static HPBarAnimation* GetHPBarAnimation(const PokeMonster* monster) {
     if (monster == NULL) return NULL;
 
+    // Usamos o endereço do monstro como identificador único
     const uintptr_t monsterId = (uintptr_t)monster;
 
     // Primeira passada: procurar por entradas existentes
@@ -63,6 +65,10 @@ static HPBarAnimation* GetHPBarAnimation(const PokeMonster* monster) {
 void DrawHealthBar(Rectangle bounds, int currentHP, int maxHP, const PokeMonster* monster) {
     if (maxHP <= 0) return; // Prevenir divisão por zero
 
+    // Debug para verificar os valores
+    printf("[HP BAR] Monstro: %s | Ptr: %p | HP: %d/%d\n", monster->name, (void*)monster, currentHP, maxHP);
+
+    // Obter animação específica para este monstro
     HPBarAnimation* anim = GetHPBarAnimation(monster);
     if (!anim) return;
 
@@ -72,14 +78,14 @@ void DrawHealthBar(Rectangle bounds, int currentHP, int maxHP, const PokeMonster
     // Detectar mudança de HP
     if (anim->lastHP != currentHP) {
         anim->lastHP = currentHP;
-        anim->timer = 0.0f;
+        anim->timer = 0.0f; // Reiniciar timer para nova animação
     }
 
     // Atualizar timer
     anim->timer += GetFrameTime();
 
     // Suavizar animação
-    const float animationSpeed = 0.5f;
+    const float animationSpeed = 0.5f; // Ajuste para velocidade desejada
     const float delta = targetFillRatio - anim->animatedFillRatio;
 
     if (fabsf(delta) > 0.001f) {

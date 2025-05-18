@@ -51,6 +51,8 @@ void initializeBattleSystem(void) {
     battleSystem->botItemUsed = false;
     battleSystem->itemType = ITEM_POTION; // Padrão
 
+    // Inicializar sistema de barras de HP
+    InitHPBarSystem();
 
     // Verificar se tudo foi alocado corretamente
     if (battleSystem->actionQueue == NULL || battleSystem->effectStack == NULL) {
@@ -60,11 +62,14 @@ void initializeBattleSystem(void) {
     }
 }
 
+
 // Inicia uma nova batalha
 void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     if (battleSystem == NULL || playerTeam == NULL || opponentTeam == NULL) {
         return;
     }
+
+    // Resetar as animações de barras de HP
     ResetHPBarAnimations();
     resetBattleSprites();
 
@@ -1090,7 +1095,7 @@ void switchMonster(MonsterList* team, PokeMonster* newMonster) {
     if (team == NULL || newMonster == NULL) {
         return;
     }
-
+    ResetHPBarAnimations();
     team->current = newMonster;
 }
 
@@ -1407,6 +1412,7 @@ void resetBattle(void) {
     clearQueue(battleSystem->actionQueue);
     clearStack(battleSystem->effectStack);
 
+    ResetHPBarAnimations();
     // Limpar mensagem
     battleMessage[0] = '\0';
 }
