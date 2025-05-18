@@ -511,7 +511,7 @@ void executeMonsterSwitch(PokeMonster* monster, int targetIndex) {
     }
 
     if (current != NULL && !isMonsterFainted(current)) {
-        newMonster = current;
+        newMonster = current->next;
         switchMonster(team, newMonster);
 
         // Mensagem de troca
