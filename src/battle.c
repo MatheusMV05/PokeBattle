@@ -1299,83 +1299,85 @@ void useItem(ItemType itemType, PokeMonster* target) {
         }
             break;
 
-        case ITEM_RED_CARD:
-        {
-            // Determinar o alvo do cartão vermelho
-            PokeMonster* affectedMonster = NULL;
-            MonsterList* affectedTeam = NULL;
+       case ITEM_RED_CARD:
+{
+    // Determinar o alvo do cartão vermelho
+    PokeMonster* affectedMonster = NULL;
+    MonsterList* affectedTeam = NULL;
 
-            // Verificar quem usou o item e quem deve ser afetado
-            if (target == battleSystem->playerTeam->current) {
-                // Jogador usou o item, afeta o oponente
-                affectedMonster = battleSystem->opponentTeam->current;
-                affectedTeam = battleSystem->opponentTeam;
-                sprintf(battleMessage, "Cartão Vermelho usado! Forçando o oponente a trocar!");
-            } else {
-                // Oponente usou o item, afeta o jogador
-                affectedMonster = battleSystem->playerTeam->current;
-                affectedTeam = battleSystem->playerTeam;
-                sprintf(battleMessage, "Oponente usou Cartão Vermelho! Seu Pokémon foi forçado a sair!");
-            }
+    // Verificar quem usou o item e quem deve ser afetado
+    if (target == battleSystem->playerTeam->current) {
+        // Jogador usou o item, afeta o oponente
+        affectedMonster = battleSystem->opponentTeam->current;
+        affectedTeam = battleSystem->opponentTeam;
+        sprintf(battleMessage, "Cartão Vermelho usado! Forçando o oponente a trocar!");
+    } else {
+        // Oponente usou o item, afeta o jogador
+        affectedMonster = battleSystem->playerTeam->current;
+        affectedTeam = battleSystem->playerTeam;
+        sprintf(battleMessage, "Oponente usou Cartão Vermelho! Seu Pokémon foi forçado a sair!");
+    }
 
-            // Verificar se há outros monstros disponíveis para troca
-            bool hasValidMonsters = false;
-            PokeMonster* current = affectedTeam->first;
-            int validMonsterIndex = -1;
-            int index = 0;
+    // Verificar se há outros monstros disponíveis para troca
+    bool hasValidMonsters = false;
+    PokeMonster* current = affectedTeam->first;
+    int validMonsterIndex = -1;
+    int index = 0;
 
-            while (current != NULL) {
-                if (!isMonsterFainted(current) && current != affectedMonster) {
-                    hasValidMonsters = true;
-                    if (validMonsterIndex == -1) {
-                        validMonsterIndex = index; // Guarda o índice do primeiro válido
-                    }
-                }
-                current = current->next;
-                index++;
-            }
-
-            if (hasValidMonsters) {
-                // MODIFICAÇÃO: Para ambos os casos (player ou bot afetado),
-                // remover suas ações da fila
-                ActionQueue* tempQueue = createActionQueue(10);
-                while (!isQueueEmpty(battleSystem->actionQueue)) {
-                    int action, param;
-                    PokeMonster* actor;
-                    dequeue(battleSystem->actionQueue, &action, &param, &actor);
-
-                    // Manter apenas ações do lado NÃO afetado pelo cartão
-                    if (actor->next != affectedTeam->first && actor->prev != affectedTeam->last) {
-                        enqueue(tempQueue, action, param, actor);
-                    }
-                }
-
-                // Restaurar apenas ações não afetadas
-                while (!isQueueEmpty(tempQueue)) {
-                    int action, param;
-                    PokeMonster* actor;
-                    dequeue(tempQueue, &action, &param, &actor);
-                    enqueue(battleSystem->actionQueue, action, param, actor);
-                }
-                freeActionQueue(tempQueue);
-
-                // MODIFICAÇÃO: Comportamento igual para ambos os lados,
-                // troca automática sem mostrar tela de seleção
-                executeMonsterSwitch(affectedMonster, validMonsterIndex);
-
-                if (affectedTeam == battleSystem->playerTeam) {
-                    sprintf(battleMessage, "Cartão Vermelho usado! Seu %s foi substituído por %s!",
-                           affectedMonster->name, affectedTeam->current->name);
-                } else {
-                    sprintf(battleMessage, "Cartão Vermelho usado! Oponente trocou para %s!",
-                           affectedTeam->current->name);
-                }
-            } else {
-                // Não há outros monstros para trocar
-                sprintf(battleMessage, "Cartão Vermelho usado, mas não há outros Pokémon disponíveis!");
+    while (current != NULL) {
+        if (!isMonsterFainted(current) && current != affectedMonster) {
+            hasValidMonsters = true;
+            if (validMonsterIndex == -1) {
+                validMonsterIndex = index; // Guarda o índice do primeiro válido
             }
         }
-        break;
+        current = current->next;
+        index++;
+    }
+
+    if (hasValidMonsters) {
+        // CORREÇÃO: Limpar TODA a fila de ações para o turno atual
+        // Isso garante que nenhum ataque aconteça após a troca
+        clearQueue(battleSystem->actionQueue);
+
+        // Fazer a troca imediatamente
+        PokeMonster* oldMonster = affectedTeam->current; // Guardar o Pokémon anterior para referência
+        executeMonsterSwitch(affectedMonster, validMonsterIndex);
+
+        // Atualizar mensagem informando a troca
+        if (affectedTeam == battleSystem->playerTeam) {
+            sprintf(battleMessage, "Cartão Vermelho usado! Seu %s foi substituído por %s!",
+                   oldMonster->name, affectedTeam->current->name);
+
+            // Como o jogador foi afetado, ele perde a vez de atacar
+            battleSystem->playerTurn = false;
+        } else {
+            sprintf(battleMessage, "Cartão Vermelho usado! Oponente trocou para %s!",
+                   affectedTeam->current->name);
+
+            // Como o oponente foi afetado, ele perde a vez de atacar
+            // (o jogador pode atacar normalmente)
+            battleSystem->playerTurn = true;
+        }
+
+        // Marcar que a ação da fila está completa
+        actionQueueReady = true;
+
+        // Definir que o próximo estado deve ser exibir a mensagem da troca
+        battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
+
+        // Configurar a mensagem atual para exibição
+        currentMessage.displayTime = 2.0f;
+        currentMessage.elapsedTime = 0.0f;
+        currentMessage.waitingForInput = true;
+        currentMessage.autoAdvance = false;
+        strcpy(currentMessage.message, battleMessage);
+    } else {
+        // Não há outros monstros para trocar
+        sprintf(battleMessage, "Cartão Vermelho usado, mas não há outros Pokémon disponíveis!");
+    }
+}
+break;
 
         case ITEM_COIN:
             // 50% de chance de curar todo HP, 50% de chance de morrer

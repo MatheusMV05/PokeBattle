@@ -764,21 +764,26 @@ void drawMonsterSelectionMenu(Rectangle bounds)
     }
 }
 
-/**
- * Desenha o menu de itens
- */
-void drawItemMenu(Rectangle bounds)
-{
-    // Fundo da caixa
-    DrawRectangleRounded(bounds, 0.2f, 6, (Color){240, 240, 240, 230});
-    DrawRectangleRoundedLines(bounds, 0.2f, 6, BLACK);
 
-    // Título
+/**
+ * Desenha o menu de itens com múltiplos itens disponíveis
+ */
+void drawItemMenu(Rectangle bounds) {
+    // Cores do estilo BW
+    Color bgColor = (Color){40, 40, 40, 230};
+    Color frameColor = (Color){0, 0, 0, 255};
+    Color textColor = (Color){255, 255, 255, 255};
+
+    // Fundo principal
+    DrawRectangleRounded(bounds, 0.3f, 8, bgColor);
+    DrawRectangleRoundedLines(bounds, 0.3f, 8, frameColor);
+
+    // Título no estilo BW
     DrawText("USAR ITEM",
-             bounds.x + 20,
-             bounds.y + 15,
-             20,
-             BLACK);
+            bounds.x + 20,
+            bounds.y + 15,
+            20,
+            textColor);
 
     // Botão de voltar
     Rectangle backBtn = {
@@ -788,80 +793,266 @@ void drawItemMenu(Rectangle bounds)
         30
     };
 
-    if (GuiPokemonButton(backBtn, "VOLTAR", true))
-    {
+    if (GuiPokemonButton(backBtn, "VOLTAR", true)) {
         PlaySound(selectSound);
         battleSystem->battleState = BATTLE_SELECT_ACTION;
     }
 
-    // Mostrar item disponível
-    Rectangle itemRect = {
-        bounds.x + 20,
-        bounds.y + 50,
-        bounds.width - 40,
-        70
-    };
+    // Calcular o layout similar ao menu de ações
+    float marginX = 20;       // Margem lateral
+    float marginY = 60;       // Margem superior (para o título)
+    float buttonWidth = 150;  // Largura do botão
+    float buttonHeight = 15;  // Altura do botão
+    float spacingY = 15;      // Espaçamento vertical entre botões
 
-    Color itemColor;
-    const char* itemName;
-    const char* itemDesc;
+    // Posição inicial dos botões (alinhados à esquerda)
+    float startX = bounds.x + marginX;
+    float startY = bounds.y + marginY;
 
-    switch (battleSystem->itemType)
-    {
-    case ITEM_POTION:
-        itemColor = GREEN;
-        itemName = "Poção";
-        itemDesc = "Restaura 20 pontos de HP";
-        break;
-    case ITEM_RED_CARD:
-        itemColor = RED;
-        itemName = "Cartão Vermelho";
-        itemDesc = "Força o oponente a trocar de Pokémon";
-        break;
-    case ITEM_COIN:
-        itemColor = YELLOW;
-        itemName = "Moeda da Sorte";
-        itemDesc = "Cara: HP total / Coroa: Desmaio";
-        break;
-    default:
-        itemColor = GRAY;
-        itemName = "Item Desconhecido";
-        itemDesc = "???";
+    // Variáveis para controlar os itens
+    static bool potionUsed = false;       // Controla se a poção foi usada
+    static bool randomItemUsed = false;   // Controla se o item aleatório foi usado
+
+    // Se voltar ao menu, resetar os itens (isso reflete que um novo turno começou)
+    if (battleSystem->battleState == BATTLE_SELECT_ACTION) {
+        potionUsed = false;
+        randomItemUsed = false;
     }
 
-    DrawRectangleRounded(itemRect, 0.2f, 6, itemColor);
-    DrawRectangleRoundedLines(itemRect, 0.2f, 6, BLACK);
+    // Se o jogador já usou qualquer item neste turno, verificar qual
+    if (battleSystem->playerItemUsed) {
+        // O estado específico precisa ser mantido na tela de itens
+        // Não resetamos aqui, apenas na mudança de turno
+    }
 
-    DrawText(itemName,
-             itemRect.x + 10,
-             itemRect.y + 10,
-             24,
-             WHITE);
-
-    DrawText(itemDesc,
-             itemRect.x + 10,
-             itemRect.y + 40,
-             18,
-             WHITE);
-
-    // Desenhar botão de usar
-    Rectangle useBtn = {
-        bounds.x + bounds.width / 2 - 75,
-        bounds.y + bounds.height - 60,
-        150,
-        40
+    // Definir retângulos para os botões
+    Rectangle item1Rect = {
+        startX,
+        startY,
+        buttonWidth,
+        buttonHeight
     };
 
-    if (GuiPokemonButton(useBtn, "USAR", true))
-    {
+    Rectangle item2Rect = {
+        startX,
+        startY + buttonHeight + spacingY,
+        buttonWidth,
+        buttonHeight
+    };
+
+    // Área de descrição (à direita dos botões)
+    Rectangle descArea = {
+        startX + buttonWidth + 20,
+        startY,
+        bounds.width - buttonWidth - marginX * 3,
+        bounds.height - marginY - 30
+    };
+
+    // Nomes e descrições dos itens
+    const char* potionName = "POÇÃO";
+    const char* potionDesc = "Restaura 20 pontos de HP do seu Pokémon.";
+
+    // Obter informações sobre o item aleatório para esta batalha
+    const char* randomItemName;
+    const char* randomItemDesc;
+    Color randomItemColor;
+    ItemType randomItemType;
+
+    // Determinar o item aleatório com base no valor definido no início da batalha
+    if (battleSystem->itemType == ITEM_RED_CARD) {
+        randomItemName = "CARTÃO VERMELHO";
+        randomItemDesc = "Força o oponente a trocar de Pokémon imediatamente.";
+        randomItemColor = (Color){180, 50, 50, 255}; // Vermelho
+        randomItemType = ITEM_RED_CARD;
+    } else {
+        randomItemName = "MOEDA DA SORTE";
+        randomItemDesc = "Cara: Restaura HP total do seu Pokémon / Coroa: Seu Pokémon desmaia.";
+        randomItemColor = (Color){180, 140, 40, 255}; // Amarelo
+        randomItemType = ITEM_COIN;
+    }
+
+    // Elemento selecionado atualmente
+    static int selectedItem = -1;
+
+    // Verificar hover para seleção (apenas para itens disponíveis)
+    selectedItem = -1; // Reset inicial
+
+    if (!potionUsed && CheckCollisionPointRec(GetMousePosition(), item1Rect)) {
+        selectedItem = 0;
+    }
+    else if (!randomItemUsed && CheckCollisionPointRec(GetMousePosition(), item2Rect)) {
+        selectedItem = 1;
+    }
+
+    // Cores para os botões
+    Color btn1Color = (Color){60, 170, 60, 255}; // Verde para Poção
+    Color btn2Color = battleSystem->itemType == ITEM_RED_CARD ?
+                    (Color){180, 50, 50, 255} :  // Vermelho para Cartão Vermelho
+                    (Color){180, 140, 40, 255};  // Amarelo para Moeda da Sorte
+
+    // Botão 1: Poção
+    if (selectedItem == 0) {
+        // Destacar seleção
+        DrawRectangleRounded(
+            (Rectangle){item1Rect.x - 5, item1Rect.y - 5, item1Rect.width + 10, item1Rect.height + 10},
+            0.3f, 8, WHITE
+        );
+    }
+
+    // Desenhar retângulo do botão com base no estado
+    if (potionUsed) {
+        // Botão desativado com cor cinza
+        DrawRectangleRounded(item1Rect, 0.3f, 8, (Color){100, 100, 100, 150});
+        DrawRectangleRoundedLines(item1Rect, 0.3f, 8, frameColor);
+    } else {
+        // Botão normal com cor verde
+        DrawRectangleRounded(item1Rect, 0.3f, 8, btn1Color);
+        DrawRectangleRoundedLines(item1Rect, 0.3f, 8, frameColor);
+    }
+
+    // Texto do botão 1
+    DrawText(potionName,
+            item1Rect.x + item1Rect.width/2 - MeasureText(potionName, 20)/2,
+            item1Rect.y + item1Rect.height/2 - 10,
+            20,
+            potionUsed ? (Color){200, 200, 200, 150} : WHITE);
+
+    // Botão 2: Item aleatório
+    if (selectedItem == 1) {
+        // Destacar seleção
+        DrawRectangleRounded(
+            (Rectangle){item2Rect.x - 5, item2Rect.y - 5, item2Rect.width + 10, item2Rect.height + 10},
+            0.3f, 8, WHITE
+        );
+    }
+
+    // Desenhar retângulo do botão com base no estado
+    if (randomItemUsed) {
+        // Botão desativado com cor cinza
+        DrawRectangleRounded(item2Rect, 0.3f, 8, (Color){100, 100, 100, 150});
+        DrawRectangleRoundedLines(item2Rect, 0.3f, 8, frameColor);
+    } else {
+        // Botão normal com cor apropriada para o item
+        DrawRectangleRounded(item2Rect, 0.3f, 8, btn2Color);
+        DrawRectangleRoundedLines(item2Rect, 0.3f, 8, frameColor);
+    }
+
+    // Texto do botão 2
+    DrawText(randomItemName,
+            item2Rect.x + item2Rect.width/2 - MeasureText(randomItemName, 20)/2,
+            item2Rect.y + item2Rect.height/2 - 10,
+            20,
+            randomItemUsed ? (Color){200, 200, 200, 150} : WHITE);
+
+    // Lidar com interação para cada item individualmente
+
+    // Verificar clique no botão 1 (Poção) se não foi usada
+    if (!potionUsed && CheckCollisionPointRec(GetMousePosition(), item1Rect) &&
+        IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         PlaySound(selectSound);
-
-        // Enfileirar ação de usar item
-        enqueue(battleSystem->actionQueue, 2, battleSystem->itemType, battleSystem->playerTeam->current);
-
-        // Passar o turno para o bot escolher
+        // Usar poção
+        enqueue(battleSystem->actionQueue, 2, ITEM_POTION, battleSystem->playerTeam->current);
+        potionUsed = true;
+        battleSystem->playerItemUsed = true;
         battleSystem->playerTurn = false;
         battleSystem->battleState = BATTLE_SELECT_ACTION;
+    }
+
+    // Verificar clique no botão 2 (Item aleatório) se não foi usado
+    if (!randomItemUsed && CheckCollisionPointRec(GetMousePosition(), item2Rect) &&
+        IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        PlaySound(selectSound);
+        // Usar o item aleatório
+        enqueue(battleSystem->actionQueue, 2, randomItemType, battleSystem->playerTeam->current);
+        randomItemUsed = true;
+        battleSystem->playerItemUsed = true;
+        battleSystem->playerTurn = false;
+        battleSystem->battleState = BATTLE_SELECT_ACTION;
+    }
+
+    // Desenhar descrição do item selecionado à direita
+    if (selectedItem >= 0) {
+        const char* desc = selectedItem == 0 ? potionDesc : randomItemDesc;
+
+        // Dividir o texto para caber na área de descrição
+        int fontSize = 20;
+        int lineHeight = fontSize + 5;
+        int maxWidth = descArea.width;
+
+        // Variáveis para processamento do texto
+        int curTextY = descArea.y;
+        char textBuffer[256] = "";
+        int bufferWidth = 0;
+
+        // Processar cada palavra
+        char wordBuffer[64];
+        int wordIndex = 0;
+
+        for (int i = 0; i <= strlen(desc); i++) {
+            if (desc[i] == ' ' || desc[i] == '\0') {
+                // Finalizar palavra atual
+                wordBuffer[wordIndex] = '\0';
+
+                // Calcular tamanho
+                int wordWidth = MeasureText(wordBuffer, fontSize);
+
+                // Verificar se a palavra cabe na linha atual
+                if (bufferWidth + wordWidth > maxWidth) {
+                    // Desenhar linha atual e começar nova linha
+                    DrawText(textBuffer, descArea.x, curTextY, fontSize, textColor);
+                    curTextY += lineHeight;
+                    strcpy(textBuffer, "");
+                    bufferWidth = 0;
+                }
+
+                // Adicionar palavra ao buffer
+                strcat(textBuffer, wordBuffer);
+                bufferWidth += wordWidth;
+
+                // Adicionar espaço após a palavra (exceto se for o final)
+                if (desc[i] != '\0') {
+                    strcat(textBuffer, " ");
+                    bufferWidth += MeasureText(" ", fontSize);
+                }
+
+                // Resetar buffer de palavra
+                wordIndex = 0;
+            } else {
+                // Adicionar caractere à palavra atual
+                wordBuffer[wordIndex++] = desc[i];
+            }
+        }
+
+        // Desenhar qualquer texto restante
+        if (strlen(textBuffer) > 0) {
+            DrawText(textBuffer, descArea.x, curTextY, fontSize, textColor);
+        }
+    }
+
+    // Mensagem de item usado (se aplicável) - mudando para refletir o estado correto
+    if (potionUsed && randomItemUsed) {
+        const char* usedMsg = "Ambos os itens já foram usados";
+        DrawText(usedMsg,
+                bounds.x + bounds.width/2 - MeasureText(usedMsg, 18)/2,
+                bounds.y + bounds.height - 30,
+                18,
+                (Color){255, 100, 100, 255});
+    }
+    else if (potionUsed) {
+        const char* usedMsg = "Poção já foi usada neste turno";
+        DrawText(usedMsg,
+                bounds.x + bounds.width/2 - MeasureText(usedMsg, 18)/2,
+                bounds.y + bounds.height - 30,
+                18,
+                (Color){255, 100, 100, 255});
+    }
+    else if (randomItemUsed) {
+        const char* usedMsg = "Item especial já foi usado neste turno";
+        DrawText(usedMsg,
+                bounds.x + bounds.width/2 - MeasureText(usedMsg, 18)/2,
+                bounds.y + bounds.height - 30,
+                18,
+                (Color){255, 100, 100, 255});
     }
 }
 
