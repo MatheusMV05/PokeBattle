@@ -99,6 +99,7 @@ void displayStatusMessage(const char* message);
 void determineAndExecuteTurnOrder(void);
 void messageDisplayComplete(void);
 void executeMonsterSwitch(PokeMonster* monster, int targetIndex);
+bool hasActiveMonstersLeft(MonsterList* team);
 // Inicializa a árvore de decisão para o bot
 void initBotDecisionTree(void);
 
