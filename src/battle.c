@@ -627,6 +627,7 @@ void executeItemUse(PokeMonster* user, ItemType itemType) {
 }
 
 // Define a ordem das ações com base na velocidade
+// Define a ordem das ações com base na velocidade
 void determineAndExecuteTurnOrder(void) {
     printf("[DEBUG] Ordenando ações. Contagem atual na fila: %d\n", battleSystem->actionQueue->count);
 
@@ -638,6 +639,7 @@ void determineAndExecuteTurnOrder(void) {
     int parameters[2] = {-1, -1};     // Parâmetro da ação (índice do ataque, do monstro, ou do item)
     PokeMonster* monsters[2] = {NULL, NULL};  // Quem está executando a ação
     MonsterList* teams[2] = {NULL, NULL};     // Time do executor
+    bool isPlayerActions[2] = {false, false}; // Flag para identificar jogador ou bot
     int actionCount = 0;
 
     // Retirar todas as ações da fila
@@ -645,14 +647,30 @@ void determineAndExecuteTurnOrder(void) {
         dequeue(battleSystem->actionQueue, &actions[actionCount],
                 &parameters[actionCount], &monsters[actionCount]);
 
-        // Determinar qual time o monstro pertence
+        // Determinar qual time o monstro pertence com segurança
         if (monsters[actionCount] != NULL) {
-            if (battleSystem->playerTeam &&
-                monsters[actionCount] == battleSystem->playerTeam->current) {
-                teams[actionCount] = battleSystem->playerTeam;
-            } else if (battleSystem->opponentTeam &&
-                      monsters[actionCount] == battleSystem->opponentTeam->current) {
-                teams[actionCount] = battleSystem->opponentTeam;
+            // Método mais seguro: verificar a qual time o monstro pertence
+            PokeMonster* current = battleSystem->playerTeam->first;
+            while (current != NULL) {
+                if (current == monsters[actionCount]) {
+                    teams[actionCount] = battleSystem->playerTeam;
+                    isPlayerActions[actionCount] = true;
+                    break;
+                }
+                current = current->next;
+            }
+
+            // Se não foi encontrado no time do jogador, procurar no time do oponente
+            if (teams[actionCount] == NULL) {
+                current = battleSystem->opponentTeam->first;
+                while (current != NULL) {
+                    if (current == monsters[actionCount]) {
+                        teams[actionCount] = battleSystem->opponentTeam;
+                        isPlayerActions[actionCount] = false;
+                        break;
+                    }
+                    current = current->next;
+                }
             }
         }
 
@@ -665,28 +683,56 @@ void determineAndExecuteTurnOrder(void) {
     if (actionCount == 2 && actions[0] == 1 && actions[1] == 1) {
         printf("[DEBUG] Caso especial: Ambos trocam Pokémon no mesmo turno\n");
 
-        // Guardar os monstros atuais para referência na mensagem
-        PokeMonster* player1Current = teams[0]->current;
-        PokeMonster* player2Current = teams[1]->current;
+        // Verificar se temos ponteiros válidos
+        if (teams[0] == NULL || teams[1] == NULL ||
+            monsters[0] == NULL || monsters[1] == NULL) {
+            printf("[DEBUG] ERRO: Ponteiros inválidos na operação de troca simultânea\n");
 
-        // Executar ambas as trocas
-        executeMonsterSwitch(monsters[0], parameters[0]);
+            // Recolocar ações na fila de forma segura, para processamento normal
+            for (int i = 0; i < actionCount; i++) {
+                if (monsters[i] != NULL) {
+                    enqueue(battleSystem->actionQueue, actions[i], parameters[i], monsters[i]);
+                }
+            }
+            return;
+        }
 
-        // Salvar a mensagem da primeira troca
-        char firstSwitchMessage[256];
-        strcpy(firstSwitchMessage, battleMessage);
+        // Determinar qual é o jogador e qual é o bot
+        int playerIndex = isPlayerActions[0] ? 0 : 1;
+        int botIndex = isPlayerActions[0] ? 1 : 0;
 
-        // Executar a segunda troca
-        executeMonsterSwitch(monsters[1], parameters[1]);
+        // Executar troca do jogador primeiro
+        printf("[DEBUG] Executando troca do jogador primeiro\n");
+        if (monsters[playerIndex] != NULL && teams[playerIndex] != NULL) {
+            executeMonsterSwitch(monsters[playerIndex], parameters[playerIndex]);
 
-        // Combinar as mensagens
-        char combinedMessage[256];
-        sprintf(combinedMessage, "%s\n%s", firstSwitchMessage, battleMessage);
-        strcpy(battleMessage, combinedMessage);
+            // Salvar a mensagem da primeira troca
+            char playerSwitchMessage[256];
+            strncpy(playerSwitchMessage, battleMessage, sizeof(playerSwitchMessage) - 1);
+            playerSwitchMessage[sizeof(playerSwitchMessage) - 1] = '\0';
 
-        return;  // Ambas as trocas foram executadas, sair da função
+            // Executar troca do bot depois
+            printf("[DEBUG] Agora executando troca do bot\n");
+            if (monsters[botIndex] != NULL && teams[botIndex] != NULL) {
+                executeMonsterSwitch(monsters[botIndex], parameters[botIndex]);
+
+                // Combinar as mensagens
+                char combinedMessage[256];
+                snprintf(combinedMessage, sizeof(combinedMessage), "%s\n%s", playerSwitchMessage, battleMessage);
+                strncpy(battleMessage, combinedMessage, sizeof(battleMessage) - 1);
+                battleMessage[sizeof(battleMessage) - 1] = '\0';
+            }
+        } else {
+            // Caso haja problemas, executar a troca do bot se possível
+            if (monsters[botIndex] != NULL && teams[botIndex] != NULL) {
+                executeMonsterSwitch(monsters[botIndex], parameters[botIndex]);
+            }
+        }
+
+        return;  // Ambas as trocas foram executadas (ou pelo menos tentadas), sair da função
     }
 
+    // Resto do código permanece igual...
     // Caso normal: Ordem de prioridade padrão
     if (actionCount == 2) {
         // Ordem de prioridade:
@@ -701,16 +747,19 @@ void determineAndExecuteTurnOrder(void) {
             int tempParam = parameters[0];
             PokeMonster* tempMonster = monsters[0];
             MonsterList* tempTeam = teams[0];
+            bool tempIsPlayer = isPlayerActions[0];
 
             actions[0] = actions[1];
             parameters[0] = parameters[1];
             monsters[0] = monsters[1];
             teams[0] = teams[1];
+            isPlayerActions[0] = isPlayerActions[1];
 
             actions[1] = tempAction;
             parameters[1] = tempParam;
             monsters[1] = tempMonster;
             teams[1] = tempTeam;
+            isPlayerActions[1] = tempIsPlayer;
 
             printf("[DEBUG] Invertendo ordem: troca vai primeiro\n");
         }
@@ -723,37 +772,44 @@ void determineAndExecuteTurnOrder(void) {
                 int tempParam = parameters[0];
                 PokeMonster* tempMonster = monsters[0];
                 MonsterList* tempTeam = teams[0];
+                bool tempIsPlayer = isPlayerActions[0];
 
                 actions[0] = actions[1];
                 parameters[0] = parameters[1];
                 monsters[0] = monsters[1];
                 teams[0] = teams[1];
+                isPlayerActions[0] = isPlayerActions[1];
 
                 actions[1] = tempAction;
                 parameters[1] = tempParam;
                 monsters[1] = tempMonster;
                 teams[1] = tempTeam;
+                isPlayerActions[1] = tempIsPlayer;
 
                 printf("[DEBUG] Invertendo ordem: item vai primeiro\n");
             }
             // Se ambos são ataques, ordenar por velocidade
             else if (actions[0] == 0 && actions[1] == 0) {
-                if (monsters[0]->speed < monsters[1]->speed) {
+                if (monsters[0] != NULL && monsters[1] != NULL &&
+                    monsters[0]->speed < monsters[1]->speed) {
                     // Swap
                     int tempAction = actions[0];
                     int tempParam = parameters[0];
                     PokeMonster* tempMonster = monsters[0];
                     MonsterList* tempTeam = teams[0];
+                    bool tempIsPlayer = isPlayerActions[0];
 
                     actions[0] = actions[1];
                     parameters[0] = parameters[1];
                     monsters[0] = monsters[1];
                     teams[0] = teams[1];
+                    isPlayerActions[0] = isPlayerActions[1];
 
                     actions[1] = tempAction;
                     parameters[1] = tempParam;
                     monsters[1] = tempMonster;
                     teams[1] = tempTeam;
+                    isPlayerActions[1] = tempIsPlayer;
 
                     printf("[DEBUG] Invertendo ordem: monstro mais rápido ataca primeiro\n");
                 }
@@ -763,9 +819,11 @@ void determineAndExecuteTurnOrder(void) {
 
     // Recolocar na fila na ordem correta
     for (int i = 0; i < actionCount; i++) {
-        enqueue(battleSystem->actionQueue, actions[i], parameters[i], monsters[i]);
-        printf("[DEBUG] Recolocando ação %d na fila: tipo=%d, param=%d\n",
-               i, actions[i], parameters[i]);
+        if (monsters[i] != NULL) {  // Verificar se o monstro é válido
+            enqueue(battleSystem->actionQueue, actions[i], parameters[i], monsters[i]);
+            printf("[DEBUG] Recolocando ação %d na fila: tipo=%d, param=%d\n",
+                i, actions[i], parameters[i]);
+        }
     }
 }
 
