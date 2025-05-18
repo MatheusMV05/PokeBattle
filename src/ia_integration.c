@@ -661,72 +661,21 @@ int getAISuggestedMonster(MonsterList* botTeam, PokeMonster* playerMonster) {
         return 0;
     }
     
-    // Tentar usar a IA Gemini primeiro
-    if (initialized && curl_handle != NULL) {
-        // Construir lista de monstros disponíveis para o prompt
-        char prompt[MAX_PROMPT_SIZE];
-        char monsterList[512] = "";
-
-        int count = 0;
-        PokeMonster* current = botTeam->first;
-
-        // Preparar detalhes de cada monstro
-        while (current != NULL) {
-            if (!isMonsterFainted(current) && current != botTeam->current) {
-                char temp[256];
-                snprintf(temp, sizeof(temp), "%d:%s (tipos:%s/%s, HP:%d/%d, ATK:%d, DEF:%d, SPD:%d), ",
-                        count,
-                        current->name,
-                        getTypeName(current->type1),
-                        getTypeName(current->type2 != TYPE_NONE ? current->type2 : current->type1),
-                        current->hp, current->maxHp,
-                        current->attack, current->defense, current->speed);
-                strcat(monsterList, temp);
-                count++;
-            }
-            current = current->next;
-        }
-
-        // Se tiver monstros disponíveis
-        if (count > 0) {
-            snprintf(prompt, MAX_PROMPT_SIZE,
-                    "Como IA para um jogo de batalha Pokémon, qual o melhor monstro para trocar contra %s (tipos:%s/%s, HP:%d/%d)? Considere vantagens de tipo e status. Monstros disponíveis: %s. Responda APENAS com o número do monstro.",
-                    playerMonster->name,
-                    getTypeName(playerMonster->type1),
-                    getTypeName(playerMonster->type2 != TYPE_NONE ? playerMonster->type2 : playerMonster->type1),
-                    playerMonster->hp, playerMonster->maxHp,
-                    monsterList);
-
-            // Consultar a IA
-            char* response = queryAI(prompt);
-
-            // Processar a resposta
-            if (response != NULL && strstr(response, "Erro:") != response) {
-                int monsterIndex = interpretAIResponse(response);
-                if (monsterIndex >= 0 && monsterIndex < count) {
-                    free(response);
-                    return monsterIndex;
-                }
-            }
-
-            // Se falhou, liberar a resposta
-            if (response) free(response);
-        } else {
-            printf("[IA Gemini] Nenhum monstro disponível para troca.\n");
-            return 0;
-        }
-    }
-
-    // Fallback para lógica simples: escolher monstro com mais vida percentual
-    printf("Usando lógica simples para escolha de monstro.\n");
-
-    PokeMonster* bestMonster = NULL;
+    // Encontrar o índice do monstro atual do bot para evitar selecioná-lo novamente
+    int currentIndex = 0;
+    int bestIndex = -1;
     float bestHpRatio = 0.0f;
-    int bestIndex = 0;
-    int index = 0;
 
     PokeMonster* current = botTeam->first;
+    int index = 0;
+
     while (current != NULL) {
+        // Registrar o índice do Pokémon atual
+        if (current == botTeam->current) {
+            currentIndex = index;
+        }
+
+        // Só considerar monstros que não estão desmaiados e que NÃO sejam o atual
         if (!isMonsterFainted(current) && current != botTeam->current) {
             float hpRatio = (float)current->hp / current->maxHp;
 
@@ -741,19 +690,45 @@ int getAISuggestedMonster(MonsterList* botTeam, PokeMonster* playerMonster) {
 
             if (hpRatio > bestHpRatio) {
                 bestHpRatio = hpRatio;
-                bestMonster = current;
                 bestIndex = index;
             }
+        }
+
+        current = current->next;
+        index++;
+    }
+
+    // Se encontrou um monstro melhor, retornar seu índice
+    if (bestIndex >= 0) {
+        return bestIndex;
+    }
+
+    // Se não encontrou um melhor, escolha aleatório diferente do atual
+    int validCount = 0;
+    int* validIndices = malloc(botTeam->count * sizeof(int));
+
+    current = botTeam->first;
+    index = 0;
+
+    while (current != NULL) {
+        if (!isMonsterFainted(current) && current != botTeam->current) {
+            validIndices[validCount++] = index;
         }
         current = current->next;
         index++;
     }
 
-    if (bestMonster != NULL) {
-        return bestIndex;
+    if (validCount > 0) {
+        int result = validIndices[rand() % validCount];
+        free(validIndices);
+        return result;
     }
 
-    return 0; // Se não encontrar melhor opção, retorna o primeiro índice
+    free(validIndices);
+
+    // Se não houver outras opções, retorna um índice diferente do atual
+    // (mesmo que seja inválido, o jogo tratará isso)
+    return (currentIndex + 1) % botTeam->count;
 }
 
 bool testAIConnection(void) {

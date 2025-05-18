@@ -169,6 +169,8 @@ typedef struct BattleSystem {
     int selectedAttack;
     int selectedAction;
     bool itemUsed;
+    bool playerItemUsed;  // Flag para item usado pelo jogador
+    bool botItemUsed;     // Flag para item usado pelo bot
     int itemType;
 } BattleSystem;
 

@@ -477,7 +477,7 @@ void drawBattleActionMenu(Rectangle bounds) {
 
         // Verificar se a opção está disponível (MOCHILA só disponível se item não foi usado)
         bool isEnabled = true;
-        if (i == 1 && battleSystem->itemUsed) {
+        if (i == 1 && battleSystem->playerItemUsed) {
             isEnabled = false;
             buttonColors[i] = GRAY;
         }
@@ -494,7 +494,7 @@ void drawBattleActionMenu(Rectangle bounds) {
                     battleSystem->battleState = BATTLE_SELECT_ATTACK;
                     break;
                 case 1: // MOCHILA
-                    if (!battleSystem->itemUsed) {
+                    if (!battleSystem->playerItemUsed) {
                         battleSystem->battleState = BATTLE_ITEM_MENU;
                     }
                     break;

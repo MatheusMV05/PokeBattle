@@ -19,6 +19,7 @@
 #include "resources.h"
 #include "globals.h"
 #include "battle_renderer.h"
+#include "hp_bar.h"
 
 
 
@@ -46,7 +47,8 @@ void initializeBattleSystem(void) {
     battleSystem->playerTurn = true;
     battleSystem->selectedAttack = 0;
     battleSystem->selectedAction = 0;
-    battleSystem->itemUsed = false;
+    battleSystem->playerItemUsed = false;
+    battleSystem->botItemUsed = false;
     battleSystem->itemType = ITEM_POTION; // Padrão
 
 
@@ -63,7 +65,7 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     if (battleSystem == NULL || playerTeam == NULL || opponentTeam == NULL) {
         return;
     }
-
+    ResetHPBarAnimations();
     resetBattleSprites();
 
     // Configurar os times
@@ -99,7 +101,7 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
 void updateBattle(void) {
     if (battleSystem == NULL) return;
 
-    // Atualizar timers globais
+    // Atualização global de timers
     float deltaTime = GetFrameTime();
 
     // Verificar se a batalha acabou
@@ -122,7 +124,7 @@ void updateBattle(void) {
     // Atualizar estado atual
     switch (battleSystem->battleState) {
         case BATTLE_INTRO:
-            // Animação de entrada na batalha
+            // Lógica para introdução
             stateTransitionDelay += deltaTime;
             if (stateTransitionDelay >= 1.5f) {
                 stateTransitionDelay = 0.0f;
@@ -152,9 +154,13 @@ void updateBattle(void) {
                     IsKeyPressed(KEY_SPACE) ||
                     IsKeyPressed(KEY_ENTER)) {
 
-                    // CORREÇÃO: Garantir que vamos para o estado correto
+                    // CORREÇÃO: Se o jogador precisa trocar de Pokémon (Pokémon desmaiado ou Cartão Vermelho)
+                    if (isMonsterFainted(battleSystem->playerTeam->current)) {
+                        battleSystem->battleState = BATTLE_FORCED_SWITCH;
+                        battleSystem->playerTurn = true;
+                    }
                     // Se estivermos no início do turno, ir para seleção de ação
-                    if (battleSystem->turn > 0 && isQueueEmpty(battleSystem->actionQueue)) {
+                    else if (battleSystem->turn > 0 && isQueueEmpty(battleSystem->actionQueue)) {
                         battleSystem->battleState = BATTLE_SELECT_ACTION;
                         battleSystem->playerTurn = true; // Garantir que o jogador vai jogar
                     }
@@ -170,7 +176,12 @@ void updateBattle(void) {
             } else if (currentMessage.autoAdvance &&
                       currentMessage.elapsedTime >= currentMessage.displayTime) {
                 // Avançar automaticamente
-                if (!isQueueEmpty(battleSystem->actionQueue)) {
+                // Verificar se o Pokémon do jogador desmaiou
+                if (isMonsterFainted(battleSystem->playerTeam->current)) {
+                    battleSystem->battleState = BATTLE_FORCED_SWITCH;
+                    battleSystem->playerTurn = true;
+                }
+                else if (!isQueueEmpty(battleSystem->actionQueue)) {
                     battleSystem->battleState = BATTLE_EXECUTING_ACTIONS;
                 } else {
                     // CORREÇÃO: Garantir que vamos para seleção de ação
@@ -184,12 +195,19 @@ void updateBattle(void) {
             break;
 
         case BATTLE_SELECT_ACTION:
+            // Verificar primeiro se o Pokémon do jogador desmaiou
+            if (isMonsterFainted(battleSystem->playerTeam->current)) {
+                battleSystem->battleState = BATTLE_FORCED_SWITCH;
+                battleSystem->playerTurn = true;
+                return; // Sair imediatamente
+            }
+
             // Aguardando seleção do jogador ou bot
             if (battleSystem->playerTurn) {
                 // Jogador está selecionando - Interface cuida disso
-
+                printf("[DEBUG] BATTLE_SELECT_ACTION: Vez do jogador\n");
             } else {
-
+                printf("[DEBUG] BATTLE_SELECT_ACTION: Vez do bot\n");
                 // Dar um pequeno delay antes do bot escolher
                 stateTransitionDelay += deltaTime;
                 if (stateTransitionDelay >= 0.5f) {
@@ -200,6 +218,25 @@ void updateBattle(void) {
             }
             break;
 
+        case BATTLE_FORCED_SWITCH:
+            // Nada a fazer aqui, a interface e os inputs cuidam disso
+            // Apenas verificar se o jogador ainda tem algum Pokémon válido
+            if (!hasActiveMonstersLeft(battleSystem->playerTeam)) {
+                // Jogador não tem mais Pokémon, acabar a batalha
+                battleSystem->battleState = BATTLE_OVER;
+                strcpy(battleMessage, "Você não tem mais Pokémon! Você perdeu!");
+
+                currentMessage.displayTime = 3.0f;
+                currentMessage.elapsedTime = 0.0f;
+                currentMessage.waitingForInput = true;
+                currentMessage.autoAdvance = false;
+                strcpy(currentMessage.message, battleMessage);
+
+                battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
+            }
+            break;
+
+        // Outros estados de batalha permanecem os mesmos...
         case BATTLE_PREPARING_ACTIONS:
             // Ordenar ações por velocidade
             determineAndExecuteTurnOrder();
@@ -207,8 +244,7 @@ void updateBattle(void) {
             break;
 
         case BATTLE_EXECUTING_ACTIONS:
-            // Executar próxima ação da fila
-
+            // Resto da implementação existente...
             if (!isQueueEmpty(battleSystem->actionQueue)) {
                 int action, parameter;
                 PokeMonster* monster;
@@ -254,7 +290,7 @@ void updateBattle(void) {
                         break;
 
                     case 2: // Item
-                        executeItemUse(monster, battleSystem->itemType);
+                        executeItemUse(monster, parameter);
 
                         // Mostrar mensagem de uso de item
                         if (strlen(battleMessage) > 0) {
@@ -285,27 +321,26 @@ void updateBattle(void) {
             clearQueue(battleSystem->actionQueue);
             actionQueueReady = false;
 
-            // CORREÇÃO: Explicitamente definir que é a vez do jogador
-            battleSystem->playerTurn = true;
+            // CORREÇÃO: Verificar primeiro se algum Pokémon desmaiou
+            if (isMonsterFainted(battleSystem->playerTeam->current)) {
+                battleSystem->battleState = BATTLE_FORCED_SWITCH;
+                battleSystem->playerTurn = true;
+            } else {
+                // CORREÇÃO: Explicitamente definir que é a vez do jogador
+                battleSystem->playerTurn = true;
 
-            // Mostrar mensagem de início de turno
-            sprintf(battleMessage, "Turno %d - Escolha sua ação!", battleSystem->turn);
-            currentMessage.displayTime = 1.0f;
-            currentMessage.elapsedTime = 0.0f;
-            currentMessage.waitingForInput = true;
-            currentMessage.autoAdvance = false;
-            strcpy(currentMessage.message, battleMessage);
-            battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
+                // Mostrar mensagem de início de turno
+                sprintf(battleMessage, "Turno %d - Escolha sua ação!", battleSystem->turn);
+                currentMessage.displayTime = 1.0f;
+                currentMessage.elapsedTime = 0.0f;
+                currentMessage.waitingForInput = true;
+                currentMessage.autoAdvance = false;
+                strcpy(currentMessage.message, battleMessage);
+                battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
+            }
 
             printf("[DEBUG TURN END] Iniciando turno %d, jogador: %s\n",
                   battleSystem->turn, battleSystem->playerTurn ? "SIM" : "NÃO");
-            break;
-
-        case BATTLE_FORCED_SWITCH:
-            if (battleSystem->playerTeam->current->hp <= 0) {
-                battleSystem->playerTurn = true;
-                battleSystem->battleState = BATTLE_FORCED_SWITCH;
-            }
             break;
 
         case BATTLE_OVER:
@@ -490,11 +525,21 @@ void executeMonsterSwitch(PokeMonster* monster, int targetIndex) {
     }
 }
 
-// Executa o uso de um item
+
+/**
+ * Executa o uso de um item
+ */
 void executeItemUse(PokeMonster* user, ItemType itemType) {
+    // Usar o item no usuário apropriado
     useItem(itemType, user);
+
     // A mensagem já é definida na função useItem
-    battleSystem->itemUsed = true;
+
+    // Se o item foi usado pelo bot/oponente e foi um Cartão Vermelho,
+    // ele afetará o jogador, não o bot
+    if (user == battleSystem->opponentTeam->current && itemType == ITEM_RED_CARD) {
+        // A lógica específica já está em useItem
+    }
 }
 
 // Define a ordem das ações com base na velocidade
@@ -590,7 +635,8 @@ void processTurnEnd(void) {
     printf("\n[DEBUG TURN] === PROCESSANDO FIM DE TURNO %d ===\n", battleSystem->turn);
 
     // Resetar flag de item usado para o próximo turno
-    battleSystem->itemUsed = false;
+    battleSystem->playerItemUsed = false;
+    battleSystem->botItemUsed = false;
 
     // Processar efeitos de status ativos para o jogador
     if (battleSystem->playerTeam && battleSystem->playerTeam->current) {
@@ -866,6 +912,7 @@ int getBattleWinner(void) {
 /**
  * Escolhe uma ação para o bot
  */
+// Escolhe uma ação para o bot usando IA Gemini com fallback simples
 void botChooseAction(void) {
     printf("[DEBUG BOT] Iniciando botChooseAction, playerTurn=%s\n", battleSystem->playerTurn ? "true" : "false");
     if (battleSystem == NULL ||
@@ -901,9 +948,29 @@ void botChooseAction(void) {
 
         case 2: // Usar item
         {
-            printf("[DEBUG BOT] Bot vai usar item %d\n", battleSystem->itemType);
-            enqueue(battleSystem->actionQueue, 2, battleSystem->itemType, botMonster);
-            battleSystem->itemUsed = true;  // Marcar que o item foi usado neste turno
+            // Selecionar o item com base na situação
+            ItemType itemType = battleSystem->itemType;
+
+            // Alterar a lógica para determinar qual item usar com mais inteligência
+            if (botMonster->hp < botMonster->maxHp * 0.4f) {
+                // Se HP está baixo (< 40%), preferir Poção
+                itemType = ITEM_POTION;
+            }
+            else if (botMonster->hp > botMonster->maxHp * 0.7f) {
+                // Se o HP está relativamente alto, considerar usar Cartão Vermelho
+                // O Cartão Vermelho é mais útil se o Pokémon do jogador é forte
+                if (battleSystem->itemType == ITEM_RED_CARD &&
+                    (playerMonster->hp > playerMonster->maxHp * 0.5f)) {
+                    itemType = ITEM_RED_CARD;
+                }
+            }
+            // Caso contrário, usar o item padrão definido para a batalha
+
+            printf("[DEBUG BOT] Bot vai usar item %d\n", itemType);
+            enqueue(battleSystem->actionQueue, 2, itemType, botMonster);
+
+            // Importante: NÃO marcar o item como usado aqui.
+            // Isso será feito quando a ação for realmente executada.
         }
         break;
 
@@ -1033,12 +1100,16 @@ void switchMonster(MonsterList* team, PokeMonster* newMonster) {
  */
 void useItem(ItemType itemType, PokeMonster* target) {
     if (target == NULL) {
+        printf("ERRO: Tentativa de usar item com target NULL\n");
         return;
     }
+
+    printf("[useItem] Usando item %d no monstro %s\n", itemType, target->name);
 
     switch (itemType) {
         case ITEM_POTION:
             // Calcular quanto de HP pode ser curado
+        {
             int hpToHeal = 20; // Máximo que a poção pode curar
             int hpMissing = target->maxHp - target->hp; // Quanto de HP está faltando
 
@@ -1050,30 +1121,91 @@ void useItem(ItemType itemType, PokeMonster* target) {
             // Aplicar a cura
             target->hp += hpToHeal;
 
+            // Garantir que o HP não ultrapasse o máximo
+            if (target->hp > target->maxHp) {
+                target->hp = target->maxHp;
+            }
+
             // Mensagem informando quanto foi curado
             if (hpToHeal > 0) {
                 sprintf(battleMessage, "Poção usada! %s recuperou %d de HP!", target->name, hpToHeal);
             } else {
                 sprintf(battleMessage, "Poção usada! %s já está com HP máximo!", target->name);
             }
+
+            // Debug para verificar o HP após usar a poção
+            printf("[useItem] Após usar poção: %s HP = %d/%d\n", target->name, target->hp, target->maxHp);
+        }
             break;
 
         case ITEM_RED_CARD:
-            // Força o oponente a trocar de monstro
-            if (target == battleSystem->playerTeam->current) {
-                // Forçar troca do oponente
-                PokeMonster* newMonster = botChooseMonster(battleSystem->opponentTeam, target);
-                if (newMonster && newMonster != battleSystem->opponentTeam->current) {
-                    switchMonster(battleSystem->opponentTeam, newMonster);
-                    sprintf(battleMessage, "Cartão Vermelho usado! Oponente trocou para %s!", newMonster->name);
+            {
+                // Importante: determinar quem usou o item e a quem afeta
+                // Se o item é usado pelo jogador, afeta o pokemon do oponente (bot)
+                // Se o item é usado pelo oponente (bot), afeta o pokemon do jogador
 
-                    // Limpar a fila de ações do bot para impedir ataques neste turno
-                    clearQueue(battleSystem->actionQueue);
+                PokeMonster* affectedMonster = NULL;
+                MonsterList* affectedTeam = NULL;
+
+                // Verificar quem usou o item e quem deve ser afetado
+                if (target == battleSystem->playerTeam->current) {
+                    // Jogador usou o item, afeta o oponente
+                    affectedMonster = battleSystem->opponentTeam->current;
+                    affectedTeam = battleSystem->opponentTeam;
+                    sprintf(battleMessage, "Cartão Vermelho usado! Forçando o oponente a trocar!");
                 } else {
-                    sprintf(battleMessage, "Cartão Vermelho usado, mas falhou!");
+                    // Oponente usou o item, afeta o jogador
+                    affectedMonster = battleSystem->playerTeam->current;
+                    affectedTeam = battleSystem->playerTeam;
+                    sprintf(battleMessage, "Oponente usou Cartão Vermelho! Você precisa trocar de Pokémon!");
                 }
-            } else {
-                sprintf(battleMessage, "Cartão Vermelho usado, mas falhou!");
+
+                // Verificar se há outros monstros disponíveis para troca
+                bool hasValidMonsters = false;
+                PokeMonster* current = affectedTeam->first;
+
+                while (current != NULL) {
+                    if (!isMonsterFainted(current) && current != affectedMonster) {
+                        hasValidMonsters = true;
+                        break;
+                    }
+                    current = current->next;
+                }
+
+                if (hasValidMonsters) {
+                    // Se o jogador foi afetado, forçar tela de seleção
+                    if (affectedTeam == battleSystem->playerTeam) {
+                        battleSystem->battleState = BATTLE_FORCED_SWITCH;
+                        battleSystem->playerTurn = true;
+
+                        // Limpar ações pendentes para dar prioridade à troca
+                        clearQueue(battleSystem->actionQueue);
+
+                        // Atualizar mensagem para ser mais clara
+                        strcpy(battleMessage, "Oponente usou Cartão Vermelho! Escolha outro Pokémon!");
+                    } else {
+                        // Bot é afetado, escolher automaticamente outro monstro
+                        PokeMonster* newMonster = NULL;
+
+                        // Escolher o primeiro monstro não desmaiado que não seja o atual
+                        current = affectedTeam->first;
+                        while (current != NULL) {
+                            if (!isMonsterFainted(current) && current != affectedMonster) {
+                                newMonster = current;
+                                break;
+                            }
+                            current = current->next;
+                        }
+
+                        if (newMonster) {
+                            switchMonster(affectedTeam, newMonster);
+                            sprintf(battleMessage, "Cartão Vermelho usado! Oponente trocou para %s!", newMonster->name);
+                        }
+                    }
+                } else {
+                    // Não há outros monstros para trocar
+                    sprintf(battleMessage, "Cartão Vermelho usado, mas não há outros Pokémon disponíveis!");
+                }
             }
             break;
 
@@ -1087,10 +1219,28 @@ void useItem(ItemType itemType, PokeMonster* target) {
                 // HP = 0
                 target->hp = 0;
                 sprintf(battleMessage, "Moeda da Sorte: COROA! %s desmaiou!", target->name);
+
+                // Se o jogador desmaiou, forçar troca
+                if (target == battleSystem->playerTeam->current) {
+                    battleSystem->battleState = BATTLE_FORCED_SWITCH;
+                    battleSystem->playerTurn = true;
+                }
             }
             break;
+
+        default:
+            sprintf(battleMessage, "Item desconhecido usado!");
+            break;
     }
-    battleSystem->itemUsed = true;
+
+    // Marcar o item como usado pelo usuário correto
+    if (target == battleSystem->playerTeam->current) {
+        printf("[useItem] Item usado pelo jogador\n");
+        battleSystem->playerItemUsed = true;
+    } else if (target == battleSystem->opponentTeam->current) {
+        printf("[useItem] Item usado pelo oponente\n");
+        battleSystem->botItemUsed = true;
+    }
 }
 
 /**
@@ -1260,4 +1410,20 @@ void resetBattle(void) {
 
     // Limpar mensagem
     battleMessage[0] = '\0';
+}
+
+bool hasActiveMonstersLeft(MonsterList* team) {
+    if (team == NULL) {
+        return false;
+    }
+
+    PokeMonster* current = team->first;
+    while (current != NULL) {
+        if (!isMonsterFainted(current)) {
+            return true;
+        }
+        current = current->next;
+    }
+
+    return false;
 }

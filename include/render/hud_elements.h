@@ -14,5 +14,5 @@ void drawAttackList(Rectangle bounds, PokeMonster* monster, int selectedAttack);
 void drawMessageBox(Rectangle bounds, const char* message);
 void drawConfirmationDialog(const char* message, const char* yesText, const char* noText);
 void drawAIIndicator(void);
-
+void resetHPBars(void);
 #endif
