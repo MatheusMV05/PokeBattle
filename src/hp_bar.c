@@ -66,7 +66,7 @@ void DrawHealthBar(Rectangle bounds, int currentHP, int maxHP, const PokeMonster
     if (maxHP <= 0) return; // Prevenir divisão por zero
 
     // Debug para verificar os valores
-    printf("[HP BAR] Monstro: %s | Ptr: %p | HP: %d/%d\n", monster->name, (void*)monster, currentHP, maxHP);
+
 
     // Obter animação específica para este monstro
     HPBarAnimation* anim = GetHPBarAnimation(monster);

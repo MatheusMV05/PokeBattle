@@ -769,6 +769,8 @@ void drawMonsterSelectionMenu(Rectangle bounds)
  * Desenha o menu de itens com múltiplos itens disponíveis
  */
 void drawItemMenu(Rectangle bounds) {
+    // Variáveis para controlar os itens
+
     // Cores do estilo BW
     Color bgColor = (Color){40, 40, 40, 230};
     Color frameColor = (Color){0, 0, 0, 255};
@@ -814,9 +816,17 @@ void drawItemMenu(Rectangle bounds) {
     static bool randomItemUsed = false;   // Controla se o item aleatório foi usado
 
     // Se voltar ao menu, resetar os itens (isso reflete que um novo turno começou)
-    if (battleSystem->battleState == BATTLE_SELECT_ACTION) {
+    if (battleSystem->turn == 1 && !battleSystem->playerItemUsed) {
         potionUsed = false;
         randomItemUsed = false;
+    }
+
+    // NOVO: Sincronizar com a flag global
+    if (battleSystem->playerItemUsed) {
+        // Se o jogador já usou um item neste turno, ambos os itens
+        // devem estar desabilitados
+        potionUsed = true;
+        randomItemUsed = true;
     }
 
     // Se o jogador já usou qualquer item neste turno, verificar qual
