@@ -17,6 +17,7 @@ static float scrollSpeed = 40.0f;
 static bool autoScroll = true;
 static float starTimer = 0.0f;
 static bool creditsActive = false;  // Flag para controlar quando os créditos estão ativos
+static int contentHeight = 0;       // Variável para armazenar a altura real do conteúdo
 
 // Estrutura para estrela animada
 typedef struct
@@ -33,7 +34,8 @@ static AnimStar stars[MAX_STARS];
 
 typedef struct {
     Texture2D texture;
-    Vector2 basePosition;
+    float relativeX;         // Posição relativa (0.0-1.0) em relação à largura da tela
+    float baseY;             // Posição Y base
     float scale;
     bool enableRotation;
     float timeOffset;
@@ -106,15 +108,16 @@ void initCreditSprites(void)
         unloadCreditSprites();
     }
 
-    // Carregar novos sprites
-    creditSprites[0] = (CreditSprite){ LoadTexture("resources/spritesNeto/grilitron.png"), { 150, 300 }, 1.0f, true, 0.0f };
-    creditSprites[1] = (CreditSprite){ LoadTexture("resources/spritesNeto/aquariah.png"), { 990, 500 }, 1.0f, false, 0.5f };
-    creditSprites[2] = (CreditSprite){ LoadTexture("resources/spritesNeto/gambiarra.png"), { 150, 700 }, 0.9f, true, 1.0f };
-    creditSprites[3] = (CreditSprite){ LoadTexture("resources/spritesNeto/mandragoiaba.png"), { 990, 900 }, 1.1f, false, 0.3f };
-    creditSprites[4] = (CreditSprite){ LoadTexture("resources/spritesNeto/netomon.png"), { 150, 1100 }, 1.0f, true, 0.7f };
-    creditSprites[5] = (CreditSprite){ LoadTexture("resources/spritesNeto/pyromula.png"), { 1000, 1297 }, 1.0f, false, 1.2f };
-    creditSprites[6] = (CreditSprite){ LoadTexture("resources/spritesNeto/tatarion.png"), { 120, 1400 }, 1.0f, true, 0.4f };
-    creditSprites[7] = (CreditSprite){ LoadTexture("resources/spritesNeto/ventaforte.png"), { 990, 1600 }, 1.0f, true, 0.8f };
+    // Carregar novos sprites com posições relativas
+    // Formato: relativeX vai de 0.0 (esquerda) a 1.0 (direita)
+    creditSprites[0] = (CreditSprite){ LoadTexture("resources/spritesNeto/grilitron.png"), 0.15f, 300, 1.0f, true, 0.0f };
+    creditSprites[1] = (CreditSprite){ LoadTexture("resources/spritesNeto/aquariah.png"), 0.85f, 500, 1.0f, false, 0.5f };
+    creditSprites[2] = (CreditSprite){ LoadTexture("resources/spritesNeto/gambiarra.png"), 0.15f, 700, 0.9f, true, 1.0f };
+    creditSprites[3] = (CreditSprite){ LoadTexture("resources/spritesNeto/mandragoiaba.png"), 0.85f, 900, 1.1f, false, 0.3f };
+    creditSprites[4] = (CreditSprite){ LoadTexture("resources/spritesNeto/netomon.png"), 0.15f, 1100, 1.0f, true, 0.7f };
+    creditSprites[5] = (CreditSprite){ LoadTexture("resources/spritesNeto/pyromula.png"), 0.85f, 1297, 1.0f, false, 1.2f };
+    creditSprites[6] = (CreditSprite){ LoadTexture("resources/spritesNeto/tatarion.png"), 0.15f, 1400, 1.0f, true, 0.4f };
+    creditSprites[7] = (CreditSprite){ LoadTexture("resources/spritesNeto/ventaforte.png"), 0.85f, 1600, 1.0f, true, 0.8f };
     creditSpriteCount = 8;
 
     // Verificar se os sprites foram carregados corretamente
@@ -143,7 +146,7 @@ void drawCredits(void)
     creditsTimer += deltaTime;
     starTimer += deltaTime;
 
-    // Fundo
+    // Fundo gradiente
     for (int i = 0; i < GetScreenHeight(); i++)
     {
         float factor = (float)i / GetScreenHeight();
@@ -174,7 +177,7 @@ void drawCredits(void)
         );
     }
 
-    // Desenhar sprites apenas se houver sprites carregados
+    // Desenhar sprites com posicionamento relativo
     if (creditSpriteCount > 0) {
         for (int i = 0; i < creditSpriteCount; i++)
         {
@@ -190,9 +193,12 @@ void drawCredits(void)
             float rotation = sprite->enableRotation ? sinf(animTime) * 5.0f : 0.0f;
             float xOffset = sinf(animTime * 1.5f) * 5.0f; // oscilação horizontal opcional
 
+            // Converter posição relativa X para coordenada real baseada na largura da tela
+            float actualX = sprite->relativeX * GetScreenWidth() + xOffset;
+
             Vector2 drawPos = {
-                sprite->basePosition.x + xOffset,
-                sprite->basePosition.y - creditsScroll
+                actualX,
+                sprite->baseY - creditsScroll
             };
 
             if (drawPos.y + sprite->texture.height * sprite->scale >= 0 &&
@@ -221,20 +227,29 @@ void drawCredits(void)
     int contentWidth = 600;
     int centerX = screenWidth / 2;
 
-    // Calcular altura total do conteúdo (para auto-scroll)
-    int totalHeight = 1800; // Altura aproximada de todo conteúdo (aumentada para dar mais espaço)
+    // Começar a desenhar conteúdo dos créditos
+    int startY = 150 - (int)creditsScroll;
+    int sectionY = startY;
 
-    // Limitar scroll
-    if (creditsScroll > totalHeight)
-    {
-        creditsScroll = totalHeight;
-        autoScroll = false; // Parar quando chegar ao fim
-    }
+    // Função para centralizar texto
+#define DRAW_CENTERED_TEXT(text, y, size, color) \
+        DrawText((text), centerX - MeasureText((text), (size)) / 2, (y), (size), (color))
 
-    if (creditsScroll < 0)
-    {
-        creditsScroll = 0;
-    }
+    // Função para desenhar cabeçalho de seção
+#define DRAW_SECTION_HEADER(text, y) \
+        do { \
+            int size = 30; \
+            Color bgColor = (Color){0, 102, 204, 150}; \
+            int width = MeasureText((text), size) + 40; \
+            DrawRectangle(centerX - width / 2, (y) - 5, width, 40, bgColor); \
+            DrawRectangleLinesEx( \
+                (Rectangle){centerX - width / 2, (y) - 5, width, 40}, \
+                2, \
+                WHITE \
+            ); \
+            DRAW_CENTERED_TEXT((text), (y), size, WHITE); \
+            sectionY = (y) + 50; \
+        } while(0)
 
     // Desenhar título principal
     const char* title = "CRÉDITOS";
@@ -260,30 +275,6 @@ void drawCredits(void)
              50,
              titleSize,
              titleColor);
-
-    // Começar a desenhar conteúdo dos créditos
-    int startY = 150 - (int)creditsScroll;
-    int sectionY = startY;
-
-    // Função para centralizar texto
-#define DRAW_CENTERED_TEXT(text, y, size, color) \
-        DrawText((text), centerX - MeasureText((text), (size)) / 2, (y), (size), (color))
-
-    // Função para desenhar cabeçalho de seção
-#define DRAW_SECTION_HEADER(text, y) \
-        do { \
-            int size = 30; \
-            Color bgColor = (Color){0, 102, 204, 150}; \
-            int width = MeasureText((text), size) + 40; \
-            DrawRectangle(centerX - width / 2, (y) - 5, width, 40, bgColor); \
-            DrawRectangleLinesEx( \
-                (Rectangle){centerX - width / 2, (y) - 5, width, 40}, \
-                2, \
-                WHITE \
-            ); \
-            DRAW_CENTERED_TEXT((text), (y), size, WHITE); \
-            sectionY = (y) + 50; \
-        } while(0)
 
     // Seção 1: Título do Jogo
     DRAW_SECTION_HEADER("PokeBattle", sectionY);
@@ -407,8 +398,17 @@ void drawCredits(void)
     DRAW_CENTERED_TEXT("© 2025 - Todos os direitos reservados", sectionY + 270, 16, LIGHTGRAY);
     DRAW_CENTERED_TEXT("Feito com <3 e muito café", sectionY + 300, 16, PINK);
 
+    // Atualizar a altura total do conteúdo com base na última posição renderizada
+    contentHeight = sectionY + 1350 - 150; // Última posição + margem - offset inicial
+
+    // Limitar scroll para parar quando chegar ao fim
+    if (creditsScroll > contentHeight - screenHeight + 200) {
+        creditsScroll = contentHeight - screenHeight + 200;
+        autoScroll = false; // Parar o scroll quando chegar ao fim
+    }
+
     // Desenhar barra de scroll na lateral
-    if (totalHeight > screenHeight)
+    if (contentHeight > screenHeight)
     {
         float scrollBarHeight = screenHeight * 0.7f;
         float scrollBarY = screenHeight * 0.15f;
@@ -423,8 +423,10 @@ void drawCredits(void)
         );
 
         // Proporção de quanto foi scrollado
-        float scrollRatio = creditsScroll / totalHeight;
-        float handleHeight = scrollBarHeight * (screenHeight / totalHeight);
+        float scrollRatio = creditsScroll / (contentHeight - screenHeight + 200);
+        if (scrollRatio > 1.0f) scrollRatio = 1.0f;
+        float handleHeight = scrollBarHeight * (screenHeight / (float)contentHeight);
+        if (handleHeight < 30) handleHeight = 30; // Garantir altura mínima
 
         // Manopla da barra
         DrawRectangle(
@@ -435,6 +437,7 @@ void drawCredits(void)
             (Color){200, 200, 255, 200}
         );
     }
+
 
     // Botão de auto-scroll
     Rectangle autoScrollBtn = {20, 20, 180, 40};
@@ -479,6 +482,7 @@ void updateCredits(void)
         starTimer = 0.0f;
         creditsScroll = 0.0f;
         autoScroll = true;
+        contentHeight = 0; // Resetar altura do conteúdo
 
         // Inicializar recursos
         initStars();
@@ -509,12 +513,4 @@ void updateCredits(void)
         creditsScroll += GetFrameTime() * 300.0f;
     }
 
-    // Verificar se uma tecla F11 foi pressionada para alternar tela cheia
-    if (IsKeyPressed(KEY_F11))
-    {
-        pendingFullscreen = !pendingFullscreen;
-    }
 }
-
-
-
