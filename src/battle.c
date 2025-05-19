@@ -237,6 +237,7 @@ void updateBattle(void) {
 
                 battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
             }
+
             break;
 
         // Outros estados de batalha permanecem os mesmos...
@@ -1271,7 +1272,7 @@ int calculateDamage(PokeMonster* attacker, PokeMonster* defender, Attack* attack
 
     // Como não temos níveis, vamos simplificar:
     float baseDamage = (float)attack->power * attacker->attack / defender->defense;
-    baseDamage = (baseDamage / 50.0f) + 2;
+    baseDamage = (baseDamage / 50.0f) + 6;
 
     // Modificador de tipo
     float typeModifier = calculateTypeEffectiveness(attack->type, defender->type1, defender->type2);
