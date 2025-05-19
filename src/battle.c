@@ -21,6 +21,8 @@
 #include "battle_renderer.h"
 #include "hp_bar.h"
 
+static bool botPotionUsed = false;     // Controla se o bot já usou poção na batalha
+static bool botRandomItemUsed = false; // Controla se o bot já usou item aleatório na batalha
 
 
 // Inicializa o sistema de batalha
@@ -83,6 +85,8 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     battleSystem->itemUsed = false;
     battleSystem->selectedAttack = 0;
     battleSystem->selectedAction = 0;
+    botPotionUsed = false;
+    botRandomItemUsed = false;
 
     // Escolher um item aleatório para a batalha
     battleSystem->itemType = rollRandomItem();
@@ -1166,31 +1170,58 @@ void botChooseAction(void) {
             break;
 
         case 2: // Usar item
-        {
-            // Selecionar o item com base na situação
-            ItemType itemType = battleSystem->itemType;
+            {
+                // Verificar se o bot já usou todos os itens disponíveis
+                if ((battleSystem->itemType == ITEM_POTION && botPotionUsed) ||
+                    (battleSystem->itemType == ITEM_RED_CARD && botRandomItemUsed) ||
+                    (battleSystem->itemType == ITEM_COIN && botRandomItemUsed)) {
 
-            // Alterar a lógica para determinar qual item usar com mais inteligência
-            if (botMonster->hp < botMonster->maxHp * 0.4f) {
-                // Se HP está baixo (< 40%), preferir Poção
-                itemType = ITEM_POTION;
-            }
-            else if (botMonster->hp > botMonster->maxHp * 0.7f) {
-                // Se o HP está relativamente alto, considerar usar Cartão Vermelho
-                // O Cartão Vermelho é mais útil se o Pokémon do jogador é forte
-                if (battleSystem->itemType == ITEM_RED_CARD &&
-                    (playerMonster->hp > playerMonster->maxHp * 0.5f)) {
-                    itemType = ITEM_RED_CARD;
+                    // Bot já usou todos os itens, escolher outra ação
+                    int attackIndex = botChooseAttack(botMonster, playerMonster);
+                    printf("[DEBUG BOT] Bot já usou todos os itens, vai atacar usando ataque %d\n", attackIndex);
+                    enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+                    break;
                 }
+
+                // Selecionar o item com base na situação
+                ItemType itemType = battleSystem->itemType;
+
+                // Alterar a lógica para determinar qual item usar com mais inteligência
+                if (botMonster->hp < botMonster->maxHp * 0.4f && !botPotionUsed) {
+                    // Se HP está baixo (< 40%), preferir Poção
+                    itemType = ITEM_POTION;
+                }
+                else if (botMonster->hp > botMonster->maxHp * 0.7f && !botRandomItemUsed) {
+                    // Se o HP está relativamente alto, considerar usar Cartão Vermelho
+                    // O Cartão Vermelho é mais útil se o Pokémon do jogador é forte
+                    if (battleSystem->itemType == ITEM_RED_CARD &&
+                        (playerMonster->hp > playerMonster->maxHp * 0.5f)) {
+                        itemType = ITEM_RED_CARD;
+                    } else if (battleSystem->itemType == ITEM_COIN) {
+                        itemType = ITEM_COIN;
+                    }
+                }
+                // Se já usou esse tipo específico de item, tentar o outro
+                if ((itemType == ITEM_POTION && botPotionUsed) ||
+                    ((itemType == ITEM_RED_CARD || itemType == ITEM_COIN) && botRandomItemUsed)) {
+
+                    // Tentar usar o outro tipo de item
+                    if (botPotionUsed && !botRandomItemUsed) {
+                        itemType = battleSystem->itemType; // Item randomico original
+                    } else if (!botPotionUsed && botRandomItemUsed) {
+                        itemType = ITEM_POTION;
+                    } else {
+                        // Já usou os dois tipos, atacar
+                        int attackIndex = botChooseAttack(botMonster, playerMonster);
+                        printf("[DEBUG BOT] Bot já usou ambos os itens, vai atacar usando ataque %d\n", attackIndex);
+                        enqueue(battleSystem->actionQueue, 0, attackIndex, botMonster);
+                        break;
+                    }
+                }
+
+                printf("[DEBUG BOT] Bot vai usar item %d\n", itemType);
+                enqueue(battleSystem->actionQueue, 2, itemType, botMonster);
             }
-            // Caso contrário, usar o item padrão definido para a batalha
-
-            printf("[DEBUG BOT] Bot vai usar item %d\n", itemType);
-            enqueue(battleSystem->actionQueue, 2, itemType, botMonster);
-
-            // Importante: NÃO marcar o item como usado aqui.
-            // Isso será feito quando a ação for realmente executada.
-        }
         break;
 
         default: // Fallback - sempre atacar
@@ -1495,6 +1526,23 @@ break;
     } else if (target == battleSystem->opponentTeam->current) {
         printf("[useItem] Item usado pelo oponente\n");
         battleSystem->botItemUsed = true;
+    }
+
+    if (target == battleSystem->playerTeam->current) {
+        printf("[useItem] Item usado pelo jogador\n");
+        battleSystem->playerItemUsed = true;
+    } else if (target == battleSystem->opponentTeam->current) {
+        printf("[useItem] Item usado pelo oponente\n");
+        battleSystem->botItemUsed = true;
+
+        // ADICIONAR: Marcar o tipo específico de item como usado pelo bot
+        if (itemType == ITEM_POTION) {
+            botPotionUsed = true;
+            printf("[useItem] Bot marcou poção como usada\n");
+        } else if (itemType == ITEM_RED_CARD || itemType == ITEM_COIN) {
+            botRandomItemUsed = true;
+            printf("[useItem] Bot marcou item aleatório como usado\n");
+        }
     }
 }
 
