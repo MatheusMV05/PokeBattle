@@ -39,7 +39,7 @@ void drawOpponentSelection(void)
     selectionTimer += GetFrameTime();
     float bgScroll = selectionTimer * 15.0f;
 
-    // Fundo com gradiente azul estilo Pokémon Crystal (mesmo do menu principal)
+    // Fundo com gradiente azul
     for (int i = 0; i < GetScreenHeight(); i++)
     {
         float factor = (float)i / GetScreenHeight();
@@ -52,7 +52,7 @@ void drawOpponentSelection(void)
         DrawRectangle(0, i, GetScreenWidth(), 1, lineColor);
     }
 
-    // Desenhar padrão de listras horizontais (como no menu principal)
+    // Desenhar padrão de listras horizontais
     for (int i = 0; i < GetScreenHeight(); i += 20)
     {
         int yPos = i + (int)bgScroll % 20;
@@ -222,7 +222,7 @@ void drawMonsterSelection(void)
     selectionTimer += GetFrameTime();
     float bgScroll = selectionTimer * 15.0f;
 
-    // Fundo com gradiente azul estilo Pokémon Crystal (mesmo do menu principal)
+    // Fundo com gradiente azul
     for (int i = 0; i < GetScreenHeight(); i++)
     {
         float factor = (float)i / GetScreenHeight();
@@ -235,7 +235,7 @@ void drawMonsterSelection(void)
         DrawRectangle(0, i, GetScreenWidth(), 1, lineColor);
     }
 
-    // Desenhar padrão de listras horizontais (como no menu principal)
+    // Desenhar padrão de listras horizontais
     for (int i = 0; i < GetScreenHeight(); i += 20)
     {
         int yPos = i + (int)bgScroll % 20;
@@ -292,13 +292,12 @@ void drawMonsterSelection(void)
                  nameFontSize,
                  WHITE);
 
-        // Nova seção: Exibir o sprite frontal do Pokémon
+
         // Usar a animação frontal do Pokémon
         if (currentViewedMonster->frontAnimation.frameCount > 0)
         {
             UpdateAnimation(&currentViewedMonster->frontAnimation);
-            Texture2D currentFrame = currentViewedMonster->frontAnimation.frames[currentViewedMonster->frontAnimation.
-                currentFrame];
+            Texture2D currentFrame = currentViewedMonster->frontAnimation.frames[currentViewedMonster->frontAnimation.currentFrame];
 
             // Calcular posição central para o sprite
             float scale = 3.0f; // Escala maior para melhor visualização
@@ -547,7 +546,7 @@ void drawMonsterSelection(void)
             DrawRectangleRounded(bounds, 0.2f, 8, cardBgColor);
             DrawRectangleRoundedLines(bounds, 0.3f, 8, BLACK);
 
-            // Área interna do card com efeito "inset"
+            // Área interna do card com efeito
             Rectangle innerBounds = {
                 bounds.x + 5,
                 bounds.y + 5,

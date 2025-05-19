@@ -32,7 +32,6 @@ Rectangle ScaleRectangle(float x, float y, float width, float height) {
 }
 
 // Escalar um tamanho de fonte
-// Usamos a média das escalas X e Y para manter a proporção da fonte
 float ScaleFontSize(float fontSize) {
     return fontSize * ((GetScaleX() + GetScaleY()) / 2.0f);
 }

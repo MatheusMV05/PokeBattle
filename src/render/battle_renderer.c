@@ -279,9 +279,7 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
     }
 }
 
-/**
- * Desenha a caixa de status de um monstro no estilo Pokémon Black/White
- */
+
 /**
  * Desenha a caixa de status de um monstro no estilo Pokémon Black/White
  */
@@ -1277,7 +1275,7 @@ void drawBattleScreen(void) {
     drawMonsterInBattle(playerMonster, true);
     drawMonsterInBattle(opponentMonster, false);
 
-    // Redesenhando caixas de status - MUDANÇA DE POSIÇÃO
+
     // Caixa do inimigo no topo
     Rectangle enemyStatusBox = {
         20,

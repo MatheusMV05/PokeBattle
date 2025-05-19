@@ -102,8 +102,8 @@ void initializeMonsterDatabase(void)
     // Criar monstros manualmente
     createMonsterDatabase();
 
-    // Note: As texturas serão carregadas depois pela função loadMonsterTextures
-    // Não carregamos texturas aqui porque o Raylib precisa estar inicializado primeiro
+    // As texturas serão carregadas depois pela função loadMonsterTextures
+    // Não carregar texturas aqui porque o Raylib precisa estar inicializado primeiro
 }
 
 // Função de diagnóstico para identificar problemas com o mapeamento de tipos
@@ -1521,7 +1521,6 @@ Color getTypeColor(MonsterType type)
 }
 
 // Mapeamento entre nomes de monstros e seus números na Pokedex
-// Para seus Pokitos originais, vamos usar números a partir de 1000
 static const MonsterMapping monsterMapping[] = {
     // Pokitos originais (números 1000+)
     {"Grillitron", 1000},

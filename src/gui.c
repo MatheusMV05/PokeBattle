@@ -14,7 +14,7 @@
 
 #include "globals.h"
 
-// Cores do tema Pokémon Crystal
+// Cores do tema
 #define PKMN_LIGHT_BLUE    (Color){ 95, 205, 255, 255 }
 #define PKMN_DARK_BLUE     (Color){ 16, 144, 192, 255 }
 #define PKMN_RED           (Color){ 248, 88, 96, 255 }
@@ -28,10 +28,8 @@ static Texture2D pokemonFrameTexture;
 static Texture2D pokemonButtonTexture;
 static Texture2D pokemonDialogTexture;
 
-// Carrega o tema do Pokémon Crystal
+// Carrega o tema
 void LoadPokemonTheme(void) {
-    // Aqui você carregaria texturas para frames e botões
-    // Por enquanto, usaremos cores para simular o tema
     GuiSetStyle(DEFAULT, BACKGROUND_COLOR, ColorToInt(PKMN_LIGHT_BLUE));
     GuiSetStyle(DEFAULT, TEXT_COLOR_NORMAL, ColorToInt(PKMN_BLACK));
     GuiSetStyle(DEFAULT, TEXT_COLOR_FOCUSED, ColorToInt(PKMN_DARK_BLUE));
@@ -52,15 +50,14 @@ void LoadPokemonTheme(void) {
     GuiSetStyle(BUTTON, BORDER_WIDTH, 2);
     GuiSetStyle(BUTTON, TEXT_ALIGNMENT, TEXT_ALIGN_CENTER);
 
-    // Adicione outros estilos para diferentes widgets...
 }
 
 // Descarrega recursos do tema
 void UnloadPokemonTheme(void) {
-    // Descarregar texturas se tivéssemos carregado
+
 }
 
-// Botão estilo Pokémon Black/White
+// Botão estilizado
 bool GuiPokemonButton(Rectangle bounds, const char *text, bool active) {
     bool pressed = false;
     int state = GuiGetState();
@@ -192,7 +189,7 @@ void GuiPokemonMessageBox(Rectangle bounds, const char *message) {
     DrawRectangleRec(bounds, PKMN_WHITE);
     DrawRectangleLinesEx(bounds, 2, PKMN_BLACK);
 
-    // Desenhar bordas internas estilo Pokémon
+    // Desenhar bordas internas
     DrawRectangle(bounds.x + 2, bounds.y + 2, bounds.width - 4, 4, PKMN_LIGHT_BLUE);
     DrawRectangle(bounds.x + 2, bounds.y + bounds.height - 6, bounds.width - 4, 4, PKMN_LIGHT_BLUE);
     DrawRectangle(bounds.x + 2, bounds.y + 6, 4, bounds.height - 12, PKMN_LIGHT_BLUE);
@@ -201,7 +198,7 @@ void GuiPokemonMessageBox(Rectangle bounds, const char *message) {
     // Desenhar texto
     DrawText(message, bounds.x + 20, bounds.y + 20, 20, PKMN_BLACK);
 
-    // Indicador de continuar (triangulozinho piscando)
+    // Indicador de "continuar (triangulozinho piscando)"
     static float blinkTimer = 0.0f;
     blinkTimer += GetFrameTime() * 4.0f;
 
@@ -393,7 +390,7 @@ bool GuiPokemonDialog(Rectangle bounds, const char *title, const char *message, 
         char buttonsSeparated[256];
         strcpy(buttonsSeparated, buttons);
 
-        // Parse dos botões separados por ;
+        // Parse dos botões separados por ";"
         char *button = strtok(buttonsSeparated, ";");
         int buttonCount = 0;
         int btnWidth = 120;

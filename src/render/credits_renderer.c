@@ -143,7 +143,7 @@ void drawCredits(void)
     creditsTimer += deltaTime;
     starTimer += deltaTime;
 
-    // Fundo gradiente
+    // Fundo
     for (int i = 0; i < GetScreenHeight(); i++)
     {
         float factor = (float)i / GetScreenHeight();

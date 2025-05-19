@@ -117,7 +117,7 @@ static void drawParticles(void) {
     for (int i = 0; i < MAX_PARTICLES; i++) {
         if (!particles[i].active) continue;
 
-        // Pulsar tamanho e opacidade
+        // Tamanho e opacidade
         float sizeScale = 0.8f + sinf(particleTimer * 2.0f + i * 0.3f) * 0.2f;
         float opacityScale = 0.8f + sinf(particleTimer * 1.5f + i * 0.3f) * 0.2f;
 
@@ -131,10 +131,10 @@ static void drawParticles(void) {
 }
 
 void drawMainMenu(void) {
-    // Atualizar música do menu
+    // Atualizar a música do menu
     UpdateMusicStream(menuMusic);
 
-    // Desenhar fundo estilo Pokémon Crystal
+
     // Fundo azul degradê
     for (int i = 0; i < GetScreenHeight(); i++) {
         float factor = (float)i / GetScreenHeight();
@@ -147,7 +147,7 @@ void drawMainMenu(void) {
         DrawRectangle(0, i, GetScreenWidth(), 1, lineColor);
     }
 
-    // Desenhar padrão de listras horizontais (como no Pokémon Crystal)
+    // Desenhar padrão de listras horizontais
     backgroundScroll -= GetFrameTime() * 20.0f;
     if (backgroundScroll < -20.0f) backgroundScroll += 20.0f;
 
@@ -289,7 +289,7 @@ void drawMainMenu(void) {
             50
         };
 
-        // Verificar mouse hover
+        // Verificar o hover do mouse
         bool isHovered = CheckCollisionPointRec(GetMousePosition(), optionRect);
         if (isHovered) {
             selectedOption = i;
@@ -321,25 +321,25 @@ void drawMainMenu(void) {
             optionRect.height * pulseScale
         };
 
-        // Desenhar fundo do botão
+        // Desenha o fundo do botão
         DrawRectangleRounded(pulsedRect, 0.2f, 10, buttonColor);
         DrawRectangleRoundedLines(pulsedRect, 0.2f, 10,Fade(BLACK, menuAlpha));
 
-        // Desenhar texto
+        // Desenha o texto
         DrawText(options[i],
                 pulsedRect.x + pulsedRect.width/2 - MeasureText(options[i], 20)/2,
                 pulsedRect.y + pulsedRect.height/2 - 10,
                 20,
                 Fade(WHITE, menuAlpha));
 
-        // Verificar clique
+        // Verifica o clique do mouse em seleção
         if (isHovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             PlaySound(selectSound);
             currentScreen = menuOptionStates[i];  // Use o mapeamento correto
         }
     }
 
-    // Desenhar informações na parte inferior da tela
+    // Desenha as informações na parte inferior da tela
     DrawText("© 2025 - CESAR School",
             10,
             GetScreenHeight() - 30,

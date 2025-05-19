@@ -24,7 +24,7 @@
 extern BattleSystem* battleSystem;
 
  
- // Chave da API (em um sistema real, seria obtida de uma variável de ambiente ou arquivo seguro)
+ // Chave da API(em um sistema real, seria obtida de uma variável de ambiente ou arquivo seguro)
  static const char* API_KEY = "AIzaSyCQDFjSqzONZN29n3TW-jMjzjr5Lm2YifM"; 
  
  // Modelo a ser usado
@@ -675,7 +675,7 @@ int getAISuggestedMonster(MonsterList* botTeam, PokeMonster* playerMonster) {
             currentIndex = index;
         }
 
-        // Só considerar monstros que não estão desmaiados e que NÃO sejam o atual
+        // Considerar que os monstros que não estão desmaiados e que NÃO sejam o atual
         if (!isMonsterFainted(current) && current != botTeam->current) {
             float hpRatio = (float)current->hp / current->maxHp;
 
@@ -698,12 +698,10 @@ int getAISuggestedMonster(MonsterList* botTeam, PokeMonster* playerMonster) {
         index++;
     }
 
-    // Se encontrou um monstro melhor, retornar seu índice
     if (bestIndex >= 0) {
         return bestIndex;
     }
 
-    // Se não encontrou um melhor, escolha aleatório diferente do atual
     int validCount = 0;
     int* validIndices = malloc(botTeam->count * sizeof(int));
 
@@ -726,8 +724,6 @@ int getAISuggestedMonster(MonsterList* botTeam, PokeMonster* playerMonster) {
 
     free(validIndices);
 
-    // Se não houver outras opções, retorna um índice diferente do atual
-    // (mesmo que seja inválido, o jogo tratará isso)
     return (currentIndex + 1) % botTeam->count;
 }
 

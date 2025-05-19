@@ -48,7 +48,7 @@ MonsterList* playerTeam = NULL;
 MonsterList* opponentTeam = NULL;
 
 // Recursos visuais e sonoros
-Font gameFont;
+Font gameFont; //Implementar caso haja tempo
 Texture2D backgroundTexture;
 Texture2D menuBackground;
 Texture2D battleBackground;
