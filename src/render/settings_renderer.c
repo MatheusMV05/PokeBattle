@@ -1,3 +1,4 @@
+// settings_renderer.c (corrigido)
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOGDI
@@ -61,7 +62,7 @@ void drawSettings(void) {
     if (bgScroll > 40.0f) bgScroll -= 40.0f;
 
     // Desenhar fundo estilo Pokémon
-    // Fundo azul em gradiente
+    // Fundo azul gradiente
     for (int i = 0; i < GetScreenHeight(); i++) {
         float factor = (float)i / GetScreenHeight();
         Color lineColor = (Color){
@@ -80,7 +81,7 @@ void drawSettings(void) {
         DrawRectangle(0, yPos, GetScreenWidth(), 3, (Color){255, 255, 255, 20});
     }
 
-    // Título principal com animação em pulsos
+    // Título principal com animação pulsante
     const char* title = "CONFIGURAÇÕES";
     float titlePulse = 1.0f + sinf(settingsTimer * 3.0f) * 0.05f;
     int titleFontSize = (int)(40 * titlePulse);
@@ -116,7 +117,7 @@ void drawSettings(void) {
         settingsHeight
     };
 
-    // Desenhar Pokébolas nos cantos do painel
+    // Desenhar Pokébola decorativa nos cantos do painel
     float pokeSize = 15 + sinf(settingsTimer * 2.0f) * 2.0f;
     DrawPokeball(settingsArea.x + 20, settingsArea.y + 20, pokeSize, pokeballSpinAngle);
     DrawPokeball(settingsArea.x + settingsArea.width - 20, settingsArea.y + 20, pokeSize, pokeballSpinAngle + PI/2);
@@ -383,7 +384,7 @@ void drawSettings(void) {
                 DrawTexture(typeIcons[TYPE_NORMAL], contentArea.x, yPos + 10, WHITE); // Ícone temático
                 DrawText("Modo Tela Cheia", contentArea.x + iconSize + 15, yPos, 24, WHITE);
 
-                // Botão de tela cheia estilizado
+                // Botão de tela cheia mais estilizado
                 Rectangle fullscreenToggle = {
                     contentArea.x + 50,
                     yPos + 35,
@@ -687,8 +688,6 @@ void drawSettings(void) {
                 DrawText(infoText2, infoBox.x + 20, infoBox.y + 70, 16, WHITE);
                 DrawText(infoText3, infoBox.x + 20, infoBox.y + 95, 16, WHITE);
                 DrawText(infoText4, infoBox.x + 20, infoBox.y + 120, 16, WHITE);
-
-
             }
             break;
     }
