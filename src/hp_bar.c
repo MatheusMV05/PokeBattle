@@ -29,7 +29,7 @@ void ResetHPBarAnimations(void) {
 static HPBarAnimation* GetHPBarAnimation(const PokeMonster* monster) {
     if (monster == NULL) return NULL;
 
-    // Usamos o endereço do monstro como identificador único
+    // Endereço do monstro como identificador único
     const uintptr_t monsterId = (uintptr_t)monster;
 
     // Primeira passada: procurar por entradas existentes
@@ -64,8 +64,6 @@ static HPBarAnimation* GetHPBarAnimation(const PokeMonster* monster) {
 // Função principal de desenho da barra de vida
 void DrawHealthBar(Rectangle bounds, int currentHP, int maxHP, const PokeMonster* monster) {
     if (maxHP <= 0) return; // Prevenir divisão por zero
-
-    // Debug para verificar os valores
 
 
     // Obter animação específica para este monstro

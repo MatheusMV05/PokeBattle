@@ -15,7 +15,7 @@
  // Carrega texturas, fontes e recursos visuais
 void loadTextures(void) {
     // Carregar fonte
-    gameFont = GetFontDefault(); // Em um jogo real, carregaria uma fonte personalizada
+    gameFont = GetFontDefault(); // Função para adicionar fontes SE DER TEMPO
     
     // Carregar texturas
     backgroundTexture = LoadTexture("resources/background.png");
@@ -46,8 +46,6 @@ void loadTextures(void) {
 }
 
 void unloadTextures(void) {
-    // Descarregar fonte
-    // UnloadFont(gameFont); // Se fosse uma fonte carregada
     
     // Descarregar texturas
     UnloadTexture(backgroundTexture);
