@@ -252,21 +252,28 @@ void updateBattle(void) {
 
         case BATTLE_EXECUTING_ACTIONS:
     // Resto da implementação existente...
-    if (!isQueueEmpty(battleSystem->actionQueue)) {
-        int action, parameter;
-        PokeMonster* monster;
+            if (!isQueueEmpty(battleSystem->actionQueue)) {
+                int action, parameter;
+                PokeMonster* monster;
 
-        dequeue(battleSystem->actionQueue, &action, &parameter, &monster);
-        printf("[DEBUG] Dequeue executando ação: tipo=%d, param=%d\n", action, parameter);
+                dequeue(battleSystem->actionQueue, &action, &parameter, &monster);
+                printf("[DEBUG] Dequeue executando ação: tipo=%d, param=%d\n", action, parameter);
 
-        switch (action) {
-            case 0: // Ataque
-            {
-                PokeMonster* target = (monster == battleSystem->playerTeam->current) ?
-                                      battleSystem->opponentTeam->current :
-                                      battleSystem->playerTeam->current;
+                // CORREÇÃO: Verificar se o monstro está desmaiado antes de executar a ação
+                if (isMonsterFainted(monster)) {
+                    printf("[DEBUG] Ignorando ação de monstro desmaiado\n");
+                    battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
+                    break;  // Sair do case sem executar a ação
+                }
 
-                executeAttack(monster, target, parameter);
+                switch (action) {
+                    case 0: // Ataque
+                    {
+                        PokeMonster* target = (monster == battleSystem->playerTeam->current) ?
+                                              battleSystem->opponentTeam->current :
+                                              battleSystem->playerTeam->current;
+
+                        executeAttack(monster, target, parameter);
 
                 // Mostrar mensagem do ataque
                 if (strlen(battleMessage) > 0) {
@@ -488,7 +495,18 @@ void executeAttack(PokeMonster* attacker, PokeMonster* defender, int attackIndex
             currentMessage.waitingForInput = false;
         }
         // Se o monstro do bot desmaiou
+        // Se o monstro do bot desmaiou
         else if (defender == battleSystem->opponentTeam->current) {
+            // CORREÇÃO: Limpar TODA a fila de ações para o turno atual
+            // Isso garante que nenhum ataque aconteça após a troca
+            clearQueue(battleSystem->actionQueue);
+
+            // Configurar mensagem para exibição por mais tempo
+            currentMessage.displayTime = 3.0f;
+            currentMessage.elapsedTime = 0.0f;
+            currentMessage.waitingForInput = true;
+            currentMessage.autoAdvance = false;
+
             // O bot troca automaticamente
             PokeMonster* newMonster = NULL;
             PokeMonster* current = battleSystem->opponentTeam->first;
@@ -1302,7 +1320,7 @@ int calculateDamage(PokeMonster* attacker, PokeMonster* defender, Attack* attack
 
     // Como não temos níveis, vamos simplificar:
     float baseDamage = (float)attack->power * attacker->attack / defender->defense;
-    baseDamage = (baseDamage / 50.0f) + 2;
+    baseDamage = (baseDamage / 50.0f) + 5;
 
     // Modificador de tipo
     float typeModifier = calculateTypeEffectiveness(attack->type, defender->type1, defender->type2);
