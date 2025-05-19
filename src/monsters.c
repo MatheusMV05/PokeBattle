@@ -583,7 +583,7 @@ void createMonsterDatabase(void)
     addAttackToMonster(&monsterDB.monsters[index], 0, "Flamethrower", TYPE_FIRE, 90, 100, 15, STATUS_BURNING, 0, 10);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Quick Attack", TYPE_NORMAL, 40, 100, 30, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Fire Spin", TYPE_FIRE, 35, 85, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Confuse Ray", TYPE_GHOST, 0, 100, 10, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 3, "Fire Blast", TYPE_FIRE, 120, 85, 5, STATUS_BURNING, 0, 30);
     index++;
 
     // Golbat (Veneno/Voador)
@@ -663,7 +663,7 @@ void createMonsterDatabase(void)
     addAttackToMonster(&monsterDB.monsters[index], 0, "Psychic", TYPE_PSYCHIC, 90, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Psybeam", TYPE_PSYCHIC, 65, 100, 20, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Shadow Ball", TYPE_GHOST, 80, 100, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Calm Mind", TYPE_PSYCHIC, 0, 100, 20, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 3, "Energy Ball", TYPE_GRASS, 90, 100, 10, 0, 0, 10);
     index++;
 
     // Machamp (Lutador)
@@ -721,7 +721,7 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].next = NULL;
     monsterDB.monsters[index].prev = NULL;
     addAttackToMonster(&monsterDB.monsters[index], 0, "Hydro Pump", TYPE_WATER, 110, 80, 5, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Toxic", TYPE_POISON, 0, 90, 10, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 1, "Sludge Bomb", TYPE_POISON, 90, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Surf", TYPE_WATER, 90, 100, 15, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Poison Jab", TYPE_POISON, 80, 100, 20, 0, 0, 0);
     index++;
@@ -783,7 +783,7 @@ void createMonsterDatabase(void)
     addAttackToMonster(&monsterDB.monsters[index], 0, "Surf", TYPE_WATER, 90, 100, 15, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Psychic", TYPE_PSYCHIC, 90, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Ice Beam", TYPE_ICE, 90, 100, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Calm Mind", TYPE_PSYCHIC, 0, 100, 20, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 3, "Ice Punch", TYPE_ICE, 75, 100, 15, 0, 0, 0);
     index++;
 
     // Magneton (Elétrico/Aço)
@@ -800,11 +800,9 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].statusTurns = 0;
     monsterDB.monsters[index].next = NULL;
     monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,
-                       10);
+    addAttackToMonster(&monsterDB.monsters[index], 0, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,10);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Flash Cannon", TYPE_STEEL, 80, 100, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Thunder Wave", TYPE_ELECTRIC, 0, 90, 20, STATUS_PARALYZED, 0,
-                       100);
+    addAttackToMonster(&monsterDB.monsters[index], 2, "Thunder Wave", TYPE_ELECTRIC, 0, 90, 20, STATUS_PARALYZED, 0,100);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Tri Attack", TYPE_NORMAL, 80, 100, 10, 0, 0, 0);
     index++;
 
@@ -824,7 +822,7 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].prev = NULL;
     addAttackToMonster(&monsterDB.monsters[index], 0, "Shadow Ball", TYPE_GHOST, 80, 100, 15, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Sludge Bomb", TYPE_POISON, 90, 100, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Dream Eater", TYPE_PSYCHIC, 100, 100, 15, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 2, "Dream Eater", TYPE_PSYCHIC, 100, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Hypnosis", TYPE_PSYCHIC, 0, 60, 20, STATUS_SLEEPING, 0, 100);
     index++;
 
@@ -844,7 +842,7 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].prev = NULL;
     addAttackToMonster(&monsterDB.monsters[index], 0, "Rock Slide", TYPE_ROCK, 75, 90, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Earthquake", TYPE_GROUND, 100, 100, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Sandstorm", TYPE_ROCK, 0, 100, 10, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 2, "Body Slam", TYPE_NORMAL, 85, 100, 15, STATUS_PARALYZED, 0, 30);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Iron Tail", TYPE_STEEL, 100, 75, 15, 0, 0, 0);
     index++;
 
@@ -905,8 +903,7 @@ void createMonsterDatabase(void)
     addAttackToMonster(&monsterDB.monsters[index], 0, "Mach Punch", TYPE_FIGHTING, 40, 100, 30, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Fire Punch", TYPE_FIRE, 75, 100, 15, STATUS_BURNING, 0, 10);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Ice Punch", TYPE_ICE, 75, 100, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Thunder Punch", TYPE_ELECTRIC, 75, 100, 15, STATUS_PARALYZED, 0,
-                       10);
+    addAttackToMonster(&monsterDB.monsters[index], 3, "Thunder Punch", TYPE_ELECTRIC, 75, 100, 15, STATUS_PARALYZED, 0,10);
     index++;
 
     // Weezing (Veneno)
@@ -924,10 +921,9 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].next = NULL;
     monsterDB.monsters[index].prev = NULL;
     addAttackToMonster(&monsterDB.monsters[index], 0, "Sludge Bomb", TYPE_POISON, 90, 100, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Toxic", TYPE_POISON, 0, 90, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,
-                       10);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Self-Destruct", TYPE_NORMAL, 200, 100, 5, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 1, "Poison Jab", TYPE_POISON, 60, 90, 10, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 2, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,10);
+    addAttackToMonster(&monsterDB.monsters[index], 3, "Hyperbeam", TYPE_NORMAL, 150, 100, 5, 0, 0, 0);
     index++;
 
     // Rhydon (Terra/Pedra)
@@ -946,7 +942,7 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].prev = NULL;
     addAttackToMonster(&monsterDB.monsters[index], 0, "Earthquake", TYPE_GROUND, 100, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Rock Slide", TYPE_ROCK, 75, 90, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Horn Drill", TYPE_NORMAL, 0, 30, 5, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 2, "Horn Drill", TYPE_NORMAL, 250, 50, 5, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Megahorn", TYPE_BUG, 120, 85, 10, 0, 0, 0);
     index++;
 
@@ -968,7 +964,7 @@ void createMonsterDatabase(void)
     addAttackToMonster(&monsterDB.monsters[index], 0, "Body Slam", TYPE_NORMAL, 85, 100, 15, STATUS_PARALYZED, 0, 30);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Earthquake", TYPE_GROUND, 100, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Crunch", TYPE_DARK, 80, 100, 15, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Outrage", TYPE_DRAGON, 120, 100, 10, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 3, "Outrage", TYPE_DRAGON, 120, 100, 5, 0, 0, 0);
     index++;
 
     // Scyther (Inseto/Voador)
@@ -988,7 +984,7 @@ void createMonsterDatabase(void)
     addAttackToMonster(&monsterDB.monsters[index], 0, "X-Scissor", TYPE_BUG, 80, 100, 15, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Aerial Ace", TYPE_FLYING, 60, 100, 20, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Slash", TYPE_NORMAL, 70, 100, 20, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Swords Dance", TYPE_NORMAL, 0, 100, 20, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 3, "Headbutt", TYPE_NORMAL, 80, 100, 10, 0, 0, 0);
     index++;
 
 
@@ -1006,10 +1002,8 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].statusTurns = 0;
     monsterDB.monsters[index].next = NULL;
     monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Thunder Punch", TYPE_ELECTRIC, 75, 100, 15, STATUS_PARALYZED, 0,
-                       10);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,
-                       10);
+    addAttackToMonster(&monsterDB.monsters[index], 0, "Thunder Punch", TYPE_ELECTRIC, 75, 100, 15, STATUS_PARALYZED, 0,10);
+    addAttackToMonster(&monsterDB.monsters[index], 1, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,10);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Ice Punch", TYPE_ICE, 75, 100, 15, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Psychic", TYPE_PSYCHIC, 90, 100, 10, 0, 0, 0);
     index++;
@@ -1031,8 +1025,7 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].prev = NULL;
     addAttackToMonster(&monsterDB.monsters[index], 0, "Fire Blast", TYPE_FIRE, 110, 85, 5, STATUS_BURNING, 0, 10);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Fire Punch", TYPE_FIRE, 75, 100, 15, STATUS_BURNING, 0, 10);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,
-                       10);
+    addAttackToMonster(&monsterDB.monsters[index], 2, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,10);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Psychic", TYPE_PSYCHIC, 90, 100, 10, 0, 0, 0);
     index++;
 
@@ -1051,7 +1044,7 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].next = NULL;
     monsterDB.monsters[index].prev = NULL;
     addAttackToMonster(&monsterDB.monsters[index], 0, "Hydro Pump", TYPE_WATER, 110, 80, 5, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Dragon Rage", TYPE_DRAGON, 0, 100, 10, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 1, "Dragon Rage", TYPE_DRAGON, 60, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Ice Beam", TYPE_ICE, 90, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Hyper Beam", TYPE_NORMAL, 150, 90, 5, 0, 0, 0);
     index++;
@@ -1073,7 +1066,7 @@ void createMonsterDatabase(void)
     addAttackToMonster(&monsterDB.monsters[index], 0, "Quick Attack", TYPE_NORMAL, 40, 100, 30, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Bite", TYPE_DARK, 60, 100, 25, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Take Down", TYPE_NORMAL, 90, 85, 20, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Sand Attack", TYPE_GROUND, 0, 100, 15, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 3, "Tackle", TYPE_NORMAL, 40, 100, 15, 0, 0, 0);
     index++;
 
     // Vaporeon (Água)
@@ -1110,10 +1103,8 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].statusTurns = 0;
     monsterDB.monsters[index].next = NULL;
     monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,
-                       10);
-    addAttackToMonster(&monsterDB.monsters[index], 1, "Thunder Wave", TYPE_ELECTRIC, 0, 90, 20, STATUS_PARALYZED, 0,
-                       100);
+    addAttackToMonster(&monsterDB.monsters[index], 0, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,10);
+    addAttackToMonster(&monsterDB.monsters[index], 1, "Thunder Wave", TYPE_ELECTRIC, 0, 90, 20, STATUS_PARALYZED, 0,100);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Pin Missile", TYPE_BUG, 25, 95, 20, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Quick Attack", TYPE_NORMAL, 40, 100, 30, 0, 0, 0);
     index++;
@@ -1154,8 +1145,7 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].prev = NULL;
     addAttackToMonster(&monsterDB.monsters[index], 0, "Tri Attack", TYPE_NORMAL, 80, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Psychic", TYPE_PSYCHIC, 90, 100, 10, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 2, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,
-                       10);
+    addAttackToMonster(&monsterDB.monsters[index], 2, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,10);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Ice Beam", TYPE_ICE, 90, 100, 10, 0, 0, 0);
     index++;
 
@@ -1176,7 +1166,7 @@ void createMonsterDatabase(void)
     addAttackToMonster(&monsterDB.monsters[index], 0, "Body Slam", TYPE_NORMAL, 85, 100, 15, STATUS_PARALYZED, 0, 30);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Earthquake", TYPE_GROUND, 100, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Hyper Beam", TYPE_NORMAL, 150, 90, 5, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Rest", TYPE_PSYCHIC, 0, 100, 10, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 3, "Zen Headbutt", TYPE_PSYCHIC, 80, 90, 10, 0, 0, 0);
     index++;
 
     // Articuno (Gelo/Voador)
@@ -1213,8 +1203,7 @@ void createMonsterDatabase(void)
     monsterDB.monsters[index].statusTurns = 0;
     monsterDB.monsters[index].next = NULL;
     monsterDB.monsters[index].prev = NULL;
-    addAttackToMonster(&monsterDB.monsters[index], 0, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,
-                       10);
+    addAttackToMonster(&monsterDB.monsters[index], 0, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,10);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Thunder", TYPE_ELECTRIC, 110, 70, 10, STATUS_PARALYZED, 0, 30);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Drill Peck", TYPE_FLYING, 80, 100, 20, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 3, "Ancient Power", TYPE_ROCK, 60, 100, 5, 0, 0, 0);
@@ -1277,7 +1266,7 @@ void createMonsterDatabase(void)
     addAttackToMonster(&monsterDB.monsters[index], 0, "Psychic", TYPE_PSYCHIC, 90, 100, 10, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 1, "Ancient Power", TYPE_ROCK, 60, 100, 5, 0, 0, 0);
     addAttackToMonster(&monsterDB.monsters[index], 2, "Aura Sphere", TYPE_FIGHTING, 80, 100, 20, 0, 0, 0);
-    addAttackToMonster(&monsterDB.monsters[index], 3, "Transform", TYPE_NORMAL, 0, 100, 10, 0, 0, 0);
+    addAttackToMonster(&monsterDB.monsters[index], 0, "Thunderbolt", TYPE_ELECTRIC, 90, 100, 15, STATUS_PARALYZED, 0,10);
     index++;
 
     diagnoseTypeIssues(); // Espero que funcione :(
