@@ -649,17 +649,18 @@ void executeItemUse(PokeMonster* user, ItemType itemType) {
 
 // Define a ordem das ações com base na velocidade
 void determineAndExecuteTurnOrder(void) {
-    printf("[DEBUG] Ordenando ações. Contagem atual na fila: %d\n", battleSystem->actionQueue->count);
+    printf("[DEBUG] Ordenando ações com QuickSort Contagem atual na fila: %d\n",
+           battleSystem->actionQueue->count);
 
     if (battleSystem == NULL || isQueueEmpty(battleSystem->actionQueue)) {
         return;
     }
 
-    int actions[2] = {-1, -1};        // Tipo da ação: 0=ataque, 1=troca, 2=item
-    int parameters[2] = {-1, -1};     // Parâmetro da ação (índice do ataque, do monstro, ou do item)
-    PokeMonster* monsters[2] = {NULL, NULL};  // Quem está executando a ação
-    MonsterList* teams[2] = {NULL, NULL};     // Time do executor
-    bool isPlayerActions[2] = {false, false}; // Flag para identificar jogador ou bot
+    int actions[2] = {-1, -1};
+    int parameters[2] = {-1, -1};
+    PokeMonster* monsters[2] = {NULL, NULL};
+    MonsterList* teams[2] = {NULL, NULL};
+    bool isPlayerActions[2] = {false, false};
     int actionCount = 0;
 
     // Retirar todas as ações da fila
@@ -667,9 +668,8 @@ void determineAndExecuteTurnOrder(void) {
         dequeue(battleSystem->actionQueue, &actions[actionCount],
                 &parameters[actionCount], &monsters[actionCount]);
 
-        // Determinar qual time o monstro pertence com segurança
+        // Determinar qual time o monstro pertence
         if (monsters[actionCount] != NULL) {
-            // Método mais seguro: verificar a qual time o monstro pertence
             PokeMonster* current = battleSystem->playerTeam->first;
             while (current != NULL) {
                 if (current == monsters[actionCount]) {
@@ -680,7 +680,6 @@ void determineAndExecuteTurnOrder(void) {
                 current = current->next;
             }
 
-            // Se não foi encontrado no time do jogador, procurar no time do oponente
             if (teams[actionCount] == NULL) {
                 current = battleSystem->opponentTeam->first;
                 while (current != NULL) {
@@ -703,66 +702,45 @@ void determineAndExecuteTurnOrder(void) {
     if (actionCount == 2 && actions[0] == 1 && actions[1] == 1) {
         printf("[DEBUG] Caso especial: Ambos trocam Pokémon no mesmo turno\n");
 
-        // Verificar se temos ponteiros válidos
-        if (teams[0] == NULL || teams[1] == NULL ||
-            monsters[0] == NULL || monsters[1] == NULL) {
-            printf("[DEBUG] ERRO: Ponteiros inválidos na operação de troca simultânea\n");
-
-            // Recolocar ações na fila de forma segura, para processamento normal
-            for (int i = 0; i < actionCount; i++) {
-                if (monsters[i] != NULL) {
-                    enqueue(battleSystem->actionQueue, actions[i], parameters[i], monsters[i]);
-                }
-            }
-            return;
-        }
-
-        // Determinar qual é o jogador e qual é o bot
         int playerIndex = isPlayerActions[0] ? 0 : 1;
         int botIndex = isPlayerActions[0] ? 1 : 0;
 
-        // Executar troca do jogador primeiro
-        printf("[DEBUG] Executando troca do jogador primeiro\n");
         if (monsters[playerIndex] != NULL && teams[playerIndex] != NULL) {
             executeMonsterSwitch(monsters[playerIndex], parameters[playerIndex]);
-
-            // Salvar a mensagem da primeira troca
             char playerSwitchMessage[256];
             strncpy(playerSwitchMessage, battleMessage, sizeof(playerSwitchMessage) - 1);
             playerSwitchMessage[sizeof(playerSwitchMessage) - 1] = '\0';
 
-            // Executar troca do bot depois
-            printf("[DEBUG] Agora executando troca do bot\n");
             if (monsters[botIndex] != NULL && teams[botIndex] != NULL) {
                 executeMonsterSwitch(monsters[botIndex], parameters[botIndex]);
-
-                // Combinar as mensagens
                 char combinedMessage[256];
-                snprintf(combinedMessage, sizeof(combinedMessage), "%s\n%s", playerSwitchMessage, battleMessage);
+                snprintf(combinedMessage, sizeof(combinedMessage), "%s\n%s",
+                        playerSwitchMessage, battleMessage);
                 strncpy(battleMessage, combinedMessage, sizeof(battleMessage) - 1);
                 battleMessage[sizeof(battleMessage) - 1] = '\0';
             }
-        } else {
-            // Caso haja problemas, executar a troca do bot se possível
-            if (monsters[botIndex] != NULL && teams[botIndex] != NULL) {
-                executeMonsterSwitch(monsters[botIndex], parameters[botIndex]);
+        }
+        return;
+    }
+
+    // ===== QUICKSORT =====
+    if (actionCount == 2) {
+        // Primeiro aplicar regras de prioridade (Troca > Item > Ataque)
+        int priority[2];
+        for (int i = 0; i < 2; i++) {
+            switch (actions[i]) {
+                case 1: priority[i] = 1; break; // Troca - maior prioridade
+                case 2: priority[i] = 2; break; // Item - média prioridade
+                case 0:
+                default: priority[i] = 3; break; // Ataque - menor prioridade
             }
         }
 
-        return;  // Ambas as trocas foram executadas (ou pelo menos tentadas), sair da função
-    }
+        // Se as prioridades são diferentes, ordenar por prioridade
+        if (priority[0] > priority[1]) {
+            // Swap - segunda ação tem maior prioridade
+            printf("[DEBUG] Trocando ordem: ação 1 tem maior prioridade que ação 0\n");
 
-
-    // Caso normal: Ordem de prioridade padrão
-    if (actionCount == 2) {
-        // Ordem de prioridade:
-        // 1. Trocas (action = 1) - SEMPRE primeiro
-        // 2. Itens (action = 2)
-        // 3. Ataques (action = 0) ordenados por velocidade
-
-        // Se o segundo é troca e o primeiro não é, inverter
-        if (actions[1] == 1 && actions[0] != 1) {
-            // Swap
             int tempAction = actions[0];
             int tempParam = parameters[0];
             PokeMonster* tempMonster = monsters[0];
@@ -780,17 +758,39 @@ void determineAndExecuteTurnOrder(void) {
             monsters[1] = tempMonster;
             teams[1] = tempTeam;
             isPlayerActions[1] = tempIsPlayer;
-
-            printf("[DEBUG] Invertendo ordem: troca vai primeiro\n");
         }
-        // Se ambos não são trocas, verificar itens
-        else if (actions[0] != 1 && actions[1] != 1) {
-            // Se o segundo é item e o primeiro é ataque, inverter
-            if (actions[1] == 2 && actions[0] == 0) {
-                // Swap
+        // Se as prioridades são iguais, usar QuickSort por velocidade
+        else if (priority[0] == priority[1] && actions[0] == 0 && actions[1] == 0) {
+            printf("[DEBUG] Mesma prioridade (ataques), usando QuickSort por velocidade\n");
+
+            // Criar array de ponteiros para usar com o QuickSort existente
+            PokeMonster* monsterArray[2] = {monsters[0], monsters[1]};
+
+            printf("[DEBUG] ANTES do QuickSort:\n");
+            printf("[DEBUG] Posição 0: %s (Velocidade: %d)\n",
+                   monsterArray[0] ? monsterArray[0]->name : "NULL",
+                   monsterArray[0] ? monsterArray[0]->speed : 0);
+            printf("[DEBUG] Posição 1: %s (Velocidade: %d)\n",
+                   monsterArray[1] ? monsterArray[1]->name : "NULL",
+                   monsterArray[1] ? monsterArray[1]->speed : 0);
+
+            // ===== USAR O QUICKSORT EXISTENTE DE MONSTERS.C =====
+            quickSortMonstersBySpeed(monsterArray, 0, 1);
+
+            printf("[DEBUG] DEPOIS do QuickSort:\n");
+            printf("[DEBUG] Posição 0: %s (Velocidade: %d)\n",
+                   monsterArray[0] ? monsterArray[0]->name : "NULL",
+                   monsterArray[0] ? monsterArray[0]->speed : 0);
+            printf("[DEBUG] Posição 1: %s (Velocidade: %d)\n",
+                   monsterArray[1] ? monsterArray[1]->name : "NULL",
+                   monsterArray[1] ? monsterArray[1]->speed : 0);
+
+            // Se a ordem mudou, trocar as ações também
+            if (monsterArray[0] != monsters[0]) {
+                printf("[DEBUG] QuickSort alterou a ordem - aplicando mudanças\n");
+
                 int tempAction = actions[0];
                 int tempParam = parameters[0];
-                PokeMonster* tempMonster = monsters[0];
                 MonsterList* tempTeam = teams[0];
                 bool tempIsPlayer = isPlayerActions[0];
 
@@ -802,47 +802,22 @@ void determineAndExecuteTurnOrder(void) {
 
                 actions[1] = tempAction;
                 parameters[1] = tempParam;
-                monsters[1] = tempMonster;
+                monsters[1] = monsterArray[1]; // Usar do array ordenado
                 teams[1] = tempTeam;
                 isPlayerActions[1] = tempIsPlayer;
-
-                printf("[DEBUG] Invertendo ordem: item vai primeiro\n");
-            }
-            // Se ambos são ataques, ordenar por velocidade
-            else if (actions[0] == 0 && actions[1] == 0) {
-                if (monsters[0] != NULL && monsters[1] != NULL &&
-                    monsters[0]->speed < monsters[1]->speed) {
-                    // Swap
-                    int tempAction = actions[0];
-                    int tempParam = parameters[0];
-                    PokeMonster* tempMonster = monsters[0];
-                    MonsterList* tempTeam = teams[0];
-                    bool tempIsPlayer = isPlayerActions[0];
-
-                    actions[0] = actions[1];
-                    parameters[0] = parameters[1];
-                    monsters[0] = monsters[1];
-                    teams[0] = teams[1];
-                    isPlayerActions[0] = isPlayerActions[1];
-
-                    actions[1] = tempAction;
-                    parameters[1] = tempParam;
-                    monsters[1] = tempMonster;
-                    teams[1] = tempTeam;
-                    isPlayerActions[1] = tempIsPlayer;
-
-                    printf("[DEBUG] Invertendo ordem: monstro mais rápido ataca primeiro\n");
-                }
+            } else {
+                printf("[DEBUG] QuickSort manteve a ordem original\n");
             }
         }
     }
 
     // Recolocar na fila na ordem correta
     for (int i = 0; i < actionCount; i++) {
-        if (monsters[i] != NULL) {  // Verificar se o monstro é válido
+        if (monsters[i] != NULL) {
             enqueue(battleSystem->actionQueue, actions[i], parameters[i], monsters[i]);
-            printf("[DEBUG] Recolocando ação %d na fila: tipo=%d, param=%d\n",
-                i, actions[i], parameters[i]);
+            printf("[DEBUG] Recolocando ação %d na fila: tipo=%d, param=%d, monstro=%s\n",
+                i, actions[i], parameters[i],
+                monsters[i] ? monsters[i]->name : "NULL");
         }
     }
 }
