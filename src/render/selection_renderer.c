@@ -297,12 +297,13 @@ void drawMonsterSelection(void)
         if (currentViewedMonster->frontAnimation.frameCount > 0)
         {
             UpdateAnimation(&currentViewedMonster->frontAnimation);
-            Texture2D currentFrame = currentViewedMonster->frontAnimation.frames[currentViewedMonster->frontAnimation.currentFrame];
+            Texture2D currentFrame = currentViewedMonster->frontAnimation.frames[currentViewedMonster->frontAnimation.
+                currentFrame];
 
             // Calcular posição central para o sprite
             float scale = 3.0f; // Escala maior para melhor visualização
             float spriteX = statsRect.x + 200 - (currentFrame.width * scale) / 2;
-            float spriteY = statsRect.y + 140;
+            float spriteY = statsRect.y + 80;
 
             // Efeito de flutuação suave
             float floatEffect = sinf(selectionTimer * 1.2f) * 5.0f;
@@ -399,9 +400,6 @@ void drawMonsterSelection(void)
             sprintf(valueText, "%d", statValues[i]);
             DrawText(valueText, statBar.x + statBar.width + 10, statBar.y + 5, 18, WHITE);
         }
-
-        // Ataques
-        DrawText("Ataques:", statsRect.x + 125, statsRect.y + 310, 25, WHITE);
 
         for (int i = 0; i < 4; i++)
         {
@@ -853,11 +851,19 @@ void drawMonsterSelection(void)
             char countText[32];
             sprintf(countText, "Selecionados: %d/3", playerTeam->count);
 
+            int maxTextWidth = countRect.width - 10; // margem interna
+            int fontSize = 24;
+            while (MeasureText(countText, fontSize) > maxTextWidth && fontSize > 10)
+            {
+                fontSize--;
+            }
+
             DrawText(countText,
-                     countRect.x + countRect.width / 2 - MeasureText(countText, 24) / 2,
-                     countRect.y + countRect.height / 2 - 12,
-                     24,
+                     countRect.x + countRect.width / 2 - MeasureText(countText, fontSize) / 2,
+                     countRect.y + countRect.height / 2 - fontSize / 2,
+                     fontSize,
                      WHITE);
+
 
             // Pokébolas representando o progresso
             for (int i = 0; i < 3; i++)
@@ -897,13 +903,21 @@ void drawMonsterSelection(void)
             DrawRectangleRoundedLines(countRect, 0.3f, 8, (Color){255, 255, 255, 150});
 
             char countText[32];
-            sprintf(countText, "Selecionados: %d/3", opponentTeam->count);
+            sprintf(countText, "Selecionados: %d/3", playerTeam->count);
+
+            int maxTextWidth = countRect.width - 10; // margem interna
+            int fontSize = 24;
+            while (MeasureText(countText, fontSize) > maxTextWidth && fontSize > 10)
+            {
+                fontSize--;
+            }
 
             DrawText(countText,
-                     countRect.x + countRect.width / 2 - MeasureText(countText, 24) / 2,
-                     countRect.y + countRect.height / 2 - 12,
-                     24,
+                     countRect.x + countRect.width / 2 - MeasureText(countText, fontSize) / 2,
+                     countRect.y + countRect.height / 2 - fontSize / 2,
+                     fontSize,
                      WHITE);
+
 
             for (int i = 0; i < 3; i++)
             {
