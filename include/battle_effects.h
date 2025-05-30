@@ -174,8 +174,12 @@ void DrawDragonAttackEffect(BattleEffectSystem* effect);
 void DrawDarkAttackEffect(BattleEffectSystem* effect);
 void DrawSteelAttackEffect(BattleEffectSystem* effect);
 void DrawFairyAttackEffect(BattleEffectSystem* effect);
+void DrawNormalAttackEffect(BattleEffectSystem* effect);
 
 // Função para efeitos contínuos de status
 void CreateContinuousStatusEffect(Vector2 position, int statusType, float duration);
+
+void TriggerPokemonShake(bool isPlayerPokemon, float intensity, float duration);
+void UpdatePokemonShakes(void);
 
 #endif // BATTLE_EFFECTS_H

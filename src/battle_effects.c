@@ -67,10 +67,10 @@ void UpdateBattleEffects(void) {
     float deltaTime = GetFrameTime();
     statusEffectTimer += deltaTime;
 
-    // Atualizar efeitos de tela
+    // Atualizar efeitos de tela (reduzir intensidade)
     if (screenShakeTimer > 0.0f) {
         screenShakeTimer -= deltaTime;
-        float intensity = screenShakeIntensity * (screenShakeTimer / 1.0f);
+        float intensity = screenShakeIntensity * (screenShakeTimer / 1.0f) * 0.5f;
         screenShakeOffset.x = (float)(rand() % 21 - 10) * intensity * 0.1f;
         screenShakeOffset.y = (float)(rand() % 21 - 10) * intensity * 0.1f;
 
@@ -79,14 +79,9 @@ void UpdateBattleEffects(void) {
         }
     }
 
-    if (screenFlashTimer > 0.0f) {
-        screenFlashTimer -= deltaTime;
-        screenFlashIntensity = screenFlashTimer / 0.3f;
-
-        if (screenFlashTimer <= 0.0f) {
-            screenFlashIntensity = 0.0f;
-        }
-    }
+    // Remover completamente o sistema de flash de tela
+    screenFlashTimer = 0.0f;
+    screenFlashIntensity = 0.0f;
 
     // Atualizar efeitos individuais
     for (int i = 0; i < MAX_BATTLE_EFFECTS; i++) {
@@ -104,9 +99,21 @@ void UpdateBattleEffects(void) {
         effect->intensity = 1.0f - EaseInOut(progress);
         effect->scale = 1.0f + EaseOut(progress) * 0.5f;
 
-        // Atualizar posição (para efeitos que se movem)
+        // NOVO SISTEMA DE MOVIMENTO PARA ATAQUES
         if (effect->type >= EFFECT_ATTACK_NORMAL && effect->type <= EFFECT_ATTACK_FAIRY) {
-            effect->currentPos = LerpVector2(effect->origin, effect->target, EaseOut(progress));
+            // Dividir em duas fases: viagem (0-60%) e impacto (60-100%)
+            if (progress <= 0.6f) {
+                // Fase de viagem: movimento suave do atacante para o defensor
+                float travelProgress = progress / 0.6f; // Normalizar para 0-1
+                effect->currentPos = LerpVector2(effect->origin, effect->target, EaseInOut(travelProgress));
+
+                printf("[ATTACK MOVEMENT] Progresso: %.1f%%, Pos: (%.1f,%.1f) -> (%.1f,%.1f)\n",
+                       travelProgress * 100, effect->currentPos.x, effect->currentPos.y,
+                       effect->target.x, effect->target.y);
+            } else {
+                // Fase de impacto: permanecer no alvo
+                effect->currentPos = effect->target;
+            }
         }
 
         // Atualizar partículas
@@ -127,6 +134,7 @@ void UpdateBattleEffects(void) {
         }
     }
 }
+
 
 // Desenha todos os efeitos ativos
 void DrawBattleEffects(void) {
@@ -166,7 +174,10 @@ void DrawBattleEffects(void) {
                 DrawCriticalEffect(effect);
                 break;
 
-            // Efeitos de ataque específicos por tipo
+            // Efeitos de ataque específicos por tipo (MELHORADOS)
+            case EFFECT_ATTACK_NORMAL:
+                DrawNormalAttackEffect(effect);
+                break;
             case EFFECT_ATTACK_FIRE:
                 DrawFireAttackEffect(effect);
                 break;
@@ -220,22 +231,12 @@ void DrawBattleEffects(void) {
                 break;
 
             default:
-                // Efeitos básicos são principalmente partículas
+                // Para tipos não implementados, usar efeito básico
+                if (effect->type >= EFFECT_ATTACK_NORMAL && effect->type <= EFFECT_ATTACK_FAIRY) {
+                    DrawNormalAttackEffect(effect);
+                }
                 break;
         }
-    }
-
-    // Desenhar flash de tela por último
-    if (screenFlashIntensity > 0.0f) {
-        Color flashColor = screenFlashColor;
-        flashColor.a = (unsigned char)(255 * screenFlashIntensity);
-        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), flashColor);
-    }
-
-    // Desenhar efeitos de shake de tela se necessário
-    if (screenShakeIntensity > 0.0f) {
-        // O shake é aplicado na matriz de transformação globalmente
-        // Aqui apenas disponibilizamos o offset para outras funções
     }
 }
 
@@ -269,79 +270,154 @@ void CreateAttackEffect(MonsterType attackType, Vector2 origin, Vector2 target, 
     // Tocar som de ataque
     PlaySound(attackSound);
 
-    // Criar efeito visual baseado no tipo
+    // Criar efeito visual baseado no tipo (SEM FLASH!)
     switch (attackType) {
         case TYPE_FIRE:
             CreateFireEffect(origin, target);
-            TriggerScreenFlash((Color){255, 100, 50, 100}, 0.8f, 0.2f);
+            // TriggerScreenFlash removido!
             break;
         case TYPE_WATER:
             CreateWaterEffect(origin, target);
-            TriggerScreenFlash((Color){50, 150, 255, 80}, 0.6f, 0.25f);
+            // TriggerScreenFlash removido!
             break;
         case TYPE_GRASS:
             CreateGrassEffect(origin, target);
-            TriggerScreenFlash((Color){100, 255, 100, 70}, 0.5f, 0.2f);
+            // TriggerScreenFlash removido!
             break;
         case TYPE_ELECTRIC:
             CreateElectricEffect(origin, target);
-            TriggerScreenFlash((Color){255, 255, 100, 120}, 1.0f, 0.15f);
-            TriggerScreenShake(8.0f, 0.3f);
+            // TriggerScreenFlash removido!
+            TriggerScreenShake(6.0f, 0.3f); // Manter apenas shake leve
             break;
         case TYPE_ICE:
             CreateIceEffect(origin, target);
-            TriggerScreenFlash((Color){150, 200, 255, 90}, 0.7f, 0.3f);
+            // TriggerScreenFlash removido!
             break;
         case TYPE_FIGHTING:
             CreateFightingEffect(origin, target);
-            TriggerScreenShake(6.0f, 0.4f);
+            TriggerScreenShake(4.0f, 0.3f); // Shake mais suave
             break;
         case TYPE_POISON:
             CreatePoisonEffect(origin, target);
-            TriggerScreenFlash((Color){150, 50, 150, 85}, 0.6f, 0.25f);
+            // TriggerScreenFlash removido!
             break;
         case TYPE_GROUND:
             CreateGroundEffect(origin, target);
-            TriggerScreenShake(10.0f, 0.5f);
+            TriggerScreenShake(6.0f, 0.4f); // Manter shake para ataques de terra
             break;
         case TYPE_FLYING:
             CreateFlyingEffect(origin, target);
             break;
         case TYPE_PSYCHIC:
             CreatePsychicEffect(origin, target);
-            TriggerScreenFlash((Color){255, 100, 255, 90}, 0.8f, 0.4f);
+            // TriggerScreenFlash removido!
             break;
         case TYPE_BUG:
             CreateBugEffect(origin, target);
             break;
         case TYPE_ROCK:
             CreateRockEffect(origin, target);
-            TriggerScreenShake(8.0f, 0.4f);
+            TriggerScreenShake(5.0f, 0.3f); // Manter shake para ataques de pedra
             break;
         case TYPE_GHOST:
             CreateGhostEffect(origin, target);
-            TriggerScreenFlash((Color){100, 50, 200, 100}, 0.9f, 0.3f);
+            // TriggerScreenFlash removido!
             break;
         case TYPE_DRAGON:
             CreateDragonEffect(origin, target);
-            TriggerScreenFlash((Color){200, 100, 255, 110}, 1.0f, 0.3f);
-            TriggerScreenShake(7.0f, 0.4f);
+            // TriggerScreenFlash removido!
+            TriggerScreenShake(4.0f, 0.3f); // Shake leve
             break;
         case TYPE_DARK:
             CreateDarkEffect(origin, target);
-            TriggerScreenFlash((Color){50, 50, 50, 120}, 0.8f, 0.4f);
+            // TriggerScreenFlash removido!
             break;
         case TYPE_STEEL:
             CreateSteelEffect(origin, target);
-            TriggerScreenFlash((Color){200, 200, 200, 100}, 0.7f, 0.2f);
+            // TriggerScreenFlash removido!
             break;
         case TYPE_FAIRY:
             CreateFairyEffect(origin, target);
-            TriggerScreenFlash((Color){255, 150, 200, 85}, 0.6f, 0.3f);
+            // TriggerScreenFlash removido!
             break;
         default:
             CreateNormalEffect(origin, target);
             break;
+    }
+}
+
+void CreateAttackProjectile(BattleEffectSystem* effect, MonsterType attackType) {
+    // Criar partículas que formam um "projétil" visível
+    Vector2 direction = {effect->target.x - effect->origin.x, effect->target.y - effect->origin.y};
+    float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
+
+    if (length > 0) {
+        direction.x /= length;
+        direction.y /= length;
+    }
+
+    // Cores baseadas no tipo
+    Color projectileColor;
+    int particleCount;
+    float particleSize;
+
+    switch (attackType) {
+        case TYPE_FIRE:
+            projectileColor = (Color){255, 150, 50, 255};
+            particleCount = 15;
+            particleSize = 8.0f;
+            break;
+        case TYPE_WATER:
+            projectileColor = (Color){100, 180, 255, 255};
+            particleCount = 12;
+            particleSize = 6.0f;
+            break;
+        case TYPE_ELECTRIC:
+            projectileColor = (Color){255, 255, 150, 255};
+            particleCount = 10;
+            particleSize = 5.0f;
+            break;
+        case TYPE_GRASS:
+            projectileColor = (Color){150, 255, 150, 255};
+            particleCount = 8;
+            particleSize = 7.0f;
+            break;
+        default:
+            projectileColor = (Color){255, 255, 255, 255};
+            particleCount = 10;
+            particleSize = 6.0f;
+            break;
+    }
+
+    // Criar partículas em formação para formar o projétil
+    for (int i = 0; i < particleCount && i < MAX_PARTICLES_PER_EFFECT; i++) {
+        // Posição inicial com pequena variação
+        Vector2 startPos = {
+            effect->origin.x + (rand() % 20 - 10),
+            effect->origin.y + (rand() % 20 - 10)
+        };
+
+        // Velocidade em direção ao alvo com pequena variação
+        Vector2 velocity = {
+            direction.x * (200 + rand() % 100) + (rand() % 40 - 20),
+            direction.y * (200 + rand() % 100) + (rand() % 40 - 20)
+        };
+
+        // Aumentar o tamanho das partículas
+        effect->particles[i].position = startPos;
+        effect->particles[i].velocity = velocity;
+        effect->particles[i].acceleration = (Vector2){0, 20}; // Gravidade leve
+        effect->particles[i].size = particleSize + (rand() % 4); // TAMANHO MAIOR
+        effect->particles[i].life = 0.0f;
+        effect->particles[i].maxLife = 2.0f;
+        effect->particles[i].color = projectileColor;
+        effect->particles[i].targetColor = (Color){projectileColor.r, projectileColor.g, projectileColor.b, 0};
+        effect->particles[i].rotation = 0.0f;
+        effect->particles[i].rotationSpeed = (float)(rand() % 200 - 100);
+        effect->particles[i].active = true;
+        effect->particles[i].type = 0;
+
+        effect->particleCount++;
     }
 }
 
@@ -354,7 +430,7 @@ void CreateDamageEffect(Vector2 position, int damage, bool isPlayerTarget, bool 
     effect->active = true;
     effect->type = isPlayerTarget ? EFFECT_DAMAGE_PLAYER : EFFECT_DAMAGE_OPPONENT;
     effect->timer = 0.0f;
-    effect->duration = isCritical ? 1.5f : 1.0f;
+    effect->duration = isCritical ? 2.0f : 1.5f; // Duração mais longa
     effect->origin = position;
     effect->target = (Vector2){position.x, position.y - 50};
     effect->currentPos = position;
@@ -364,32 +440,34 @@ void CreateDamageEffect(Vector2 position, int damage, bool isPlayerTarget, bool 
     // Configurar cor baseada no tipo de dano
     if (isCritical) {
         effect->color = (Color){255, 255, 100, 255}; // Amarelo para crítico
-        TriggerScreenFlash((Color){255, 255, 150, 150}, 1.0f, 0.3f);
-        TriggerScreenShake(12.0f, 0.5f);
+        // REMOVER: TriggerScreenFlash((Color){255, 255, 150, 150}, 1.0f, 0.3f);
+        // REMOVER: TriggerScreenShake(12.0f, 0.5f);
     } else {
         effect->color = isPlayerTarget ? (Color){255, 100, 100, 255} : (Color){255, 150, 150, 255};
-        TriggerScreenFlash((Color){255, 200, 200, 100}, 0.6f, 0.2f);
-        TriggerScreenShake(5.0f, 0.3f);
+        // REMOVER: TriggerScreenFlash((Color){255, 200, 200, 100}, 0.6f, 0.2f);
+        // REMOVER: TriggerScreenShake(5.0f, 0.3f);
     }
 
-    // Criar partículas de impacto
+    // Criar partículas de impacto (mais duradouras)
     for (int i = 0; i < 15; i++) {
         float angle = (float)(rand() % 360) * DEG2RAD;
-        float speed = (float)(rand() % 100 + 50);
+        float speed = (float)(rand() % 80 + 30); // Velocidade reduzida
+
         Vector2 velocity = {cosf(angle) * speed, sinf(angle) * speed};
 
         Color particleColor = effect->color;
         particleColor.a = (unsigned char)(rand() % 100 + 155);
 
-        InitParticle(&effect->particles[i], position, velocity, particleColor, 0.8f);
+        InitParticle(&effect->particles[i], position, velocity, particleColor, 1.2f); // Vida mais longa
         effect->particleCount++;
     }
 
     activeEffectCount++;
     PlaySound(hitSound);
 
-    printf("Efeito de dano criado: %d de dano, crítico: %s\n", damage, isCritical ? "sim" : "não");
+    printf("Efeito de dano criado: %d de dano, crítico: %s (SEM FLASH)\n", damage, isCritical ? "sim" : "não");
 }
+
 
 // Cria efeito de cura
 void CreateHealEffect(Vector2 position, int healAmount) {
@@ -400,16 +478,17 @@ void CreateHealEffect(Vector2 position, int healAmount) {
     effect->active = true;
     effect->type = EFFECT_HEAL;
     effect->timer = 0.0f;
-    effect->duration = 2.0f;
+    effect->duration = 2.5f; // Era 2.0f, agora 2.5f
     effect->origin = position;
     effect->target = (Vector2){position.x, position.y - 30};
     effect->currentPos = position;
     effect->color = (Color){100, 255, 100, 255};
 
-    // Criar partículas de cura subindo
+    // Criar partículas de cura subindo (movimento mais lento)
     for (int i = 0; i < 20; i++) {
         float angle = -PI/2 + ((float)(rand() % 60 - 30) * DEG2RAD);
-        float speed = (float)(rand() % 80 + 40);
+        float speed = (float)(rand() % 50 + 25); // Velocidade reduzida
+
         Vector2 velocity = {cosf(angle) * speed, sinf(angle) * speed};
 
         Color healColor = (Color){100 + rand() % 155, 255, 100 + rand() % 155, 200 + rand() % 55};
@@ -418,12 +497,12 @@ void CreateHealEffect(Vector2 position, int healAmount) {
             position.y + (rand() % 20)
         };
 
-        InitParticle(&effect->particles[i], startPos, velocity, healColor, 1.5f);
+        InitParticle(&effect->particles[i], startPos, velocity, healColor, 2.0f); // Vida mais longa
         effect->particleCount++;
     }
 
     activeEffectCount++;
-    printf("Efeito de cura criado: %d HP restaurado\n", healAmount);
+    printf("Efeito de cura criado: %d HP restaurado (duração ajustada)\n", healAmount);
 }
 
 // Cria efeito de aplicação de status
@@ -483,7 +562,7 @@ void CreateFaintEffect(Vector2 position) {
     effect->active = true;
     effect->type = EFFECT_FAINT;
     effect->timer = 0.0f;
-    effect->duration = 2.0f;
+    effect->duration = 2.5f; // Duração mais longa
     effect->origin = position;
     effect->currentPos = position;
     effect->color = (Color){100, 100, 100, 255};
@@ -491,21 +570,24 @@ void CreateFaintEffect(Vector2 position) {
     // Criar partículas caindo
     for (int i = 0; i < 25; i++) {
         float angle = (float)(rand() % 180 + 90) * DEG2RAD; // Para baixo
-        float speed = (float)(rand() % 100 + 50);
+        float speed = (float)(rand() % 80 + 30); // Velocidade reduzida
         Vector2 velocity = {cosf(angle) * speed, sinf(angle) * speed};
 
         Color faintColor = (Color){100 + rand() % 100, 100 + rand() % 100, 100 + rand() % 100, 255};
-        InitParticle(&effect->particles[i], position, velocity, faintColor, 1.5f);
+        InitParticle(&effect->particles[i], position, velocity, faintColor, 2.0f); // Vida mais longa
         effect->particleCount++;
     }
 
     activeEffectCount++;
     PlaySound(faintSound);
-    TriggerScreenFlash((Color){100, 100, 100, 120}, 0.8f, 0.5f);
-    printf("Efeito de desmaiado criado\n");
+    // REMOVER: TriggerScreenFlash((Color){100, 100, 100, 120}, 0.8f, 0.5f);
+    printf("Efeito de desmaiado criado (SEM FLASH)\n");
 }
 
+
 // Implementações dos efeitos específicos por tipo
+
+
 
 void CreateFireEffect(Vector2 origin, Vector2 target) {
     int slot = FindFreeEffectSlot();
@@ -515,29 +597,51 @@ void CreateFireEffect(Vector2 origin, Vector2 target) {
     effect->active = true;
     effect->type = EFFECT_ATTACK_FIRE;
     effect->timer = 0.0f;
-    effect->duration = 1.2f;
+    effect->duration = 2.0f;
     effect->origin = origin;
     effect->target = target;
-    effect->currentPos = origin;
+    effect->currentPos = origin; // Começar na origem
     effect->color = (Color){255, 100, 50, 255};
 
-    // Criar partículas de fogo
-    for (int i = 0; i < 25; i++) {
-        Vector2 direction = {target.x - origin.x, target.y - origin.y};
-        float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
-        if (length > 0) {
-            direction.x /= length;
-            direction.y /= length;
-        }
+    printf("[FIRE EFFECT] Criando de (%.1f,%.1f) para (%.1f,%.1f)\n",
+           origin.x, origin.y, target.x, target.y);
 
-        float spread = 30.0f;
+    // Criar um projétil de fogo MAIOR que viaja
+    Vector2 direction = {target.x - origin.x, target.y - origin.y};
+    float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
+    if (length > 0) {
+        direction.x /= length;
+        direction.y /= length;
+    }
+
+    // Criar partículas MAIORES em formação concentrada para formar projétil visível
+    for (int i = 0; i < 20; i++) {
         Vector2 velocity = {
-            direction.x * (200 + rand() % 100) + (rand() % (int)(spread * 2) - spread),
-            direction.y * (200 + rand() % 100) + (rand() % (int)(spread * 2) - spread)
+            direction.x * (150 + rand() % 50),
+            direction.y * (150 + rand() % 50)
+        };
+
+        // Adicionar pequena variação na posição inicial para formar um "grupo"
+        Vector2 startPos = {
+            origin.x + (rand() % 30 - 15),
+            origin.y + (rand() % 30 - 15)
         };
 
         Color fireColor = (rand() % 2) ? (Color){255, 150, 50, 255} : (Color){255, 100, 0, 255};
-        InitParticle(&effect->particles[i], origin, velocity, fireColor, 1.0f + (rand() % 50) * 0.01f);
+
+        effect->particles[i].position = startPos;
+        effect->particles[i].velocity = velocity;
+        effect->particles[i].acceleration = (Vector2){0, 30};
+        effect->particles[i].size = 12.0f + (rand() % 8); // MUITO MAIOR: 12-20 pixels
+        effect->particles[i].life = 0.0f;
+        effect->particles[i].maxLife = 1.8f;
+        effect->particles[i].color = fireColor;
+        effect->particles[i].targetColor = (Color){fireColor.r, fireColor.g, fireColor.b, 0};
+        effect->particles[i].rotation = 0.0f;
+        effect->particles[i].rotationSpeed = (float)(rand() % 200 - 100);
+        effect->particles[i].active = true;
+        effect->particles[i].type = 0;
+
         effect->particleCount++;
     }
 
@@ -552,28 +656,49 @@ void CreateWaterEffect(Vector2 origin, Vector2 target) {
     effect->active = true;
     effect->type = EFFECT_ATTACK_WATER;
     effect->timer = 0.0f;
-    effect->duration = 1.0f;
+    effect->duration = 1.8f;
     effect->origin = origin;
     effect->target = target;
     effect->currentPos = origin;
     effect->color = (Color){50, 150, 255, 255};
 
-    // Criar partículas de água
-    for (int i = 0; i < 20; i++) {
-        Vector2 direction = {target.x - origin.x, target.y - origin.y};
-        float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
-        if (length > 0) {
-            direction.x /= length;
-            direction.y /= length;
-        }
+    printf("[WATER EFFECT] Criando de (%.1f,%.1f) para (%.1f,%.1f)\n",
+           origin.x, origin.y, target.x, target.y);
 
+    Vector2 direction = {target.x - origin.x, target.y - origin.y};
+    float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
+    if (length > 0) {
+        direction.x /= length;
+        direction.y /= length;
+    }
+
+    // Criar jato de água concentrado e MAIOR
+    for (int i = 0; i < 18; i++) {
         Vector2 velocity = {
-            direction.x * (180 + rand() % 80),
-            direction.y * (180 + rand() % 80)
+            direction.x * (180 + rand() % 60),
+            direction.y * (180 + rand() % 60)
+        };
+
+        Vector2 startPos = {
+            origin.x + (rand() % 20 - 10),
+            origin.y + (rand() % 20 - 10)
         };
 
         Color waterColor = (Color){50 + rand() % 100, 150 + rand() % 50, 255, 200 + rand() % 55};
-        InitParticle(&effect->particles[i], origin, velocity, waterColor, 0.8f + (rand() % 40) * 0.01f);
+
+        effect->particles[i].position = startPos;
+        effect->particles[i].velocity = velocity;
+        effect->particles[i].acceleration = (Vector2){0, 25};
+        effect->particles[i].size = 10.0f + (rand() % 6); // MAIOR: 10-16 pixels
+        effect->particles[i].life = 0.0f;
+        effect->particles[i].maxLife = 1.6f;
+        effect->particles[i].color = waterColor;
+        effect->particles[i].targetColor = (Color){waterColor.r, waterColor.g, waterColor.b, 0};
+        effect->particles[i].rotation = 0.0f;
+        effect->particles[i].rotationSpeed = (float)(rand() % 100 - 50);
+        effect->particles[i].active = true;
+        effect->particles[i].type = 0;
+
         effect->particleCount++;
     }
 
@@ -588,28 +713,50 @@ void CreateElectricEffect(Vector2 origin, Vector2 target) {
     effect->active = true;
     effect->type = EFFECT_ATTACK_ELECTRIC;
     effect->timer = 0.0f;
-    effect->duration = 0.8f;
+    effect->duration = 1.5f;
     effect->origin = origin;
     effect->target = target;
     effect->currentPos = origin;
     effect->color = (Color){255, 255, 100, 255};
 
-    // Criar raios elétricos (partículas em linha reta com variação)
+    printf("[ELECTRIC EFFECT] Criando de (%.1f,%.1f) para (%.1f,%.1f)\n",
+           origin.x, origin.y, target.x, target.y);
+
+    // Criar raio elétrico que viaja em linha reta
     Vector2 direction = {target.x - origin.x, target.y - origin.y};
     float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
-    int segments = (int)(length / 20);
 
-    for (int i = 0; i < segments && i < MAX_PARTICLES_PER_EFFECT; i++) {
+    // Criar segmentos de raio ao longo do caminho
+    int segments = (int)(length / 15); // Um segmento a cada 15 pixels
+    if (segments > MAX_PARTICLES_PER_EFFECT) segments = MAX_PARTICLES_PER_EFFECT;
+
+    for (int i = 0; i < segments; i++) {
         float t = (float)i / segments;
-        Vector2 pos = {
-            origin.x + direction.x * t + (rand() % 20 - 10),
-            origin.y + direction.y * t + (rand() % 20 - 10)
+        Vector2 segmentPos = {
+            origin.x + direction.x * t + (rand() % 40 - 20), // Variação para zigue-zague
+            origin.y + direction.y * t + (rand() % 40 - 20)
         };
 
-        Vector2 velocity = {(rand() % 40 - 20), (rand() % 40 - 20)};
+        Vector2 velocity = {
+            (rand() % 60 - 30),
+            (rand() % 60 - 30)
+        };
+
         Color electricColor = (Color){255, 255, 100 + rand() % 155, 255};
 
-        InitParticle(&effect->particles[i], pos, velocity, electricColor, 0.6f);
+        effect->particles[i].position = segmentPos;
+        effect->particles[i].velocity = velocity;
+        effect->particles[i].acceleration = (Vector2){0, 0}; // Sem gravidade para raios
+        effect->particles[i].size = 8.0f + (rand() % 6); // MAIOR: 8-14 pixels
+        effect->particles[i].life = 0.0f;
+        effect->particles[i].maxLife = 1.2f;
+        effect->particles[i].color = electricColor;
+        effect->particles[i].targetColor = (Color){electricColor.r, electricColor.g, electricColor.b, 0};
+        effect->particles[i].rotation = 0.0f;
+        effect->particles[i].rotationSpeed = 0.0f; // Sem rotação para raios
+        effect->particles[i].active = true;
+        effect->particles[i].type = 0;
+
         effect->particleCount++;
     }
 
@@ -624,28 +771,106 @@ void CreateGrassEffect(Vector2 origin, Vector2 target) {
     effect->active = true;
     effect->type = EFFECT_ATTACK_GRASS;
     effect->timer = 0.0f;
-    effect->duration = 1.3f;
+    effect->duration = 1.8f;
     effect->origin = origin;
     effect->target = target;
     effect->currentPos = origin;
     effect->color = (Color){100, 255, 100, 255};
 
-    // Criar folhas voando
-    for (int i = 0; i < 18; i++) {
+    printf("[GRASS EFFECT] Criando de (%.1f,%.1f) para (%.1f,%.1f)\n",
+           origin.x, origin.y, target.x, target.y);
+
+    Vector2 direction = {target.x - origin.x, target.y - origin.y};
+    float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
+    if (length > 0) {
+        direction.x /= length;
+        direction.y /= length;
+    }
+
+    // Criar "folhas" voando em direção ao alvo
+    for (int i = 0; i < 15; i++) {
         Vector2 velocity = {
-            (float)(rand() % 200 - 100),
-            (float)(rand() % 150 - 200) // Movimento para cima
+            direction.x * (120 + rand() % 80),
+            direction.y * (120 + rand() % 80)
         };
 
-        Color leafColor = (rand() % 2) ? (Color){100, 255, 100, 255} : (Color){50, 200, 50, 255};
         Vector2 startPos = {
-            origin.x + (rand() % 80 - 40),
+            origin.x + (rand() % 40 - 20),
             origin.y + (rand() % 40 - 20)
         };
 
-        InitParticle(&effect->particles[i], startPos, velocity, leafColor, 1.0f + (rand() % 60) * 0.01f);
+        Color leafColor = (rand() % 2) ? (Color){100, 255, 100, 255} : (Color){50, 200, 50, 255};
+
+        effect->particles[i].position = startPos;
+        effect->particles[i].velocity = velocity;
+        effect->particles[i].acceleration = (Vector2){0, 20};
+        effect->particles[i].size = 14.0f + (rand() % 8); // MAIOR: 14-22 pixels (folhas maiores)
+        effect->particles[i].life = 0.0f;
+        effect->particles[i].maxLife = 1.6f;
+        effect->particles[i].color = leafColor;
+        effect->particles[i].targetColor = (Color){leafColor.r, leafColor.g, leafColor.b, 0};
         effect->particles[i].rotation = (float)(rand() % 360);
+        effect->particles[i].rotationSpeed = (float)(rand() % 300 - 150); // Rotação das folhas
+        effect->particles[i].active = true;
+        effect->particles[i].type = 0;
+
+        effect->particleCount++;
+    }
+
+    activeEffectCount++;
+}
+
+// Criar efeito normal maior também
+void CreateNormalEffect(Vector2 origin, Vector2 target) {
+    int slot = FindFreeEffectSlot();
+    if (slot == -1) return;
+
+    BattleEffectSystem* effect = &battleEffects[slot];
+    effect->active = true;
+    effect->type = EFFECT_ATTACK_NORMAL;
+    effect->timer = 0.0f;
+    effect->duration = 1.5f;
+    effect->origin = origin;
+    effect->target = target;
+    effect->currentPos = origin;
+    effect->color = (Color){200, 200, 200, 255};
+
+    printf("[NORMAL EFFECT] Criando de (%.1f,%.1f) para (%.1f,%.1f)\n",
+           origin.x, origin.y, target.x, target.y);
+
+    Vector2 direction = {target.x - origin.x, target.y - origin.y};
+    float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
+    if (length > 0) {
+        direction.x /= length;
+        direction.y /= length;
+    }
+
+    for (int i = 0; i < 12; i++) {
+        Vector2 velocity = {
+            direction.x * (140 + rand() % 60),
+            direction.y * (140 + rand() % 60)
+        };
+
+        Vector2 startPos = {
+            origin.x + (rand() % 25 - 12),
+            origin.y + (rand() % 25 - 12)
+        };
+
+        Color normalColor = (Color){200 + rand() % 55, 200 + rand() % 55, 200 + rand() % 55, 255};
+
+        effect->particles[i].position = startPos;
+        effect->particles[i].velocity = velocity;
+        effect->particles[i].acceleration = (Vector2){0, 25};
+        effect->particles[i].size = 9.0f + (rand() % 6); // MAIOR: 9-15 pixels
+        effect->particles[i].life = 0.0f;
+        effect->particles[i].maxLife = 1.3f;
+        effect->particles[i].color = normalColor;
+        effect->particles[i].targetColor = (Color){normalColor.r, normalColor.g, normalColor.b, 0};
+        effect->particles[i].rotation = 0.0f;
         effect->particles[i].rotationSpeed = (float)(rand() % 200 - 100);
+        effect->particles[i].active = true;
+        effect->particles[i].type = 0;
+
         effect->particleCount++;
     }
 
@@ -992,27 +1217,6 @@ void CreateFairyEffect(Vector2 origin, Vector2 target) {
     activeEffectCount++;
 }
 
-void CreateNormalEffect(Vector2 origin, Vector2 target) {
-    int slot = FindFreeEffectSlot();
-    if (slot == -1) return;
-
-    BattleEffectSystem* effect = &battleEffects[slot];
-    effect->active = true;
-    effect->type = EFFECT_ATTACK_NORMAL;
-    effect->timer = 0.0f;
-    effect->duration = 0.8f;
-    effect->origin = origin;
-    effect->target = target;
-    effect->color = (Color){200, 200, 200, 255};
-
-    for (int i = 0; i < 12; i++) {
-        Vector2 velocity = {(float)(rand() % 180 - 90), (float)(rand() % 180 - 90)};
-        Color normalColor = (Color){200 + rand() % 55, 200 + rand() % 55, 200 + rand() % 55, 255};
-        InitParticle(&effect->particles[i], target, velocity, normalColor, 0.7f);
-        effect->particleCount++;
-    }
-    activeEffectCount++;
-}
 
 // Efeitos de tela
 void TriggerScreenShake(float intensity, float duration) {
@@ -1050,14 +1254,14 @@ void UpdateParticle(Particle* particle) {
 
     float deltaTime = GetFrameTime();
 
-    // Atualizar física
+    // Atualizar física com menos gravidade
     particle->velocity.x += particle->acceleration.x * deltaTime;
-    particle->velocity.y += particle->acceleration.y * deltaTime;
+    particle->velocity.y += particle->acceleration.y * deltaTime * 0.3f; // Gravidade reduzida
 
     particle->position.x += particle->velocity.x * deltaTime;
     particle->position.y += particle->velocity.y * deltaTime;
 
-    particle->rotation += particle->rotationSpeed * deltaTime;
+    particle->rotation += particle->rotationSpeed * deltaTime * 0.5f; // Rotação mais lenta
 
     // Atualizar vida
     particle->life += deltaTime;
@@ -1067,12 +1271,12 @@ void UpdateParticle(Particle* particle) {
         return;
     }
 
-    // Interpolar cor (fade out)
+    // Interpolar cor (fade out mais suave)
     float t = particle->life / particle->maxLife;
-    particle->color = LerpColor(particle->color, particle->targetColor, EaseOut(t));
+    particle->color = LerpColor(particle->color, particle->targetColor, EaseOut(t) * 0.8f);
 
-    // Reduzir tamanho gradualmente
-    particle->size *= (1.0f - deltaTime * 0.5f);
+    // Reduzir tamanho gradualmente (mais lento)
+    particle->size *= (1.0f - deltaTime * 0.3f); // Era 0.5f, agora 0.3f
     if (particle->size < 1.0f) particle->size = 1.0f;
 }
 
@@ -1204,124 +1408,242 @@ void DrawCriticalEffect(BattleEffectSystem* effect) {
 
 // Funções de desenho específicas para cada tipo de ataque
 void DrawFireAttackEffect(BattleEffectSystem* effect) {
-    Color fireColor = (Color){255, 150, 50, (unsigned char)(200 * effect->alpha)};
+    Color fireColor = (Color){255, 150, 50, (unsigned char)(255 * effect->alpha)};
 
-    // Chamas ondulantes
-    for (int i = 0; i < 5; i++) {
-        float waveHeight = sinf(effect->timer * 8.0f + i) * 10;
-        Vector2 flamePos = {
-            effect->currentPos.x + (i - 2) * 15,
-            effect->currentPos.y + waveHeight
-        };
-        DrawCircleV(flamePos, 8 * effect->intensity, fireColor);
+    // DESENHAR PROJÉTIL PRINCIPAL GRANDE
+    if (effect->alpha > 0.1f) {
+        // Núcleo do projétil de fogo
+        float coreSize = 25.0f * effect->intensity; // Tamanho grande
+        DrawCircle((int)effect->currentPos.x, (int)effect->currentPos.y, coreSize, fireColor);
+
+        // Anel externo para mais impacto visual
+        Color outerFire = (Color){255, 100, 0, (unsigned char)(180 * effect->alpha)};
+        DrawCircle((int)effect->currentPos.x, (int)effect->currentPos.y, coreSize * 1.3f, outerFire);
+
+        // Trilha atrás do projétil
+        Vector2 direction = {effect->target.x - effect->origin.x, effect->target.y - effect->origin.y};
+        float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
+        if (length > 0) {
+            direction.x /= length;
+            direction.y /= length;
+        }
+
+        // Desenhar trilha de fogo
+        for (int i = 1; i <= 5; i++) {
+            Vector2 trailPos = {
+                effect->currentPos.x - direction.x * i * 15,
+                effect->currentPos.y - direction.y * i * 15
+            };
+
+            float trailAlpha = effect->alpha * (1.0f - (float)i / 6.0f);
+            Color trailColor = (Color){255, 150, 50, (unsigned char)(255 * trailAlpha)};
+            float trailSize = coreSize * (1.0f - (float)i / 8.0f);
+
+            DrawCircle((int)trailPos.x, (int)trailPos.y, trailSize, trailColor);
+        }
     }
+
+    printf("[DRAW FIRE] Pos: (%.1f,%.1f), Alpha: %.2f, Tamanho: %.1f\n",
+           effect->currentPos.x, effect->currentPos.y, effect->alpha, 25.0f * effect->intensity);
 }
 
 void DrawWaterAttackEffect(BattleEffectSystem* effect) {
-    Color waterColor = (Color){100, 200, 255, (unsigned char)(180 * effect->alpha)};
+    Color waterColor = (Color){100, 200, 255, (unsigned char)(255 * effect->alpha)};
 
-    // Ondas de água
-    for (int i = 0; i < 3; i++) {
-        float waveRadius = 20 + i * 15 + effect->timer * 50;
-        DrawCircleLinesV(effect->currentPos, waveRadius * effect->intensity, waterColor);
+    // DESENHAR JATO DE ÁGUA PRINCIPAL
+    if (effect->alpha > 0.1f) {
+        // Núcleo do jato de água
+        float coreSize = 20.0f * effect->intensity;
+        DrawCircle((int)effect->currentPos.x, (int)effect->currentPos.y, coreSize, waterColor);
+
+        // Gotas ao redor
+        Color dropColor = (Color){50, 150, 255, (unsigned char)(200 * effect->alpha)};
+        DrawCircle((int)effect->currentPos.x, (int)effect->currentPos.y, coreSize * 1.2f, dropColor);
+
+        // Trilha de água
+        Vector2 direction = {effect->target.x - effect->origin.x, effect->target.y - effect->origin.y};
+        float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
+        if (length > 0) {
+            direction.x /= length;
+            direction.y /= length;
+        }
+
+        for (int i = 1; i <= 4; i++) {
+            Vector2 trailPos = {
+                effect->currentPos.x - direction.x * i * 12,
+                effect->currentPos.y - direction.y * i * 12
+            };
+
+            float trailAlpha = effect->alpha * (1.0f - (float)i / 5.0f);
+            Color trailColor = (Color){100, 200, 255, (unsigned char)(255 * trailAlpha)};
+            float trailSize = coreSize * (1.0f - (float)i / 6.0f);
+
+            DrawCircle((int)trailPos.x, (int)trailPos.y, trailSize, trailColor);
+        }
     }
+
+    printf("[DRAW WATER] Pos: (%.1f,%.1f), Alpha: %.2f, Tamanho: %.1f\n",
+           effect->currentPos.x, effect->currentPos.y, effect->alpha, 20.0f * effect->intensity);
 }
 
 void DrawElectricAttackEffect(BattleEffectSystem* effect) {
     Color electricColor = (Color){255, 255, 150, (unsigned char)(255 * effect->alpha)};
 
-    // Raios em zigue-zague
-    Vector2 start = effect->origin;
-    Vector2 end = effect->target;
-    int segments = 8;
+    // DESENHAR RAIO PRINCIPAL
+    if (effect->alpha > 0.1f) {
+        // Linha principal do raio (mais grossa)
+        DrawLineEx(effect->origin, effect->currentPos, 8.0f * effect->intensity, electricColor);
 
-    for (int i = 0; i < segments; i++) {
-        float t1 = (float)i / segments;
-        float t2 = (float)(i + 1) / segments;
+        // Linha secundária (brilho)
+        Color glowColor = (Color){255, 255, 255, (unsigned char)(200 * effect->alpha)};
+        DrawLineEx(effect->origin, effect->currentPos, 4.0f * effect->intensity, glowColor);
 
-        Vector2 p1 = LerpVector2(start, end, t1);
-        Vector2 p2 = LerpVector2(start, end, t2);
+        // Raios secundários (zigue-zague)
+        Vector2 direction = {effect->target.x - effect->origin.x, effect->target.y - effect->origin.y};
+        float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
 
-        // Adicionar variação nos pontos
-        p1.x += sinf(effect->timer * 20.0f + i) * 10;
-        p2.x += sinf(effect->timer * 20.0f + i + 1) * 10;
+        if (length > 0) {
+            direction.x /= length;
+            direction.y /= length;
 
-        DrawLineEx(p1, p2, 3.0f, electricColor);
+            // Criar zigue-zague
+            for (int i = 0; i < 3; i++) {
+                float t = (float)i / 3.0f;
+                Vector2 zigPos = {
+                    effect->origin.x + direction.x * length * t + (rand() % 30 - 15),
+                    effect->origin.y + direction.y * length * t + (rand() % 30 - 15)
+                };
+
+                Vector2 zagPos = {
+                    zigPos.x + direction.x * length * 0.1f + (rand() % 30 - 15),
+                    zigPos.y + direction.y * length * 0.1f + (rand() % 30 - 15)
+                };
+
+                DrawLineEx(zigPos, zagPos, 3.0f, electricColor);
+            }
+        }
+
+        // Núcleo brilhante na posição atual
+        DrawCircle((int)effect->currentPos.x, (int)effect->currentPos.y, 15.0f * effect->intensity, electricColor);
     }
+
+    printf("[DRAW ELECTRIC] Linha de (%.1f,%.1f) para (%.1f,%.1f), Alpha: %.2f\n",
+           effect->origin.x, effect->origin.y, effect->currentPos.x, effect->currentPos.y, effect->alpha);
 }
 
 void DrawGrassAttackEffect(BattleEffectSystem* effect) {
-    Color grassColor = (Color){150, 255, 150, (unsigned char)(200 * effect->alpha)};
+    Color grassColor = (Color){150, 255, 150, (unsigned char)(255 * effect->alpha)};
 
-    // Folhas girando
-    for (int i = 0; i < 6; i++) {
-        float angle = effect->timer * 4.0f + i * PI / 3;
-        float radius = 20 + i * 5;
-        Vector2 leafPos = {
-            effect->currentPos.x + cosf(angle) * radius,
-            effect->currentPos.y + sinf(angle) * radius
-        };
+    // DESENHAR TORNADO DE FOLHAS
+    if (effect->alpha > 0.1f) {
+        // Núcleo do tornado
+        float coreSize = 18.0f * effect->intensity;
+        DrawCircle((int)effect->currentPos.x, (int)effect->currentPos.y, coreSize, grassColor);
 
-        DrawRectanglePro(
-            (Rectangle){leafPos.x, leafPos.y, 12, 6},
-            (Vector2){6, 3},
-            angle * 180 / PI,
-            grassColor
-        );
+        // Folhas girando ao redor
+        for (int i = 0; i < 6; i++) {
+            float angle = effect->timer * 4.0f + i * PI / 3;
+            float radius = coreSize * 1.5f;
+            Vector2 leafPos = {
+                effect->currentPos.x + cosf(angle) * radius,
+                effect->currentPos.y + sinf(angle) * radius
+            };
+
+            Color leafColor = (Color){100 + rand() % 100, 255, 100 + rand() % 100, (unsigned char)(200 * effect->alpha)};
+
+            // Desenhar folha como retângulo rotacionado
+            DrawRectanglePro(
+                (Rectangle){leafPos.x, leafPos.y, 16, 8},
+                (Vector2){8, 4},
+                angle * 180 / PI,
+                leafColor
+            );
+        }
+
+        // Trilha de folhas
+        Vector2 direction = {effect->target.x - effect->origin.x, effect->target.y - effect->origin.y};
+        float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
+        if (length > 0) {
+            direction.x /= length;
+            direction.y /= length;
+        }
+
+        for (int i = 1; i <= 3; i++) {
+            Vector2 trailPos = {
+                effect->currentPos.x - direction.x * i * 20,
+                effect->currentPos.y - direction.y * i * 20
+            };
+
+            float trailAlpha = effect->alpha * (1.0f - (float)i / 4.0f);
+            Color trailColor = (Color){150, 255, 150, (unsigned char)(255 * trailAlpha)};
+            float trailSize = coreSize * (1.0f - (float)i / 5.0f);
+
+            DrawCircle((int)trailPos.x, (int)trailPos.y, trailSize, trailColor);
+        }
     }
+
+    printf("[DRAW GRASS] Pos: (%.1f,%.1f), Alpha: %.2f, Tamanho: %.1f\n",
+           effect->currentPos.x, effect->currentPos.y, effect->alpha, 18.0f * effect->intensity);
 }
 
 void DrawIceAttackEffect(BattleEffectSystem* effect) {
-    Color iceColor = (Color){200, 230, 255, (unsigned char)(220 * effect->alpha)};
+    Color iceColor = (Color){150, 200, 255, (unsigned char)(255 * effect->alpha)};
 
-    // Cristais de gelo
-    for (int i = 0; i < 4; i++) {
-        float angle = (float)i * PI / 2 + effect->timer * 2.0f;
-        float size = 15 * effect->intensity;
-        Vector2 crystalPos = {
-            effect->currentPos.x + cosf(angle) * 25,
-            effect->currentPos.y + sinf(angle) * 25
-        };
+    if (effect->alpha > 0.1f) {
+        // Projétil de gelo
+        float coreSize = 22.0f * effect->intensity;
+        DrawCircle((int)effect->currentPos.x, (int)effect->currentPos.y, coreSize, iceColor);
 
-        // Desenhar cristal como losango
-        Vector2 points[4] = {
-            {crystalPos.x, crystalPos.y - size},
-            {crystalPos.x + size/2, crystalPos.y},
-            {crystalPos.x, crystalPos.y + size},
-            {crystalPos.x - size/2, crystalPos.y}
-        };
+        // Cristais ao redor
+        for (int i = 0; i < 6; i++) {
+            float angle = (float)i * PI / 3 + effect->timer * 2.0f;
+            Vector2 crystalPos = {
+                effect->currentPos.x + cosf(angle) * coreSize * 0.8f,
+                effect->currentPos.y + sinf(angle) * coreSize * 0.8f
+            };
 
-        for (int j = 0; j < 4; j++) {
-            DrawLineEx(points[j], points[(j + 1) % 4], 2.0f, iceColor);
+            Color crystalColor = (Color){200, 230, 255, (unsigned char)(200 * effect->alpha)};
+            DrawCircle((int)crystalPos.x, (int)crystalPos.y, 4, crystalColor);
         }
     }
 }
 
 void DrawFightingAttackEffect(BattleEffectSystem* effect) {
-    Color fightColor = (Color){255, 200, 150, (unsigned char)(255 * effect->alpha)};
+    Color fightColor = (Color){255, 150, 100, (unsigned char)(255 * effect->alpha)};
 
-    // Ondas de choque concêntricas
-    for (int i = 0; i < 4; i++) {
-        float shockRadius = i * 20 + effect->timer * 100;
-        if (shockRadius > 0 && shockRadius < 100) {
-            DrawCircleLinesV(effect->currentPos, shockRadius, fightColor);
+    if (effect->alpha > 0.1f) {
+        // Punho de energia
+        float coreSize = 20.0f * effect->intensity;
+        DrawCircle((int)effect->currentPos.x, (int)effect->currentPos.y, coreSize, fightColor);
+
+        // Ondas de choque
+        for (int i = 1; i <= 3; i++) {
+            float waveSize = coreSize + i * 8;
+            Color waveColor = (Color){255, 150, 100, (unsigned char)(100 * effect->alpha / i)};
+            DrawCircleLines((int)effect->currentPos.x, (int)effect->currentPos.y, waveSize, waveColor);
         }
     }
 }
 
 void DrawPoisonAttackEffect(BattleEffectSystem* effect) {
-    Color poisonColor = (Color){200, 100, 200, (unsigned char)(180 * effect->alpha)};
+    Color poisonColor = (Color){150, 50, 150, (unsigned char)(255 * effect->alpha)};
 
-    // Bolhas de veneno subindo
-    for (int i = 0; i < 8; i++) {
-        float bubbleY = effect->currentPos.y - fmodf(effect->timer * 50 + i * 10, 80);
-        Vector2 bubblePos = {
-            effect->currentPos.x + sinf(effect->timer * 3.0f + i) * 20,
-            bubbleY
-        };
+    if (effect->alpha > 0.1f) {
+        // Bolha venenosa
+        float coreSize = 19.0f * effect->intensity;
+        DrawCircle((int)effect->currentPos.x, (int)effect->currentPos.y, coreSize, poisonColor);
 
-        float bubbleSize = 3 + sinf(effect->timer * 5.0f + i) * 2;
-        DrawCircleV(bubblePos, bubbleSize, poisonColor);
+        // Bolhas menores ao redor
+        for (int i = 0; i < 4; i++) {
+            float angle = (float)i * PI / 2 + effect->timer * 3.0f;
+            Vector2 bubblePos = {
+                effect->currentPos.x + cosf(angle) * coreSize * 1.2f,
+                effect->currentPos.y + sinf(angle) * coreSize * 1.2f
+            };
+
+            Color bubbleColor = (Color){100, 0, 100, (unsigned char)(150 * effect->alpha)};
+            DrawCircle((int)bubblePos.x, (int)bubblePos.y, 6, bubbleColor);
+        }
     }
 }
 
@@ -1505,6 +1827,41 @@ void DrawFairyAttackEffect(BattleEffectSystem* effect) {
     }
 }
 
+void DrawNormalAttackEffect(BattleEffectSystem* effect) {
+    Color normalColor = (Color){200, 200, 200, (unsigned char)(255 * effect->alpha)};
+
+    if (effect->alpha > 0.1f) {
+        // Projétil normal (energia neutra)
+        float coreSize = 18.0f * effect->intensity;
+        DrawCircle((int)effect->currentPos.x, (int)effect->currentPos.y, coreSize, normalColor);
+
+        // Anel de energia
+        Color energyColor = (Color){255, 255, 255, (unsigned char)(180 * effect->alpha)};
+        DrawCircleLines((int)effect->currentPos.x, (int)effect->currentPos.y, coreSize * 1.2f, energyColor);
+
+        // Trilha simples
+        Vector2 direction = {effect->target.x - effect->origin.x, effect->target.y - effect->origin.y};
+        float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
+        if (length > 0) {
+            direction.x /= length;
+            direction.y /= length;
+        }
+
+        for (int i = 1; i <= 3; i++) {
+            Vector2 trailPos = {
+                effect->currentPos.x - direction.x * i * 15,
+                effect->currentPos.y - direction.y * i * 15
+            };
+
+            float trailAlpha = effect->alpha * (1.0f - (float)i / 4.0f);
+            Color trailColor = (Color){200, 200, 200, (unsigned char)(255 * trailAlpha)};
+            float trailSize = coreSize * (1.0f - (float)i / 5.0f);
+
+            DrawCircle((int)trailPos.x, (int)trailPos.y, trailSize, trailColor);
+        }
+    }
+}
+
 // Função para criar efeitos contínuos de status
 void CreateContinuousStatusEffect(Vector2 position, int statusType, float duration) {
     int slot = FindFreeEffectSlot();
@@ -1556,4 +1913,10 @@ void CreateContinuousStatusEffect(Vector2 position, int statusType, float durati
 
     activeEffectCount++;
     printf("Efeito contínuo de status criado: tipo %d por %.1f segundos\n", statusType, duration);
+}
+
+void CreateDelayedDamageEffect(Vector2 position, int damage, bool isPlayerTarget, bool isCritical, float delay) {
+    // Esta função pode ser usada para criar o efeito de dano com delay
+    // Por enquanto, mantemos o efeito imediato, mas com duração ajustada
+    CreateDamageEffect(position, damage, isPlayerTarget, isCritical);
 }

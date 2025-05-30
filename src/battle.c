@@ -460,45 +460,66 @@ void executeAttack(PokeMonster* attacker, PokeMonster* defender, int attackIndex
 
     // Calcular dano (se for um ataque de dano)
     if (attack->power > 0) {
-        int damage = calculateDamage(attacker, defender, attack);
+    int damage = calculateDamage(attacker, defender, attack);
 
-        // Verificar crítico (5% de chance)
-        bool isCritical = (rand() % 100) < 5;
-        if (isCritical) {
-            damage = (int)(damage * 1.5f);
-        }
-
-        // Aplicar dano
-        defender->hp -= damage;
-        if (defender->hp < 0) {
-            defender->hp = 0;
-        }
-
-        // Criar efeito visual de dano
-        Vector2 damagePos;
-        bool isPlayerTarget = (defender == battleSystem->playerTeam->current);
-
-        if (isPlayerTarget) {
-            damagePos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 50};
-        } else {
-            damagePos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 50};
-        }
-
-        CreateDamageEffect(damagePos, damage, isPlayerTarget, isCritical);
-
-        // Adicionar informação de dano à mensagem
-        char damageText[50];
-        if (isCritical) {
-            sprintf(damageText, " Acerto crítico! Causou %d de dano!", damage);
-        } else {
-            sprintf(damageText, " Causou %d de dano!", damage);
-        }
-        strncat(battleMessage, damageText, sizeof(battleMessage) - strlen(battleMessage) - 1);
-
-        // Tocar som de ataque e hit
-        PlaySound(attackSound);
-        PlaySound(hitSound);
+    // Verificar crítico (5% de chance)
+    bool isCritical = (rand() % 100) < 5;
+    if (isCritical) {
+        damage = (int)(damage * 1.5f);
     }
+
+    // Aplicar dano
+    defender->hp -= damage;
+    if (defender->hp < 0) {
+        defender->hp = 0;
+    }
+
+    // ATIVAR SHAKE NO POKÉMON QUE RECEBEU DANO
+    bool isPlayerTarget = (defender == battleSystem->playerTeam->current);
+
+    // Intensidade do shake baseada no dano e crítico
+    float shakeIntensity = 8.0f + (damage * 0.1f); // Base + proporcional ao dano
+    if (isCritical) {
+        shakeIntensity *= 1.5f; // Shake mais forte para críticos
+    }
+
+    // Duração baseada na intensidade
+    float shakeDuration = 0.6f + (damage * 0.01f); // 0.6s base + proporcional
+    if (isCritical) {
+        shakeDuration += 0.3f; // Duração maior para críticos
+    }
+
+    // Ativar o shake no Pokémon correto
+    TriggerPokemonShake(isPlayerTarget, shakeIntensity, shakeDuration);
+
+    printf("[DAMAGE] %s recebeu %d de dano%s, shake: intensidade=%.1f, duração=%.1f\n",
+           defender->name, damage, isCritical ? " (CRÍTICO)" : "",
+           shakeIntensity, shakeDuration);
+
+    // Criar efeito visual de dano
+    Vector2 damagePos;
+
+    if (isPlayerTarget) {
+        damagePos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 50};
+    } else {
+        damagePos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 50};
+    }
+
+    CreateDamageEffect(damagePos, damage, isPlayerTarget, isCritical);
+
+    // Adicionar informação de dano à mensagem
+    char damageText[50];
+    if (isCritical) {
+        sprintf(damageText, " Acerto crítico! Causou %d de dano!", damage);
+    } else {
+        sprintf(damageText, " Causou %d de dano!", damage);
+    }
+    strncat(battleMessage, damageText, sizeof(battleMessage) - strlen(battleMessage) - 1);
+
+    // Tocar som de ataque e hit
+    PlaySound(attackSound);
+    PlaySound(hitSound);
+}
 
     // Verificar e aplicar efeito de status (com chance)
     if (attack->statusEffect > 0 && attack->statusChance > 0) {

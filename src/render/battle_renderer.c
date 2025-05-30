@@ -34,6 +34,69 @@ typedef struct
     float blinkTimer; // Timer para piscar o indicador de continuar
 } TypewriterText;
 
+// Sistema de shake individual para cada Pokémon
+typedef struct {
+    bool isShaking;
+    float shakeTimer;
+    float shakeDuration;
+    float shakeIntensity;
+    Vector2 shakeOffset;
+} PokemonShakeData;
+
+static PokemonShakeData playerShake = {0};
+static PokemonShakeData enemyShake = {0};
+
+// Função para ativar shake em um Pokémon específico
+void TriggerPokemonShake(bool isPlayerPokemon, float intensity, float duration) {
+    PokemonShakeData* shake = isPlayerPokemon ? &playerShake : &enemyShake;
+
+    shake->isShaking = true;
+    shake->shakeTimer = 0.0f;
+    shake->shakeDuration = duration;
+    shake->shakeIntensity = intensity;
+    shake->shakeOffset = (Vector2){0, 0};
+
+    printf("[POKEMON SHAKE] Iniciando shake no %s: intensidade=%.1f, duração=%.1f\n",
+           isPlayerPokemon ? "jogador" : "oponente", intensity, duration);
+}
+
+// Função para atualizar o shake dos Pokémons
+void UpdatePokemonShakes(void) {
+    float deltaTime = GetFrameTime();
+
+    // Atualizar shake do jogador
+    if (playerShake.isShaking) {
+        playerShake.shakeTimer += deltaTime;
+
+        if (playerShake.shakeTimer >= playerShake.shakeDuration) {
+            playerShake.isShaking = false;
+            playerShake.shakeOffset = (Vector2){0, 0};
+        } else {
+            float progress = playerShake.shakeTimer / playerShake.shakeDuration;
+            float currentIntensity = playerShake.shakeIntensity * (1.0f - progress); // Diminui com o tempo
+
+            playerShake.shakeOffset.x = (float)(rand() % 21 - 10) * currentIntensity * 0.1f;
+            playerShake.shakeOffset.y = (float)(rand() % 21 - 10) * currentIntensity * 0.1f;
+        }
+    }
+
+    // Atualizar shake do oponente
+    if (enemyShake.isShaking) {
+        enemyShake.shakeTimer += deltaTime;
+
+        if (enemyShake.shakeTimer >= enemyShake.shakeDuration) {
+            enemyShake.isShaking = false;
+            enemyShake.shakeOffset = (Vector2){0, 0};
+        } else {
+            float progress = enemyShake.shakeTimer / enemyShake.shakeDuration;
+            float currentIntensity = enemyShake.shakeIntensity * (1.0f - progress); // Diminui com o tempo
+
+            enemyShake.shakeOffset.x = (float)(rand() % 21 - 10) * currentIntensity * 0.1f;
+            enemyShake.shakeOffset.y = (float)(rand() % 21 - 10) * currentIntensity * 0.1f;
+        }
+    }
+}
+
 static TypewriterText typewriter = {0};
 static float platformYOffset1 = 0.0f;
 static float platformYOffset2 = 0.0f;
@@ -153,9 +216,6 @@ void updateTypewriter(void)
 /**
  * Desenha um monstro na batalha
  */
-/**
- * Desenha um monstro na batalha - VERSÃO CORRIGIDA
- */
 void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
     if (monster == NULL) return;
 
@@ -163,7 +223,7 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
     Animation* currentAnim = NULL;
     float baseScale = isPlayer ? 3.0f : 2.5f;
 
-    // Posicionamento ajustado para melhor composição na tela
+    // Posicionamento base
     if (isPlayer) {
         monsterPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
         currentAnim = &monster->backAnimation;
@@ -172,36 +232,17 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         currentAnim = &monster->frontAnimation;
     }
 
-    // Variáveis estáticas para efeitos visuais
-    static float damageShakeTimer = 0.0f;
-    static bool isShaking = false;
-    static float flashTimer = 0.0f;
-    static bool isFlashing = false;
-
-    // Aplicar shake se estiver recebendo dano
+    // APLICAR O SHAKE INDIVIDUAL
     Vector2 finalPos = monsterPos;
-    if (isShaking && !isPlayer) { // Apenas no oponente para exemplo
-        finalPos.x += sinf(damageShakeTimer * 50.0f) * 3.0f;
-        damageShakeTimer += GetFrameTime();
-        if (damageShakeTimer > 0.5f) {
-            isShaking = false;
-            damageShakeTimer = 0.0f;
-        }
+    PokemonShakeData* shake = isPlayer ? &playerShake : &enemyShake;
+
+    if (shake->isShaking) {
+        finalPos.x += shake->shakeOffset.x;
+        finalPos.y += shake->shakeOffset.y;
     }
 
-    // Cor para efeitos de flash
+    // Cor normal (remover o sistema de flash antigo)
     Color drawColor = WHITE;
-    if (isFlashing) {
-        float flashIntensity = sinf(flashTimer * 20.0f);
-        if (flashIntensity > 0) {
-            drawColor = (Color){255, 255, 255, 255};
-        }
-        flashTimer += GetFrameTime();
-        if (flashTimer > 0.3f) {
-            isFlashing = false;
-            flashTimer = 0.0f;
-        }
-    }
 
     // Atualizar e desenhar animação
     if (currentAnim->frameCount > 0) {
@@ -214,7 +255,7 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         float breatheEffect = sinf(battleTimer * 1.2f) * 0.03f;
         scale += breatheEffect;
 
-        // Desenhar com efeitos aplicados
+        // Desenhar com posição ajustada pelo shake
         DrawTextureEx(
             currentFrame,
             (Vector2){
@@ -242,7 +283,7 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         }
     }
 
-    // Desenhar indicador de status (se tiver)
+    // Desenhar indicador de status na posição ajustada
     if (monster->statusCondition != STATUS_NONE) {
         Vector2 statusPos = isPlayer
                                 ? (Vector2){finalPos.x - 50, finalPos.y - 80}
@@ -253,59 +294,42 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
 
         switch (monster->statusCondition) {
         case STATUS_PARALYZED:
-            statusColor = (Color){240, 208, 48, 255}; // Amarelo Pokémon
+            statusColor = (Color){240, 208, 48, 255};
             statusText = "PAR";
             break;
         case STATUS_SLEEPING:
-            statusColor = (Color){112, 88, 152, 255}; // Roxo escuro Pokémon
+            statusColor = (Color){112, 88, 152, 255};
             statusText = "SLP";
             break;
         case STATUS_BURNING:
-            statusColor = (Color){240, 128, 48, 255}; // Laranja Pokémon
+            statusColor = (Color){240, 128, 48, 255};
             statusText = "BRN";
             break;
         case STATUS_ATK_DOWN:
-            statusColor = (Color){192, 48, 40, 255}; // Vermelho escuro Pokémon
+            statusColor = (Color){192, 48, 40, 255};
             statusText = "ATK↓";
             break;
         case STATUS_DEF_DOWN:
-            statusColor = (Color){48, 96, 240, 255}; // Azul Pokémon
+            statusColor = (Color){48, 96, 240, 255};
             statusText = "DEF↓";
             break;
         case STATUS_SPD_DOWN:
-            statusColor = (Color){120, 200, 80, 255}; // Verde Pokémon
+            statusColor = (Color){120, 200, 80, 255};
             statusText = "SPD↓";
             break;
         default:
-            statusColor = (Color){168, 168, 120, 255}; // Bege Pokémon
+            statusColor = (Color){168, 168, 120, 255};
             statusText = "???";
             break;
         }
 
-        // Desenhar bolha de status estilo BW
-        DrawCircle(
-            statusPos.x,
-            statusPos.y,
-            22,
-            statusColor
-        );
-
-        // Borda da bolha
-        DrawCircleLines(
-            statusPos.x,
-            statusPos.y,
-            22,
-            BLACK
-        );
-
-        // Destacar texto
-        DrawText(
-            statusText,
-            statusPos.x - MeasureText(statusText, 14) / 2,
-            statusPos.y - 7,
-            14,
-            WHITE
-        );
+        DrawCircle(statusPos.x, statusPos.y, 22, statusColor);
+        DrawCircleLines(statusPos.x, statusPos.y, 22, BLACK);
+        DrawText(statusText,
+                 statusPos.x - MeasureText(statusText, 14) / 2,
+                 statusPos.y - 7,
+                 14,
+                 WHITE);
     }
 }
 
@@ -1280,7 +1304,7 @@ void drawConfirmDialog(const char* message, const char* yesText, const char* noT
 void drawBattleScreen(void) {
     // Atualizar música
     UpdateMusicStream(battleMusic);
-    DrawBattleEffects();
+
 
     // Fundo de batalha texturizado em tela inteira
     DrawTexturePro(
@@ -1332,7 +1356,7 @@ void drawBattleScreen(void) {
 
     drawMonsterStatusBox(playerMonster, playerStatusBox, true);
     drawMonsterStatusBox(opponentMonster, enemyStatusBox, false);
-
+    DrawBattleEffects();
     // Caixa de mensagem ou menu de ações (maior e mais baixa)
     Rectangle actionBox = {
         20,
@@ -1453,41 +1477,41 @@ void drawBattleScreen(void) {
 /**
  * Atualiza a lógica da tela de batalha
  */
-void updateBattleScreen(void)
-{
+
+void updateBattleScreen(void) {
     // Atualizar temporizadores e efeitos
     float deltaTime = GetFrameTime();
     battleTimer += deltaTime;
 
     UpdateBattleEffects();
+    UpdatePokemonShakes();
+
+
 
     // Animar plataformas
     platformYOffset1 = sinf(battleTimer * 0.5f) * 5.0f;
     platformYOffset2 = cosf(battleTimer * 0.6f) * 5.0f;
 
     // Atualizar efeitos de flash e animação para os sprites
-    if (playerSprite.flashAlpha > 0.0f)
-    {
+    if (playerSprite.flashAlpha > 0.0f) {
         playerSprite.flashAlpha -= deltaTime * 2.0f;
         if (playerSprite.flashAlpha < 0.0f) playerSprite.flashAlpha = 0.0f;
     }
 
-    if (enemySprite.flashAlpha > 0.0f)
-    {
+    if (enemySprite.flashAlpha > 0.0f) {
         enemySprite.flashAlpha -= deltaTime * 2.0f;
         if (enemySprite.flashAlpha < 0.0f) enemySprite.flashAlpha = 0.0f;
     }
 
     // Atualizar animação de HP
-    if (isHpAnimationActive)
-    {
+    if (isHpAnimationActive) {
         hpAnimTimer += deltaTime;
-        if (hpAnimTimer >= 1.0f)
-        {
+        if (hpAnimTimer >= 1.0f) {
             isHpAnimationActive = false;
             hpAnimTimer = 0.0f;
         }
     }
+
     // Chamada para atualizar a lógica de batalha
     updateBattle();
 }

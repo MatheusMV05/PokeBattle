@@ -33,7 +33,6 @@ void cleanupGame(void);
 void changeScreen(GameState newScreen);
 void loadMonsterTextures(void);
 void unloadMonsterTextures(void);
-void initBattleEffects(void);
 bool testAIConnection(void);
 
 // Desenha uma Pokébola estilizada
@@ -376,7 +375,7 @@ int main(void)
             case 3:
                 drawEnhancedLoadingScreen("Inicializando sistema de batalha...", 0.35f, loadingTimer);
                 initializeBattleSystem();
-                initBattleEffects();
+                InitBattleEffectsSystem();
                 loadingStage = 4;
                 loadingProgress = 0.35f;
                 break;
