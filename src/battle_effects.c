@@ -1,17 +1,17 @@
-// battle_effects.c
+// battle_effects.c - Sistema Completo de Efeitos de Batalha
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOGDI
 #define NOUSER
 #endif
 
-
-#include "monsters.h"
 #include "battle_effects.h"
+#include "monsters.h"
 #include "resources.h"
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "battle.h"
 
 // Variáveis globais do sistema de efeitos
 BattleEffectSystem battleEffects[MAX_BATTLE_EFFECTS] = {0};
@@ -26,15 +26,20 @@ float screenFlashTimer = 0.0f;
 float screenFlashIntensity = 0.0f;
 Color screenFlashColor = WHITE;
 
+// Variáveis para efeitos de status contínuos
+static float statusEffectTimer = 0.0f;
+static bool statusEffectsActive[MAX_BATTLE_EFFECTS] = {false};
+
 // Inicializa o sistema de efeitos
 void InitBattleEffectsSystem(void) {
-    printf("Inicializando sistema de efeitos de batalha...\n");
+    printf("Inicializando sistema completo de efeitos de batalha...\n");
 
     // Limpar todos os efeitos
     for (int i = 0; i < MAX_BATTLE_EFFECTS; i++) {
         battleEffects[i].active = false;
         battleEffects[i].type = EFFECT_NONE;
         battleEffects[i].particleCount = 0;
+        statusEffectsActive[i] = false;
 
         // Limpar partículas
         for (int j = 0; j < MAX_PARTICLES_PER_EFFECT; j++) {
@@ -43,6 +48,7 @@ void InitBattleEffectsSystem(void) {
     }
 
     activeEffectCount = 0;
+    statusEffectTimer = 0.0f;
 
     // Resetar efeitos de tela
     screenShakeTimer = 0.0f;
@@ -59,6 +65,7 @@ void InitBattleEffectsSystem(void) {
 // Atualiza todos os efeitos ativos
 void UpdateBattleEffects(void) {
     float deltaTime = GetFrameTime();
+    statusEffectTimer += deltaTime;
 
     // Atualizar efeitos de tela
     if (screenShakeTimer > 0.0f) {
@@ -95,6 +102,7 @@ void UpdateBattleEffects(void) {
         // Atualizar propriedades baseadas no progresso
         effect->alpha = 1.0f - EaseOut(progress);
         effect->intensity = 1.0f - EaseInOut(progress);
+        effect->scale = 1.0f + EaseOut(progress) * 0.5f;
 
         // Atualizar posição (para efeitos que se movem)
         if (effect->type >= EFFECT_ATTACK_NORMAL && effect->type <= EFFECT_ATTACK_FAIRY) {
@@ -114,6 +122,7 @@ void UpdateBattleEffects(void) {
                 effect->onComplete();
             }
             effect->active = false;
+            statusEffectsActive[i] = false;
             activeEffectCount--;
         }
     }
@@ -121,19 +130,13 @@ void UpdateBattleEffects(void) {
 
 // Desenha todos os efeitos ativos
 void DrawBattleEffects(void) {
-    // Aplicar offset de shake na tela
-    if (screenShakeIntensity > 0.0f) {
-        // O shake será aplicado externamente usando rlPushMatrix/rlPopMatrix
-        // Aqui apenas disponibilizamos o offset
-    }
-
     // Desenhar efeitos individuais
     for (int i = 0; i < MAX_BATTLE_EFFECTS; i++) {
         if (!battleEffects[i].active) continue;
 
         BattleEffectSystem* effect = &battleEffects[i];
 
-        // Desenhar partículas
+        // Desenhar partículas primeiro
         for (int j = 0; j < effect->particleCount; j++) {
             if (effect->particles[j].active) {
                 DrawParticle(&effect->particles[j]);
@@ -163,8 +166,61 @@ void DrawBattleEffects(void) {
                 DrawCriticalEffect(effect);
                 break;
 
+            // Efeitos de ataque específicos por tipo
+            case EFFECT_ATTACK_FIRE:
+                DrawFireAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_WATER:
+                DrawWaterAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_ELECTRIC:
+                DrawElectricAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_GRASS:
+                DrawGrassAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_ICE:
+                DrawIceAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_FIGHTING:
+                DrawFightingAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_POISON:
+                DrawPoisonAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_GROUND:
+                DrawGroundAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_FLYING:
+                DrawFlyingAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_PSYCHIC:
+                DrawPsychicAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_BUG:
+                DrawBugAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_ROCK:
+                DrawRockAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_GHOST:
+                DrawGhostAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_DRAGON:
+                DrawDragonAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_DARK:
+                DrawDarkAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_STEEL:
+                DrawSteelAttackEffect(effect);
+                break;
+            case EFFECT_ATTACK_FAIRY:
+                DrawFairyAttackEffect(effect);
+                break;
+
             default:
-                // Efeitos de ataque são principalmente partículas
+                // Efeitos básicos são principalmente partículas
                 break;
         }
     }
@@ -175,17 +231,25 @@ void DrawBattleEffects(void) {
         flashColor.a = (unsigned char)(255 * screenFlashIntensity);
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), flashColor);
     }
+
+    // Desenhar efeitos de shake de tela se necessário
+    if (screenShakeIntensity > 0.0f) {
+        // O shake é aplicado na matriz de transformação globalmente
+        // Aqui apenas disponibilizamos o offset para outras funções
+    }
 }
 
 // Limpa todos os efeitos ativos
 void ClearAllBattleEffects(void) {
     for (int i = 0; i < MAX_BATTLE_EFFECTS; i++) {
         battleEffects[i].active = false;
+        statusEffectsActive[i] = false;
     }
     activeEffectCount = 0;
 
     screenShakeTimer = 0.0f;
     screenFlashTimer = 0.0f;
+    statusEffectTimer = 0.0f;
 }
 
 // Encontra um slot livre para um novo efeito
@@ -195,12 +259,12 @@ int FindFreeEffectSlot(void) {
             return i;
         }
     }
-    return -1; // Nenhum slot livre
+    return -1;
 }
 
 // Cria um efeito de ataque baseado no tipo
 void CreateAttackEffect(MonsterType attackType, Vector2 origin, Vector2 target, bool isPlayerAttacking) {
-    printf("Criando efeito de ataque tipo %d\n", attackType);
+    printf("Criando efeito de ataque tipo %d de %s\n", attackType, isPlayerAttacking ? "jogador" : "oponente");
 
     // Tocar som de ataque
     PlaySound(attackSound);
@@ -327,6 +391,120 @@ void CreateDamageEffect(Vector2 position, int damage, bool isPlayerTarget, bool 
     printf("Efeito de dano criado: %d de dano, crítico: %s\n", damage, isCritical ? "sim" : "não");
 }
 
+// Cria efeito de cura
+void CreateHealEffect(Vector2 position, int healAmount) {
+    int slot = FindFreeEffectSlot();
+    if (slot == -1) return;
+
+    BattleEffectSystem* effect = &battleEffects[slot];
+    effect->active = true;
+    effect->type = EFFECT_HEAL;
+    effect->timer = 0.0f;
+    effect->duration = 2.0f;
+    effect->origin = position;
+    effect->target = (Vector2){position.x, position.y - 30};
+    effect->currentPos = position;
+    effect->color = (Color){100, 255, 100, 255};
+
+    // Criar partículas de cura subindo
+    for (int i = 0; i < 20; i++) {
+        float angle = -PI/2 + ((float)(rand() % 60 - 30) * DEG2RAD);
+        float speed = (float)(rand() % 80 + 40);
+        Vector2 velocity = {cosf(angle) * speed, sinf(angle) * speed};
+
+        Color healColor = (Color){100 + rand() % 155, 255, 100 + rand() % 155, 200 + rand() % 55};
+        Vector2 startPos = {
+            position.x + (rand() % 40 - 20),
+            position.y + (rand() % 20)
+        };
+
+        InitParticle(&effect->particles[i], startPos, velocity, healColor, 1.5f);
+        effect->particleCount++;
+    }
+
+    activeEffectCount++;
+    printf("Efeito de cura criado: %d HP restaurado\n", healAmount);
+}
+
+// Cria efeito de aplicação de status
+void CreateStatusEffect(Vector2 position, int statusType) {
+    int slot = FindFreeEffectSlot();
+    if (slot == -1) return;
+
+    BattleEffectSystem* effect = &battleEffects[slot];
+    effect->active = true;
+    effect->type = EFFECT_STATUS_APPLIED;
+    effect->timer = 0.0f;
+    effect->duration = 1.5f;
+    effect->origin = position;
+    effect->currentPos = position;
+    statusEffectsActive[slot] = true;
+
+    Color statusColor;
+    switch (statusType) {
+        case STATUS_PARALYZED:
+            statusColor = (Color){255, 255, 100, 255}; // Amarelo
+            break;
+        case STATUS_SLEEPING:
+            statusColor = (Color){100, 100, 255, 255}; // Azul
+            break;
+        case STATUS_BURNING:
+            statusColor = (Color){255, 100, 100, 255}; // Vermelho
+            break;
+        default:
+            statusColor = (Color){200, 200, 200, 255}; // Cinza
+            break;
+    }
+
+    effect->color = statusColor;
+
+    // Criar partículas de status em círculo
+    for (int i = 0; i < 12; i++) {
+        float angle = ((float)i / 12) * 2 * PI;
+        Vector2 velocity = {
+            cosf(angle) * 60,
+            sinf(angle) * 60
+        };
+
+        InitParticle(&effect->particles[i], position, velocity, statusColor, 1.2f);
+        effect->particleCount++;
+    }
+
+    activeEffectCount++;
+    printf("Efeito de status criado: tipo %d\n", statusType);
+}
+
+// Cria efeito de desmaiado
+void CreateFaintEffect(Vector2 position) {
+    int slot = FindFreeEffectSlot();
+    if (slot == -1) return;
+
+    BattleEffectSystem* effect = &battleEffects[slot];
+    effect->active = true;
+    effect->type = EFFECT_FAINT;
+    effect->timer = 0.0f;
+    effect->duration = 2.0f;
+    effect->origin = position;
+    effect->currentPos = position;
+    effect->color = (Color){100, 100, 100, 255};
+
+    // Criar partículas caindo
+    for (int i = 0; i < 25; i++) {
+        float angle = (float)(rand() % 180 + 90) * DEG2RAD; // Para baixo
+        float speed = (float)(rand() % 100 + 50);
+        Vector2 velocity = {cosf(angle) * speed, sinf(angle) * speed};
+
+        Color faintColor = (Color){100 + rand() % 100, 100 + rand() % 100, 100 + rand() % 100, 255};
+        InitParticle(&effect->particles[i], position, velocity, faintColor, 1.5f);
+        effect->particleCount++;
+    }
+
+    activeEffectCount++;
+    PlaySound(faintSound);
+    TriggerScreenFlash((Color){100, 100, 100, 120}, 0.8f, 0.5f);
+    printf("Efeito de desmaiado criado\n");
+}
+
 // Implementações dos efeitos específicos por tipo
 
 void CreateFireEffect(Vector2 origin, Vector2 target) {
@@ -347,8 +525,10 @@ void CreateFireEffect(Vector2 origin, Vector2 target) {
     for (int i = 0; i < 25; i++) {
         Vector2 direction = {target.x - origin.x, target.y - origin.y};
         float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
-        direction.x /= length;
-        direction.y /= length;
+        if (length > 0) {
+            direction.x /= length;
+            direction.y /= length;
+        }
 
         float spread = 30.0f;
         Vector2 velocity = {
@@ -382,8 +562,10 @@ void CreateWaterEffect(Vector2 origin, Vector2 target) {
     for (int i = 0; i < 20; i++) {
         Vector2 direction = {target.x - origin.x, target.y - origin.y};
         float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
-        direction.x /= length;
-        direction.y /= length;
+        if (length > 0) {
+            direction.x /= length;
+            direction.y /= length;
+        }
 
         Vector2 velocity = {
             direction.x * (180 + rand() % 80),
@@ -488,8 +670,10 @@ void CreateIceEffect(Vector2 origin, Vector2 target) {
     for (int i = 0; i < 15; i++) {
         Vector2 direction = {target.x - origin.x, target.y - origin.y};
         float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
-        direction.x /= length;
-        direction.y /= length;
+        if (length > 0) {
+            direction.x /= length;
+            direction.y /= length;
+        }
 
         Vector2 velocity = {
             direction.x * (150 + rand() % 100),
@@ -602,6 +786,28 @@ void CreateGroundEffect(Vector2 origin, Vector2 target) {
     activeEffectCount++;
 }
 
+void CreateFlyingEffect(Vector2 origin, Vector2 target) {
+    int slot = FindFreeEffectSlot();
+    if (slot == -1) return;
+
+    BattleEffectSystem* effect = &battleEffects[slot];
+    effect->active = true;
+    effect->type = EFFECT_ATTACK_FLYING;
+    effect->timer = 0.0f;
+    effect->duration = 1.0f;
+    effect->origin = origin;
+    effect->target = target;
+    effect->color = (Color){200, 220, 255, 200};
+
+    for (int i = 0; i < 16; i++) {
+        Vector2 velocity = {(float)(rand() % 300 - 150), (float)(rand() % 200 - 250)};
+        Color flyingColor = (Color){200 + rand() % 55, 220 + rand() % 35, 255, 150 + rand() % 105};
+        InitParticle(&effect->particles[i], origin, velocity, flyingColor, 0.9f);
+        effect->particleCount++;
+    }
+    activeEffectCount++;
+}
+
 void CreatePsychicEffect(Vector2 origin, Vector2 target) {
     int slot = FindFreeEffectSlot();
     if (slot == -1) return;
@@ -632,7 +838,6 @@ void CreatePsychicEffect(Vector2 origin, Vector2 target) {
     activeEffectCount++;
 }
 
-// Implementações das demais funções específicas seguem padrão similar...
 void CreateBugEffect(Vector2 origin, Vector2 target) {
     int slot = FindFreeEffectSlot();
     if (slot == -1) return;
@@ -646,7 +851,6 @@ void CreateBugEffect(Vector2 origin, Vector2 target) {
     effect->target = target;
     effect->color = (Color){100, 200, 50, 255};
 
-    // Criar pequenas partículas rápidas (insetos)
     for (int i = 0; i < 15; i++) {
         Vector2 velocity = {(float)(rand() % 300 - 150), (float)(rand() % 300 - 150)};
         Color bugColor = (Color){100 + rand() % 100, 200, 50 + rand() % 100, 255};
@@ -788,28 +992,6 @@ void CreateFairyEffect(Vector2 origin, Vector2 target) {
     activeEffectCount++;
 }
 
-void CreateFlyingEffect(Vector2 origin, Vector2 target) {
-    int slot = FindFreeEffectSlot();
-    if (slot == -1) return;
-
-    BattleEffectSystem* effect = &battleEffects[slot];
-    effect->active = true;
-    effect->type = EFFECT_ATTACK_FLYING;
-    effect->timer = 0.0f;
-    effect->duration = 1.0f;
-    effect->origin = origin;
-    effect->target = target;
-    effect->color = (Color){200, 220, 255, 200};
-
-    for (int i = 0; i < 16; i++) {
-        Vector2 velocity = {(float)(rand() % 300 - 150), (float)(rand() % 200 - 250)};
-        Color flyingColor = (Color){200 + rand() % 55, 220 + rand() % 35, 255, 150 + rand() % 105};
-        InitParticle(&effect->particles[i], origin, velocity, flyingColor, 0.9f);
-        effect->particleCount++;
-    }
-    activeEffectCount++;
-}
-
 void CreateNormalEffect(Vector2 origin, Vector2 target) {
     int slot = FindFreeEffectSlot();
     if (slot == -1) return;
@@ -939,7 +1121,6 @@ float EaseIn(float t) {
 
 // Funções de renderização para efeitos específicos
 void DrawDamageNumbers(BattleEffectSystem* effect) {
-    // Esta seria implementada para mostrar números de dano flutuando
     if (effect->alpha < 0.1f) return;
 
     Color textColor = effect->color;
@@ -956,29 +1137,423 @@ void DrawDamageNumbers(BattleEffectSystem* effect) {
 }
 
 void DrawHealEffect(BattleEffectSystem* effect) {
-    // Implementação para efeito de cura
     Color healColor = (Color){100, 255, 100, (unsigned char)(255 * effect->alpha)};
-    DrawCircleV(effect->currentPos, 20 * effect->intensity, healColor);
+
+    // Círculo pulsante
+    float pulseSize = 20 + sinf(effect->timer * 8.0f) * 5;
+    DrawCircleV(effect->currentPos, pulseSize * effect->intensity, healColor);
+
+    // Anel externo
+    DrawCircleLinesV(effect->currentPos, pulseSize * effect->intensity + 10, healColor);
 }
 
 void DrawStatusEffect(BattleEffectSystem* effect) {
-    // Implementação para efeito de status
-    Color statusColor = (Color){255, 255, 100, (unsigned char)(255 * effect->alpha)};
-    DrawCircleLinesV(effect->currentPos, 25 * effect->intensity, statusColor);
+    Color statusColor = effect->color;
+    statusColor.a = (unsigned char)(255 * effect->alpha);
+
+    // Múltiplos anéis pulsantes
+    for (int i = 0; i < 3; i++) {
+        float ringSize = 15 + i * 10 + sinf(effect->timer * 6.0f + i) * 3;
+        DrawCircleLinesV(effect->currentPos, ringSize * effect->intensity, statusColor);
+    }
 }
 
 void DrawFaintEffect(BattleEffectSystem* effect) {
-    // Implementação para efeito de desmaiado
-    Color faintColor = (Color){255, 100, 100, (unsigned char)(255 * effect->alpha)};
-    DrawCircleV(effect->currentPos, 30 * effect->intensity, faintColor);
+    Color faintColor = (Color){100, 100, 100, (unsigned char)(255 * effect->alpha)};
+
+    // X gigante indicando desmaiado
+    float size = 30 * effect->intensity;
+    Vector2 center = effect->currentPos;
+
+    DrawLineEx(
+        (Vector2){center.x - size, center.y - size},
+        (Vector2){center.x + size, center.y + size},
+        3.0f,
+        faintColor
+    );
+    DrawLineEx(
+        (Vector2){center.x + size, center.y - size},
+        (Vector2){center.x - size, center.y + size},
+        3.0f,
+        faintColor
+    );
 }
 
 void DrawCriticalEffect(BattleEffectSystem* effect) {
-    // Implementação para efeito de crítico
     Color critColor = (Color){255, 255, 100, (unsigned char)(255 * effect->alpha)};
+
+    // Estrela brilhante
+    float starSize = 25 * effect->intensity;
+    Vector2 center = effect->currentPos;
+
+    for (int i = 0; i < 8; i++) {
+        float angle = (float)i * PI / 4;
+        Vector2 point = {
+            center.x + cosf(angle) * starSize,
+            center.y + sinf(angle) * starSize
+        };
+        DrawLineEx(center, point, 2.0f, critColor);
+    }
+
     DrawText("CRITICAL!",
-             (int)(effect->currentPos.x - 40),
-             (int)(effect->currentPos.y - 20),
+             (int)(center.x - 40),
+             (int)(center.y - 20),
              20,
              critColor);
+}
+
+// Funções de desenho específicas para cada tipo de ataque
+void DrawFireAttackEffect(BattleEffectSystem* effect) {
+    Color fireColor = (Color){255, 150, 50, (unsigned char)(200 * effect->alpha)};
+
+    // Chamas ondulantes
+    for (int i = 0; i < 5; i++) {
+        float waveHeight = sinf(effect->timer * 8.0f + i) * 10;
+        Vector2 flamePos = {
+            effect->currentPos.x + (i - 2) * 15,
+            effect->currentPos.y + waveHeight
+        };
+        DrawCircleV(flamePos, 8 * effect->intensity, fireColor);
+    }
+}
+
+void DrawWaterAttackEffect(BattleEffectSystem* effect) {
+    Color waterColor = (Color){100, 200, 255, (unsigned char)(180 * effect->alpha)};
+
+    // Ondas de água
+    for (int i = 0; i < 3; i++) {
+        float waveRadius = 20 + i * 15 + effect->timer * 50;
+        DrawCircleLinesV(effect->currentPos, waveRadius * effect->intensity, waterColor);
+    }
+}
+
+void DrawElectricAttackEffect(BattleEffectSystem* effect) {
+    Color electricColor = (Color){255, 255, 150, (unsigned char)(255 * effect->alpha)};
+
+    // Raios em zigue-zague
+    Vector2 start = effect->origin;
+    Vector2 end = effect->target;
+    int segments = 8;
+
+    for (int i = 0; i < segments; i++) {
+        float t1 = (float)i / segments;
+        float t2 = (float)(i + 1) / segments;
+
+        Vector2 p1 = LerpVector2(start, end, t1);
+        Vector2 p2 = LerpVector2(start, end, t2);
+
+        // Adicionar variação nos pontos
+        p1.x += sinf(effect->timer * 20.0f + i) * 10;
+        p2.x += sinf(effect->timer * 20.0f + i + 1) * 10;
+
+        DrawLineEx(p1, p2, 3.0f, electricColor);
+    }
+}
+
+void DrawGrassAttackEffect(BattleEffectSystem* effect) {
+    Color grassColor = (Color){150, 255, 150, (unsigned char)(200 * effect->alpha)};
+
+    // Folhas girando
+    for (int i = 0; i < 6; i++) {
+        float angle = effect->timer * 4.0f + i * PI / 3;
+        float radius = 20 + i * 5;
+        Vector2 leafPos = {
+            effect->currentPos.x + cosf(angle) * radius,
+            effect->currentPos.y + sinf(angle) * radius
+        };
+
+        DrawRectanglePro(
+            (Rectangle){leafPos.x, leafPos.y, 12, 6},
+            (Vector2){6, 3},
+            angle * 180 / PI,
+            grassColor
+        );
+    }
+}
+
+void DrawIceAttackEffect(BattleEffectSystem* effect) {
+    Color iceColor = (Color){200, 230, 255, (unsigned char)(220 * effect->alpha)};
+
+    // Cristais de gelo
+    for (int i = 0; i < 4; i++) {
+        float angle = (float)i * PI / 2 + effect->timer * 2.0f;
+        float size = 15 * effect->intensity;
+        Vector2 crystalPos = {
+            effect->currentPos.x + cosf(angle) * 25,
+            effect->currentPos.y + sinf(angle) * 25
+        };
+
+        // Desenhar cristal como losango
+        Vector2 points[4] = {
+            {crystalPos.x, crystalPos.y - size},
+            {crystalPos.x + size/2, crystalPos.y},
+            {crystalPos.x, crystalPos.y + size},
+            {crystalPos.x - size/2, crystalPos.y}
+        };
+
+        for (int j = 0; j < 4; j++) {
+            DrawLineEx(points[j], points[(j + 1) % 4], 2.0f, iceColor);
+        }
+    }
+}
+
+void DrawFightingAttackEffect(BattleEffectSystem* effect) {
+    Color fightColor = (Color){255, 200, 150, (unsigned char)(255 * effect->alpha)};
+
+    // Ondas de choque concêntricas
+    for (int i = 0; i < 4; i++) {
+        float shockRadius = i * 20 + effect->timer * 100;
+        if (shockRadius > 0 && shockRadius < 100) {
+            DrawCircleLinesV(effect->currentPos, shockRadius, fightColor);
+        }
+    }
+}
+
+void DrawPoisonAttackEffect(BattleEffectSystem* effect) {
+    Color poisonColor = (Color){200, 100, 200, (unsigned char)(180 * effect->alpha)};
+
+    // Bolhas de veneno subindo
+    for (int i = 0; i < 8; i++) {
+        float bubbleY = effect->currentPos.y - fmodf(effect->timer * 50 + i * 10, 80);
+        Vector2 bubblePos = {
+            effect->currentPos.x + sinf(effect->timer * 3.0f + i) * 20,
+            bubbleY
+        };
+
+        float bubbleSize = 3 + sinf(effect->timer * 5.0f + i) * 2;
+        DrawCircleV(bubblePos, bubbleSize, poisonColor);
+    }
+}
+
+void DrawGroundAttackEffect(BattleEffectSystem* effect) {
+    Color groundColor = (Color){200, 150, 100, (unsigned char)(200 * effect->alpha)};
+
+    // Rachadura no chão
+    Vector2 start = {effect->currentPos.x - 40, effect->currentPos.y};
+    Vector2 end = {effect->currentPos.x + 40, effect->currentPos.y};
+
+    // Linha principal da rachadura
+    DrawLineEx(start, end, 4.0f, groundColor);
+
+    // Rachaduras menores
+    for (int i = 0; i < 5; i++) {
+        float t = (float)i / 5;
+        Vector2 crackStart = LerpVector2(start, end, t);
+        Vector2 crackEnd = {
+            crackStart.x + (rand() % 20 - 10),
+            crackStart.y + (rand() % 15 + 5)
+        };
+        DrawLineEx(crackStart, crackEnd, 2.0f, groundColor);
+    }
+}
+
+void DrawFlyingAttackEffect(BattleEffectSystem* effect) {
+    Color flyingColor = (Color){220, 240, 255, (unsigned char)(150 * effect->alpha)};
+
+    // Rajadas de vento
+    for (int i = 0; i < 6; i++) {
+        float windSpeed = effect->timer * 200 + i * 30;
+        Vector2 windPos = {
+            effect->currentPos.x + sinf(windSpeed * 0.01f) * 40,
+            effect->currentPos.y + cosf(windSpeed * 0.01f) * 20
+        };
+
+        DrawLineEx(
+            windPos,
+            (Vector2){windPos.x + 20, windPos.y},
+            2.0f,
+            flyingColor
+        );
+    }
+}
+
+void DrawPsychicAttackEffect(BattleEffectSystem* effect) {
+    Color psychicColor = (Color){255, 150, 255, (unsigned char)(200 * effect->alpha)};
+
+    // Ondas psíquicas espirais
+    for (int i = 0; i < 20; i++) {
+        float angle = (float)i / 20 * 2 * PI + effect->timer * 4.0f;
+        float radius = 10 + fmodf(effect->timer * 30, 50);
+        Vector2 spiralPos = {
+            effect->currentPos.x + cosf(angle) * radius,
+            effect->currentPos.y + sinf(angle) * radius
+        };
+
+        DrawCircleV(spiralPos, 3, psychicColor);
+    }
+}
+
+void DrawBugAttackEffect(BattleEffectSystem* effect) {
+    Color bugColor = (Color){150, 255, 100, (unsigned char)(180 * effect->alpha)};
+
+    // Enxame de pequenos pontos
+    for (int i = 0; i < 15; i++) {
+        float speed = effect->timer * 150 + i * 20;
+        Vector2 bugPos = {
+            effect->currentPos.x + sinf(speed * 0.02f + i) * 30,
+            effect->currentPos.y + cosf(speed * 0.03f + i) * 25
+        };
+
+        DrawCircleV(bugPos, 2, bugColor);
+    }
+}
+
+void DrawRockAttackEffect(BattleEffectSystem* effect) {
+    Color rockColor = (Color){180, 150, 120, (unsigned char)(220 * effect->alpha)};
+
+    // Pedras caindo
+    for (int i = 0; i < 6; i++) {
+        float fallY = effect->currentPos.y - 50 + fmodf(effect->timer * 100 + i * 15, 60);
+        Vector2 rockPos = {
+            effect->currentPos.x + (i - 3) * 15,
+            fallY
+        };
+
+        DrawRectangleV(rockPos, (Vector2){8, 8}, rockColor);
+    }
+}
+
+void DrawGhostAttackEffect(BattleEffectSystem* effect) {
+    Color ghostColor = (Color){150, 100, 255, (unsigned char)(120 * effect->alpha)};
+
+    // Formas espectrais ondulantes
+    for (int i = 0; i < 5; i++) {
+        float wave = sinf(effect->timer * 6.0f + i) * 15;
+        Vector2 ghostPos = {
+            effect->currentPos.x + wave,
+            effect->currentPos.y + (i - 2) * 8
+        };
+
+        DrawCircleV(ghostPos, 6 + sinf(effect->timer * 4.0f + i) * 2, ghostColor);
+    }
+}
+
+void DrawDragonAttackEffect(BattleEffectSystem* effect) {
+    Color dragonColor = (Color){255, 100, 200, (unsigned char)(200 * effect->alpha)};
+
+    // Chamas dracônicas em espiral
+    for (int i = 0; i < 10; i++) {
+        float angle = (float)i / 10 * 2 * PI + effect->timer * 3.0f;
+        float radius = 20 + sinf(effect->timer * 2.0f + i) * 10;
+        Vector2 flamePos = {
+            effect->currentPos.x + cosf(angle) * radius,
+            effect->currentPos.y + sinf(angle) * radius
+        };
+
+        DrawCircleV(flamePos, 5, dragonColor);
+    }
+}
+
+void DrawDarkAttackEffect(BattleEffectSystem* effect) {
+    Color darkColor = (Color){100, 50, 100, (unsigned char)(180 * effect->alpha)};
+
+    // Sombras se expandindo
+    for (int i = 0; i < 8; i++) {
+        float angle = (float)i / 8 * 2 * PI;
+        float length = 30 * effect->intensity;
+        Vector2 shadowEnd = {
+            effect->currentPos.x + cosf(angle) * length,
+            effect->currentPos.y + sinf(angle) * length
+        };
+
+        DrawLineEx(effect->currentPos, shadowEnd, 3.0f, darkColor);
+    }
+}
+
+void DrawSteelAttackEffect(BattleEffectSystem* effect) {
+    Color steelColor = (Color){220, 220, 220, (unsigned char)(255 * effect->alpha)};
+
+    // Faíscas metálicas
+    for (int i = 0; i < 12; i++) {
+        float sparkAngle = (float)(rand() % 360) * DEG2RAD;
+        float sparkDistance = (rand() % 30) + 10;
+        Vector2 sparkPos = {
+            effect->currentPos.x + cosf(sparkAngle) * sparkDistance,
+            effect->currentPos.y + sinf(sparkAngle) * sparkDistance
+        };
+
+        DrawLineEx(
+            sparkPos,
+            (Vector2){sparkPos.x + cosf(sparkAngle) * 8, sparkPos.y + sinf(sparkAngle) * 8},
+            1.0f,
+            steelColor
+        );
+    }
+}
+
+void DrawFairyAttackEffect(BattleEffectSystem* effect) {
+    Color fairyColor = (Color){255, 200, 255, (unsigned char)(150 * effect->alpha)};
+
+    // Brilhos de fada
+    for (int i = 0; i < 10; i++) {
+        float twinkleAngle = (float)i / 10 * 2 * PI + effect->timer * 5.0f;
+        float twinkleRadius = 15 + sinf(effect->timer * 3.0f + i) * 8;
+        Vector2 twinklePos = {
+            effect->currentPos.x + cosf(twinkleAngle) * twinkleRadius,
+            effect->currentPos.y + sinf(twinkleAngle) * twinkleRadius
+        };
+
+        // Desenhar pequena estrela
+        for (int j = 0; j < 4; j++) {
+            float starAngle = (float)j * PI / 2;
+            Vector2 starPoint = {
+                twinklePos.x + cosf(starAngle) * 3,
+                twinklePos.y + sinf(starAngle) * 3
+            };
+            DrawLineEx(twinklePos, starPoint, 1.0f, fairyColor);
+        }
+    }
+}
+
+// Função para criar efeitos contínuos de status
+void CreateContinuousStatusEffect(Vector2 position, int statusType, float duration) {
+    int slot = FindFreeEffectSlot();
+    if (slot == -1) return;
+
+    BattleEffectSystem* effect = &battleEffects[slot];
+    effect->active = true;
+    effect->type = EFFECT_STATUS_APPLIED;
+    effect->timer = 0.0f;
+    effect->duration = duration;
+    effect->origin = position;
+    effect->currentPos = position;
+    statusEffectsActive[slot] = true;
+
+    // Configurar cor e comportamento baseado no status
+    switch (statusType) {
+        case STATUS_PARALYZED:
+            effect->color = (Color){255, 255, 100, 255};
+            // Criar raios pequenos ao redor
+            for (int i = 0; i < 8; i++) {
+                float angle = ((float)i / 8) * 2 * PI;
+                Vector2 velocity = {cosf(angle) * 30, sinf(angle) * 30};
+                InitParticle(&effect->particles[i], position, velocity, effect->color, 0.5f);
+                effect->particleCount++;
+            }
+            break;
+
+        case STATUS_SLEEPING:
+            effect->color = (Color){150, 150, 255, 255};
+            // Criar bolhas de sono
+            for (int i = 0; i < 5; i++) {
+                Vector2 velocity = {(rand() % 20 - 10), -(rand() % 50 + 20)};
+                InitParticle(&effect->particles[i], position, velocity, effect->color, 2.0f);
+                effect->particleCount++;
+            }
+            break;
+
+        case STATUS_BURNING:
+            effect->color = (Color){255, 150, 100, 255};
+            // Criar chamas pequenas
+            for (int i = 0; i < 10; i++) {
+                Vector2 velocity = {(rand() % 30 - 15), -(rand() % 40 + 20)};
+                Color fireColor = (i % 2) ? (Color){255, 100, 50, 255} : (Color){255, 150, 0, 255};
+                InitParticle(&effect->particles[i], position, velocity, fireColor, 1.0f);
+                effect->particleCount++;
+            }
+            break;
+    }
+
+    activeEffectCount++;
+    printf("Efeito contínuo de status criado: tipo %d por %.1f segundos\n", statusType, duration);
 }

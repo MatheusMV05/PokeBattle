@@ -24,6 +24,7 @@
 #include "main.h"
 #include "resources.h"
 #include "gui.h"
+#include "battle_effects.h"
 
 // Declarações das funções
 void initializeGame(void);
@@ -483,6 +484,7 @@ int main(void)
     cleanupGame();
     cleanupGlobals();
     CloseAudioDevice();
+    ClearAllBattleEffects();
     CloseWindow();
 
     return 0;

@@ -19,6 +19,7 @@
 #include "globals.h"
 #include "gui.h"
 #include "hp_bar.h"
+#include "battle_effects.h"
 
 // Sistema de typewriter para textos
 typedef struct
@@ -1279,6 +1280,7 @@ void drawConfirmDialog(const char* message, const char* yesText, const char* noT
 void drawBattleScreen(void) {
     // Atualizar música
     UpdateMusicStream(battleMusic);
+    DrawBattleEffects();
 
     // Fundo de batalha texturizado em tela inteira
     DrawTexturePro(
@@ -1456,6 +1458,8 @@ void updateBattleScreen(void)
     // Atualizar temporizadores e efeitos
     float deltaTime = GetFrameTime();
     battleTimer += deltaTime;
+
+    UpdateBattleEffects();
 
     // Animar plataformas
     platformYOffset1 = sinf(battleTimer * 0.5f) * 5.0f;

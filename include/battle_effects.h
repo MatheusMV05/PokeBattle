@@ -149,4 +149,33 @@ float EaseInOut(float t);
 float EaseOut(float t);
 float EaseIn(float t);
 
+// Funções de renderização para efeitos básicos
+void DrawDamageNumbers(BattleEffectSystem* effect);
+void DrawHealEffect(BattleEffectSystem* effect);
+void DrawStatusEffect(BattleEffectSystem* effect);
+void DrawFaintEffect(BattleEffectSystem* effect);
+void DrawCriticalEffect(BattleEffectSystem* effect);
+
+// Funções de desenho específicas para cada tipo de ataque
+void DrawFireAttackEffect(BattleEffectSystem* effect);
+void DrawWaterAttackEffect(BattleEffectSystem* effect);
+void DrawElectricAttackEffect(BattleEffectSystem* effect);
+void DrawGrassAttackEffect(BattleEffectSystem* effect);
+void DrawIceAttackEffect(BattleEffectSystem* effect);
+void DrawFightingAttackEffect(BattleEffectSystem* effect);
+void DrawPoisonAttackEffect(BattleEffectSystem* effect);
+void DrawGroundAttackEffect(BattleEffectSystem* effect);
+void DrawFlyingAttackEffect(BattleEffectSystem* effect);
+void DrawPsychicAttackEffect(BattleEffectSystem* effect);
+void DrawBugAttackEffect(BattleEffectSystem* effect);
+void DrawRockAttackEffect(BattleEffectSystem* effect);
+void DrawGhostAttackEffect(BattleEffectSystem* effect);
+void DrawDragonAttackEffect(BattleEffectSystem* effect);
+void DrawDarkAttackEffect(BattleEffectSystem* effect);
+void DrawSteelAttackEffect(BattleEffectSystem* effect);
+void DrawFairyAttackEffect(BattleEffectSystem* effect);
+
+// Função para efeitos contínuos de status
+void CreateContinuousStatusEffect(Vector2 position, int statusType, float duration);
+
 #endif // BATTLE_EFFECTS_H

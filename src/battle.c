@@ -19,6 +19,7 @@
 #include "resources.h"
 #include "globals.h"
 #include "battle_renderer.h"
+#include "battle_effects.h"
 #include "hp_bar.h"
 
 static bool botPotionUsed = false;     // Controla se o bot já usou poção na batalha
@@ -55,6 +56,7 @@ void initializeBattleSystem(void) {
 
     // Inicializar sistema de barras de HP
     InitHPBarSystem();
+    InitBattleEffectsSystem();
 
     // Verificar se tudo foi alocado corretamente
     if (battleSystem->actionQueue == NULL || battleSystem->effectStack == NULL) {
@@ -73,6 +75,7 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     // Resetar as animações de barras de HP
     ResetHPBarAnimations();
     resetBattleSprites();
+    ClearAllBattleEffects();
 
     // Configurar os times
     battleSystem->playerTeam = playerTeam;
@@ -128,6 +131,7 @@ void updateBattle(void) {
         }
         return;
     }
+    UpdateBattleEffects();
 
     // Atualizar estado atual
     switch (battleSystem->battleState) {
@@ -438,9 +442,31 @@ void executeAttack(PokeMonster* attacker, PokeMonster* defender, int attackIndex
         sprintf(battleMessage, "%s usou %s!", attacker->name, attack->name);
     }
 
+    // Criar efeito visual do ataque
+    Vector2 attackerPos, defenderPos;
+
+    // Determinar posições baseadas em quem está atacando
+    if (attacker == battleSystem->playerTeam->current) {
+        // Jogador atacando
+        attackerPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+        defenderPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+        CreateAttackEffect(attack->type, attackerPos, defenderPos, true);
+    } else {
+        // Oponente atacando
+        attackerPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+        defenderPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+        CreateAttackEffect(attack->type, attackerPos, defenderPos, false);
+    }
+
     // Calcular dano (se for um ataque de dano)
     if (attack->power > 0) {
         int damage = calculateDamage(attacker, defender, attack);
+
+        // Verificar crítico (5% de chance)
+        bool isCritical = (rand() % 100) < 5;
+        if (isCritical) {
+            damage = (int)(damage * 1.5f);
+        }
 
         // Aplicar dano
         defender->hp -= damage;
@@ -448,9 +474,25 @@ void executeAttack(PokeMonster* attacker, PokeMonster* defender, int attackIndex
             defender->hp = 0;
         }
 
+        // Criar efeito visual de dano
+        Vector2 damagePos;
+        bool isPlayerTarget = (defender == battleSystem->playerTeam->current);
+
+        if (isPlayerTarget) {
+            damagePos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 50};
+        } else {
+            damagePos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 50};
+        }
+
+        CreateDamageEffect(damagePos, damage, isPlayerTarget, isCritical);
+
         // Adicionar informação de dano à mensagem
         char damageText[50];
-        sprintf(damageText, " Causou %d de dano!", damage);
+        if (isCritical) {
+            sprintf(damageText, " Acerto crítico! Causou %d de dano!", damage);
+        } else {
+            sprintf(damageText, " Causou %d de dano!", damage);
+        }
         strncat(battleMessage, damageText, sizeof(battleMessage) - strlen(battleMessage) - 1);
 
         // Tocar som de ataque e hit
@@ -463,6 +505,15 @@ void executeAttack(PokeMonster* attacker, PokeMonster* defender, int attackIndex
         int statusRoll = rand() % 100;
         if (statusRoll < attack->statusChance) {
             applyStatusEffect(defender, attack->statusEffect, attack->statusPower, 3);
+
+            // Criar efeito visual de status
+            Vector2 statusPos;
+            if (defender == battleSystem->playerTeam->current) {
+                statusPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+            } else {
+                statusPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+            }
+            CreateStatusEffect(statusPos, attack->statusEffect);
 
             // Adicionar informação de status à mensagem
             char statusText[50];
@@ -482,6 +533,15 @@ void executeAttack(PokeMonster* attacker, PokeMonster* defender, int attackIndex
 
     // Verificar se o monstro desmaiou
     if (isMonsterFainted(defender)) {
+        // Criar efeito visual de desmaiado
+        Vector2 faintPos;
+        if (defender == battleSystem->playerTeam->current) {
+            faintPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+        } else {
+            faintPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+        }
+        CreateFaintEffect(faintPos);
+
         char faintedText[50];
         sprintf(faintedText, " %s desmaiou!", defender->name);
         strncat(battleMessage, faintedText, sizeof(battleMessage) - strlen(battleMessage) - 1);
@@ -880,6 +940,15 @@ void processStatusEffects(PokeMonster* monster) {
 
                 if (monster->hp < 0) monster->hp = 0;
 
+                // Criar efeito visual de queimadura contínua
+                Vector2 burnPos;
+                if (monster == battleSystem->playerTeam->current) {
+                    burnPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+                } else {
+                    burnPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+                }
+                CreateContinuousStatusEffect(burnPos, STATUS_BURNING, 2.0f);
+
                 sprintf(battleMessage, "%s sofreu %d de dano por estar em chamas!",
                        monster->name, damage);
             }
@@ -887,10 +956,28 @@ void processStatusEffects(PokeMonster* monster) {
 
         case STATUS_SLEEPING:
             printf("[DEBUG STATUS] %s está dormindo (não pode atacar)\n", monster->name);
+
+            // Criar efeito visual de sono contínuo
+            Vector2 sleepPos;
+            if (monster == battleSystem->playerTeam->current) {
+                sleepPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+            } else {
+                sleepPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+            }
+            CreateContinuousStatusEffect(sleepPos, STATUS_SLEEPING, 1.5f);
             break;
 
         case STATUS_PARALYZED:
             printf("[DEBUG STATUS] %s está paralisado\n", monster->name);
+
+            // Criar efeito visual de paralisia contínuo
+            Vector2 paralyzePos;
+            if (monster == battleSystem->playerTeam->current) {
+                paralyzePos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+            } else {
+                paralyzePos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+            }
+            CreateContinuousStatusEffect(paralyzePos, STATUS_PARALYZED, 1.0f);
             break;
     }
 
@@ -1374,6 +1461,15 @@ void useItem(ItemType itemType, PokeMonster* target) {
                 target->hp = target->maxHp;
             }
 
+            // Criar efeito visual de cura
+            Vector2 healPos;
+            if (target == battleSystem->playerTeam->current) {
+                healPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+            } else {
+                healPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+            }
+            CreateHealEffect(healPos, hpToHeal);
+
             // Mensagem informando quanto foi curado
             if (hpToHeal > 0) {
                 sprintf(battleMessage, "Poção usada! %s recuperou %d de HP!", target->name, hpToHeal);
@@ -1471,10 +1567,31 @@ break;
             if (rand() % 2 == 0) {
                 // Cura total
                 target->hp = target->maxHp;
+
+                // Criar efeito visual de cura massiva
+                Vector2 healPos;
+                if (target == battleSystem->playerTeam->current) {
+                    healPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+                } else {
+                    healPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+                }
+                CreateHealEffect(healPos, target->maxHp);
+                TriggerScreenFlash((Color){100, 255, 100, 150}, 1.0f, 0.5f);
+
                 sprintf(battleMessage, "Moeda da Sorte: CARA! %s recuperou todo o HP!", target->name);
             } else {
                 // HP = 0
                 target->hp = 0;
+
+                // Criar efeito visual de desmaiado
+                Vector2 faintPos;
+                if (target == battleSystem->playerTeam->current) {
+                    faintPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+                } else {
+                    faintPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+                }
+                CreateFaintEffect(faintPos);
+
                 sprintf(battleMessage, "Moeda da Sorte: COROA! %s desmaiou!", target->name);
 
                 // Se o jogador desmaiou, forçar troca

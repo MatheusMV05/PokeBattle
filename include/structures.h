@@ -108,19 +108,6 @@ typedef struct {
     Vector2 target;
 } BattleEffect;
 
-// Tipos de efeito
-enum {
-    EFFECT_NONE = 0,
-    EFFECT_FLASH,
-    EFFECT_SHAKE,
-    EFFECT_PARTICLES,
-    EFFECT_SLASH,
-    EFFECT_FIRE,
-    EFFECT_WATER,
-    EFFECT_ELECTRIC,
-    EFFECT_NATURE
-};
-
 // Estrutura para resoluções
 typedef struct {
     int width;

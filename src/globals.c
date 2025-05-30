@@ -11,6 +11,7 @@
 #include <curl/curl.h>
 #include "hud_elements.h"
 #include "resources.h"
+#include "battle_effects.h"
 
 // Variáveis de estado do jogo
 GameState currentScreen = MAIN_MENU;
@@ -114,6 +115,7 @@ void cleanupGlobals(void) {
         freeMonsterList(opponentTeam);
         opponentTeam = NULL;
     }
+    ClearAllBattleEffects();
 }
 
 
