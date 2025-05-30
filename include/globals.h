@@ -34,6 +34,7 @@ extern char battleMessage[256];
 extern BattleMessage currentMessage;
 extern BattleAnimation currentAnimation;
 extern float stateTransitionDelay;
+extern MessageSequence currentSequence;
 
 // Variáveis de configuração
 extern bool fullscreen;

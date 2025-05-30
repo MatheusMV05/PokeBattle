@@ -139,6 +139,14 @@ typedef struct {
     int count;
 } ActionQueue;
 
+typedef struct {
+    char messages[5][256]; // Até 5 mensagens em sequência
+    int messageCount;
+    int currentMessage;
+    float timePerMessage;
+    bool waitingForInput;
+} MessageSequence;
+
 // Estrutura para a pilha de efeitos
 typedef struct {
     int* types;

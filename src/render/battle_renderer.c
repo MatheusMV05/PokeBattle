@@ -16,7 +16,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include "scaling.h"
 #include "globals.h"
 #include "gui.h"
 #include "hp_bar.h"
@@ -41,8 +40,14 @@ static float battleTimer = 0.0f;
 static float hpAnimTimer = 0.0f;
 static bool isHpAnimationActive = false;
 
+static float damageShakeTimer = 0.0f;
+static bool isShaking = false;
+static float flashTimer = 0.0f;
+static bool isFlashing = false;
+
+
 // Velocidade do Typewriter (menor = mais rápido)
-#define TYPEWRITER_SPEED 0.02f
+#define TYPEWRITER_SPEED 0.04f
 
 // Limite de efeitos visuais
 #define MAX_EFFECTS 10
@@ -105,21 +110,21 @@ void updateTypewriter(void)
     // Avançar para o próximo caractere
     while (typewriter.charTimer >= typewriter.charDelay && !typewriter.isComplete)
     {
-        if (typewriter.currentChar < strlen(typewriter.fullText))
-        {
-            // Adicionar próximo caractere
+        if (typewriter.currentChar < strlen(typewriter.fullText)) {
             typewriter.displayText[typewriter.currentChar] = typewriter.fullText[typewriter.currentChar];
             typewriter.displayText[typewriter.currentChar + 1] = '\0';
             typewriter.currentChar++;
 
-            // Resetar timer
             typewriter.charTimer -= typewriter.charDelay;
 
-            // Se for espaço ou pontuação, adicionar uma pequena pausa
+            // Pausas mais longas para pontuação (estilo Pokémon)
             char lastChar = typewriter.fullText[typewriter.currentChar - 1];
-            if (lastChar == ' ' || lastChar == ',' || lastChar == '.')
-            {
-                typewriter.charTimer -= typewriter.charDelay * 0.5f;
+            if (lastChar == '.') {
+                typewriter.charTimer -= typewriter.charDelay * 3.0f; // Pausa longa
+            } else if (lastChar == ',' || lastChar == '!' || lastChar == '?') {
+                typewriter.charTimer -= typewriter.charDelay * 2.0f; // Pausa média
+            } else if (lastChar == ' ') {
+                typewriter.charTimer -= typewriter.charDelay * 0.3f; // Pausa pequena
             }
         }
         else
@@ -147,32 +152,55 @@ void updateTypewriter(void)
 /**
  * Desenha um monstro na batalha
  */
+/**
+ * Desenha um monstro na batalha - VERSÃO CORRIGIDA
+ */
 void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
     if (monster == NULL) return;
 
     Vector2 platformPos, monsterPos;
-
     Animation* currentAnim = NULL;
     float baseScale = isPlayer ? 3.0f : 2.5f;
 
     // Posicionamento ajustado para melhor composição na tela
     if (isPlayer) {
-        // Posição do jogador (um pouco mais à direita e mais baixo)
-
         monsterPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
-
         currentAnim = &monster->backAnimation;
     } else {
-        // Posição do inimigo (um pouco mais à esquerda e mais alto)
-
         monsterPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
-
         currentAnim = &monster->frontAnimation;
     }
 
+    // Variáveis estáticas para efeitos visuais
+    static float damageShakeTimer = 0.0f;
+    static bool isShaking = false;
+    static float flashTimer = 0.0f;
+    static bool isFlashing = false;
 
+    // Aplicar shake se estiver recebendo dano
+    Vector2 finalPos = monsterPos;
+    if (isShaking && !isPlayer) { // Apenas no oponente para exemplo
+        finalPos.x += sinf(damageShakeTimer * 50.0f) * 3.0f;
+        damageShakeTimer += GetFrameTime();
+        if (damageShakeTimer > 0.5f) {
+            isShaking = false;
+            damageShakeTimer = 0.0f;
+        }
+    }
 
-
+    // Cor para efeitos de flash
+    Color drawColor = WHITE;
+    if (isFlashing) {
+        float flashIntensity = sinf(flashTimer * 20.0f);
+        if (flashIntensity > 0) {
+            drawColor = (Color){255, 255, 255, 255};
+        }
+        flashTimer += GetFrameTime();
+        if (flashTimer > 0.3f) {
+            isFlashing = false;
+            flashTimer = 0.0f;
+        }
+    }
 
     // Atualizar e desenhar animação
     if (currentAnim->frameCount > 0) {
@@ -185,15 +213,16 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         float breatheEffect = sinf(battleTimer * 1.2f) * 0.03f;
         scale += breatheEffect;
 
+        // Desenhar com efeitos aplicados
         DrawTextureEx(
             currentFrame,
             (Vector2){
-                monsterPos.x - (currentFrame.width * scale) / 2,
-                monsterPos.y - (currentFrame.height * scale) / 2
+                finalPos.x - (currentFrame.width * scale) / 2,
+                finalPos.y - (currentFrame.height * scale) / 2
             },
             0.0f,
             scale,
-            WHITE
+            drawColor
         );
     } else {
         // Fallback estático caso a animação falhe
@@ -202,12 +231,12 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
             DrawTextureEx(
                 fallback,
                 (Vector2){
-                    monsterPos.x - (fallback.width * baseScale) / 2,
-                    monsterPos.y - (fallback.height * baseScale) / 2
+                    finalPos.x - (fallback.width * baseScale) / 2,
+                    finalPos.y - (fallback.height * baseScale) / 2
                 },
                 0.0f,
                 baseScale,
-                WHITE
+                drawColor
             );
         }
     }
@@ -215,8 +244,8 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
     // Desenhar indicador de status (se tiver)
     if (monster->statusCondition != STATUS_NONE) {
         Vector2 statusPos = isPlayer
-                                ? (Vector2){monsterPos.x - 50, monsterPos.y - 80}  // Ajustado para mais visível
-                                : (Vector2){monsterPos.x + 50, monsterPos.y - 70}; // Ajustado para mais visível
+                                ? (Vector2){finalPos.x - 50, finalPos.y - 80}
+                                : (Vector2){finalPos.x + 50, finalPos.y - 70};
 
         Color statusColor;
         const char* statusText;
@@ -277,6 +306,13 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
             WHITE
         );
     }
+}
+
+// Função para ativar efeitos visuais de dano (adicionar ao header também)
+void triggerDamageEffects(bool isPlayer) {
+    // Esta função precisa ser implementada com variáveis globais ou
+    // um sistema de efeitos mais robusto
+    printf("Efeito de dano ativado para %s\n", isPlayer ? "jogador" : "oponente");
 }
 
 

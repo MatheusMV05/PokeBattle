@@ -252,6 +252,12 @@ void updateBattle(void) {
 
         case BATTLE_EXECUTING_ACTIONS:
 
+            stateTransitionDelay += deltaTime;
+            if (stateTransitionDelay < 0.3f) {
+                break; // Aguardar antes de executar
+            }
+            stateTransitionDelay = 0.0f;
+
             if (!isQueueEmpty(battleSystem->actionQueue)) {
                 int action, parameter;
                 PokeMonster* monster;
@@ -341,6 +347,10 @@ void updateBattle(void) {
     break;
 
         case BATTLE_TURN_END:
+            stateTransitionDelay += deltaTime;
+            if (stateTransitionDelay < 1.0f) {
+                break;
+            }
             // Processar fim de turno
             printf("[DEBUG TURN END] Processando fim de turno %d\n", battleSystem->turn);
             processTurnEnd();

@@ -43,6 +43,7 @@ add_executable(pokebattle ${SOURCES}
         src/render/credits_renderer.c
         src/hp_bar.c
         include/hp_bar.h
+        include/battle_timing.h
 )
 
 # Linkar bibliotecas necessárias no Windows

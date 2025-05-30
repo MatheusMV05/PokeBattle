@@ -41,5 +41,6 @@ void resetBattleSprites(void);
 bool isTypewriterComplete(void);
 bool isTypewriterWaitingInput(void);
 void drawTypewriterText(Vector2 position, float fontSize, Color color);
+void triggerDamageEffects(bool isPlayer);
 
 #endif
