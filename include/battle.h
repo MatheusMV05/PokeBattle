@@ -16,6 +16,7 @@ extern bool actionQueueReady;
 // Estados de batalha
 typedef enum {
     BATTLE_IDLE = 0,
+    BATTLE_INTRO_ANIMATION,  // NOVO ESTADO para animação de pokébolas
     BATTLE_INTRO,
     BATTLE_SELECT_ACTION,
     BATTLE_SELECT_ATTACK,
@@ -101,11 +102,12 @@ void messageDisplayComplete(void);
 void executeMonsterSwitch(PokeMonster* monster, int targetIndex);
 bool hasActiveMonstersLeft(MonsterList* team);
 bool monsterBelongsToTeam(PokeMonster* monster, MonsterList* team);
-// Inicializa a árvore de decisão para o bot
-void initBotDecisionTree(void);
+void StartBattleIntroAnimation(void);
+void UpdateBattleIntroAnimation(void);
+void DrawBattleIntroAnimation(void);
+bool IsBattleIntroActive(void);
+void SkipBattleIntro(void);
 
-// Libera a árvore de decisão
-void freeBotDecisionTree(void);
 
 // Encontra o melhor ataque de status
 int getBestStatusAttack(PokeMonster* botMonster, PokeMonster* playerMonster);

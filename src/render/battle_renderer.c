@@ -21,6 +21,762 @@
 #include "hp_bar.h"
 #include "battle_effects.h"
 
+
+// Estados da animação de introdução
+typedef enum {
+    INTRO_WAITING = 0,
+    INTRO_THROW_PLAYER,      // Lançar pokébola do jogador
+    INTRO_THROW_OPPONENT,    // Lançar pokébola do oponente
+    INTRO_FLYING,            // Pokébolas voando
+    INTRO_LANDING,           // Pokébolas pousando
+    INTRO_OPENING,           // Pokébolas se abrindo
+    INTRO_REVEALING,         // Pokémons aparecendo
+    INTRO_COMPLETE           // Animação completa
+} BattleIntroState;
+
+
+
+// Variáveis globais para a animação de introdução
+static BattleIntroState introState = INTRO_WAITING;
+static float introTimer = 0.0f;
+static PokeballAnimation playerPokeball = {0};
+static PokeballAnimation opponentPokeball = {0};
+static bool introAnimationActive = false;
+static float pokemonRevealAlpha = 0.0f;
+
+
+// Sistema de partículas para cada pokébola
+#define MAX_POKEBALL_PARTICLES 20
+static PokeballParticle playerParticles[MAX_POKEBALL_PARTICLES] = {0};
+static PokeballParticle opponentParticles[MAX_POKEBALL_PARTICLES] = {0};
+
+// Mensagens personalizadas durante a introdução
+const char* GetIntroMessage(BattleIntroState state, bool isPlayerPokeball) {
+    switch (state) {
+        case INTRO_WAITING:
+            return "Preparando para a batalha...";
+        case INTRO_THROW_PLAYER:
+            return "Vai, meu Pokémon!";
+        case INTRO_THROW_OPPONENT:
+            return "O oponente enviou seu Pokémon!";
+        case INTRO_FLYING:
+            return "Pokébolas voando pelo ar...";
+        case INTRO_LANDING:
+            return "As Pokébolas estão pousando!";
+        case INTRO_OPENING:
+            return "As Pokébolas estão se abrindo!";
+        case INTRO_REVEALING:
+            return "Os Pokémons estão aparecendo!";
+        case INTRO_COMPLETE:
+            return "Que a batalha comece!";
+        default:
+            return "";
+    }
+}
+
+// Sistema de sons melhorado para a introdução
+void PlayIntroSound(BattleIntroState state) {
+    switch (state) {
+        case INTRO_THROW_PLAYER:
+        case INTRO_THROW_OPPONENT:
+            PlaySound(attackSound); // Som de lançamento
+            break;
+        case INTRO_LANDING:
+            // Som já tocado no UpdatePokeballAnimation
+            break;
+        case INTRO_OPENING:
+            // Som já tocado no UpdatePokeballAnimation
+            break;
+        case INTRO_REVEALING:
+            PlaySound(selectSound); // Som de revelação
+            break;
+        case INTRO_COMPLETE:
+            PlaySound(selectSound); // Som de confirmação
+            break;
+        default:
+            break;
+    }
+}
+
+// Função para criar efeito de "vapor" quando pokémon aparece
+void CreatePokemonRevealEffect(Vector2 position, bool isPlayer) {
+    // Criar efeito de vapor/névoa
+    for (int i = 0; i < 15; i++) {
+        float angle = ((float)i / 15) * 2 * PI;
+        Vector2 velocity = {
+            cosf(angle) * (30 + rand() % 40),
+            sinf(angle) * (30 + rand() % 40) - 20 // Tendência para cima
+        };
+
+        Color vaporColor = isPlayer ?
+            (Color){100, 150, 255, 180} :
+            (Color){255, 150, 100, 180};
+
+        // Usar sistema de partículas existente ou criar novo efeito
+        CreateHealEffect(position, 0); // Por enquanto usar efeito de cura
+    }
+}
+
+
+// Função para inicializar a animação de introdução
+void StartBattleIntroAnimation(void) {
+    printf("[INTRO] Iniciando animação de introdução da batalha\n");
+
+    introAnimationActive = true;
+    introState = INTRO_WAITING;
+    introTimer = 0.0f;
+    pokemonRevealAlpha = 0.0f;
+
+    // Configurar pokébola do jogador
+    playerPokeball.startPos = (Vector2){-100, GetScreenHeight() - 200}; // Vem da esquerda
+    playerPokeball.targetPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f + 50}; // Posição final
+    playerPokeball.currentPos = playerPokeball.startPos;
+    playerPokeball.velocity = (Vector2){0, 0};
+    playerPokeball.rotation = 0.0f;
+    playerPokeball.rotationSpeed = 720.0f; // 2 rotações por segundo
+    playerPokeball.scale = 1.0f;
+    playerPokeball.bounceHeight = 0.0f;
+    playerPokeball.bounceTimer = 0.0f;
+    playerPokeball.openTimer = 0.0f;
+    playerPokeball.isLanded = false;
+    playerPokeball.isOpening = false;
+    playerPokeball.isOpen = false;
+    playerPokeball.tint = (Color){255, 100, 100, 255}; // Vermelho
+
+    // Configurar pokébola do oponente
+    opponentPokeball.startPos = (Vector2){GetScreenWidth() + 100, GetScreenHeight() - 150}; // Vem da direita
+    opponentPokeball.targetPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f + 50}; // Posição final
+    opponentPokeball.currentPos = opponentPokeball.startPos;
+    opponentPokeball.velocity = (Vector2){0, 0};
+    opponentPokeball.rotation = 0.0f;
+    opponentPokeball.rotationSpeed = -650.0f; // Rotação oposta
+    opponentPokeball.scale = 1.0f;
+    opponentPokeball.bounceHeight = 0.0f;
+    opponentPokeball.bounceTimer = 0.0f;
+    opponentPokeball.openTimer = 0.0f;
+    opponentPokeball.isLanded = false;
+    opponentPokeball.isOpening = false;
+    opponentPokeball.isOpen = false;
+    opponentPokeball.tint = (Color){100, 100, 255, 255}; // Azul
+
+    printf("[INTRO] Pokébolas configuradas - Jogador: (%.1f,%.1f) -> (%.1f,%.1f)\n",
+           playerPokeball.startPos.x, playerPokeball.startPos.y,
+           playerPokeball.targetPos.x, playerPokeball.targetPos.y);
+    printf("[INTRO] Oponente: (%.1f,%.1f) -> (%.1f,%.1f)\n",
+           opponentPokeball.startPos.x, opponentPokeball.startPos.y,
+           opponentPokeball.targetPos.x, opponentPokeball.targetPos.y);
+}
+
+// Função para atualizar a animação de uma pokébola
+void UpdatePokeballAnimation(PokeballAnimation* pokeball, float deltaTime) {
+    if (pokeball == NULL) return;
+
+    // Atualizar rotação
+    pokeball->rotation += pokeball->rotationSpeed * deltaTime;
+
+    // Atualizar posição baseada na velocidade
+    pokeball->currentPos.x += pokeball->velocity.x * deltaTime;
+    pokeball->currentPos.y += pokeball->velocity.y * deltaTime;
+
+    // Verificar se pousou
+    if (!pokeball->isLanded && pokeball->currentPos.y >= pokeball->targetPos.y) {
+        pokeball->isLanded = true;
+        pokeball->currentPos.y = pokeball->targetPos.y;
+        pokeball->bounceTimer = 0.0f;
+        pokeball->velocity = (Vector2){0, 0};
+
+        // Efeito de pouso MELHORADO
+        CreateDamageEffect(pokeball->currentPos, 0, false, false);
+        TriggerScreenShake(4.0f, 0.4f);
+        PlaySound(hitSound);
+
+        // Criar partículas de impacto
+        bool isPlayer = (pokeball == &playerPokeball);
+        CreatePokeballOpeningEffect(pokeball->currentPos, isPlayer);
+
+        printf("[INTRO] Pokébola pousou com efeitos melhorados\n");
+    }
+
+    // Animação de bounce após pousar
+    if (pokeball->isLanded && !pokeball->isOpening) {
+        pokeball->bounceTimer += deltaTime * 8.0f; // Frequência do bounce
+        pokeball->bounceHeight = sinf(pokeball->bounceTimer) * 10.0f * expf(-pokeball->bounceTimer * 0.3f); // Decaimento
+
+        if (pokeball->bounceTimer > 6.0f) { // Após 6 unidades de tempo, parar de bouncing
+            pokeball->bounceHeight = 0.0f;
+        }
+    }
+
+    // Animação de abertura
+    if (pokeball->isOpening) {
+        pokeball->openTimer += deltaTime * 3.0f;
+        pokeball->scale = 1.0f + sinf(pokeball->openTimer * 2.0f) * 0.4f; // Pulsar mais intenso
+
+        // Criar partículas durante abertura
+        if (fmodf(pokeball->openTimer, 0.1f) < deltaTime) { // A cada 0.1s
+            bool isPlayer = (pokeball == &playerPokeball);
+            CreatePokeballOpeningEffect(pokeball->currentPos, isPlayer);
+        }
+
+        if (pokeball->openTimer >= 2.0f) {
+            pokeball->isOpen = true;
+            pokeball->isOpening = false;
+            pokeball->scale = 0.3f; // Encolher muito após abrir
+
+            // Efeito de abertura FINAL
+            CreateHealEffect(pokeball->currentPos, 0);
+            TriggerScreenShake(6.0f, 0.5f);
+            PlaySound(selectSound);
+
+            // Explosão final de partículas
+            bool isPlayer = (pokeball == &playerPokeball);
+            for (int i = 0; i < 5; i++) {
+                CreatePokeballOpeningEffect(pokeball->currentPos, isPlayer);
+            }
+
+            printf("[INTRO] Pokébola abriu com efeito final!\n");
+        }
+    }
+}
+
+// Função para desenhar uma pokébola
+void DrawPokeball(PokeballAnimation* pokeball) {
+    if (pokeball == NULL) return;
+
+    Vector2 drawPos = {
+        pokeball->currentPos.x,
+        pokeball->currentPos.y - pokeball->bounceHeight
+    };
+
+    float drawRadius = 25.0f * pokeball->scale;
+
+    // Desenhar sombra
+    Color shadowColor = (Color){0, 0, 0, 100};
+    DrawCircle((int)pokeball->currentPos.x, (int)pokeball->currentPos.y + 5, drawRadius * 0.8f, shadowColor);
+
+    // Corpo principal da pokébola
+    DrawCircle((int)drawPos.x, (int)drawPos.y, drawRadius, pokeball->tint);
+
+    // Metade superior (mais clara)
+    Color topColor = (Color){
+        (unsigned char)fminf(255, pokeball->tint.r + 50),
+        (unsigned char)fminf(255, pokeball->tint.g + 50),
+        (unsigned char)fminf(255, pokeball->tint.b + 50),
+        255
+    };
+    DrawCircle((int)drawPos.x, (int)drawPos.y - drawRadius * 0.3f, drawRadius * 0.8f, topColor);
+
+    // Linha divisória
+    DrawRectangle(
+        (int)(drawPos.x - drawRadius),
+        (int)(drawPos.y - drawRadius * 0.1f),
+        (int)(drawRadius * 2),
+        (int)(drawRadius * 0.2f),
+        BLACK
+    );
+
+    // Botão central
+    DrawCircle((int)drawPos.x, (int)drawPos.y, drawRadius * 0.2f, BLACK);
+    DrawCircle((int)drawPos.x, (int)drawPos.y, drawRadius * 0.15f, WHITE);
+
+    // Efeito de brilho
+    if (!pokeball->isOpen) {
+        float brightX = drawPos.x + cosf(pokeball->rotation * DEG2RAD) * (drawRadius * 0.4f);
+        float brightY = drawPos.y + sinf(pokeball->rotation * DEG2RAD) * (drawRadius * 0.4f);
+        DrawCircle((int)brightX, (int)brightY, drawRadius * 0.08f, (Color){255, 255, 255, 180});
+    }
+
+    // Efeito de abertura (flash)
+    if (pokeball->isOpening) {
+        Color flashColor = (Color){255, 255, 255, (unsigned char)(100 * sinf(pokeball->openTimer * 4.0f))};
+        DrawCircle((int)drawPos.x, (int)drawPos.y, drawRadius * 1.5f, flashColor);
+    }
+}
+
+
+// Função principal para atualizar a animação de introdução
+void UpdateBattleIntroAnimation(void) {
+    if (!introAnimationActive) return;
+
+    float deltaTime = GetFrameTime();
+    introTimer += deltaTime;
+
+    // Atualizar partículas
+    UpdatePokeballParticles(playerParticles, deltaTime);
+    UpdatePokeballParticles(opponentParticles, deltaTime);
+
+    BattleIntroState previousState = introState;
+
+    switch (introState) {
+        case INTRO_WAITING:
+            if (introTimer >= 0.8f) { // Tempo maior para apreciar
+                introState = INTRO_THROW_PLAYER;
+                introTimer = 0.0f;
+                printf("[INTRO] Estado: THROW_PLAYER\n");
+            }
+            break;
+
+        case INTRO_THROW_PLAYER:
+            {
+                Vector2 direction = {
+                    playerPokeball.targetPos.x - playerPokeball.startPos.x,
+                    playerPokeball.targetPos.y - playerPokeball.startPos.y
+                };
+                float distance = sqrtf(direction.x * direction.x + direction.y * direction.y);
+
+                // Velocidade do lançamento (mais realista)
+                playerPokeball.velocity.x = (direction.x / distance) * 450.0f;
+                playerPokeball.velocity.y = (direction.y / distance) * 350.0f - 150.0f; // Arco mais alto
+
+                introState = INTRO_THROW_OPPONENT;
+                introTimer = 0.0f;
+                printf("[INTRO] Estado: THROW_OPPONENT\n");
+            }
+            break;
+
+        case INTRO_THROW_OPPONENT:
+            if (introTimer >= 0.5f) { // Delay maior entre lançamentos
+                Vector2 direction = {
+                    opponentPokeball.targetPos.x - opponentPokeball.startPos.x,
+                    opponentPokeball.targetPos.y - opponentPokeball.startPos.y
+                };
+                float distance = sqrtf(direction.x * direction.x + direction.y * direction.y);
+
+                opponentPokeball.velocity.x = (direction.x / distance) * 420.0f;
+                opponentPokeball.velocity.y = (direction.y / distance) * 320.0f - 130.0f;
+
+                introState = INTRO_FLYING;
+                introTimer = 0.0f;
+                printf("[INTRO] Estado: FLYING\n");
+            }
+            break;
+
+        case INTRO_FLYING:
+            // Aplicar gravidade mais realista
+            playerPokeball.velocity.y += 450.0f * deltaTime;
+            opponentPokeball.velocity.y += 450.0f * deltaTime;
+
+            // Resistência do ar
+            playerPokeball.velocity.x *= 0.995f;
+            opponentPokeball.velocity.x *= 0.995f;
+
+            if (playerPokeball.isLanded && opponentPokeball.isLanded) {
+                introState = INTRO_LANDING;
+                introTimer = 0.0f;
+                printf("[INTRO] Estado: LANDING\n");
+            }
+            break;
+
+        case INTRO_LANDING:
+            if (introTimer >= 2.0f) { // Tempo maior para bounce
+                playerPokeball.isOpening = true;
+                opponentPokeball.isOpening = true;
+                introState = INTRO_OPENING;
+                introTimer = 0.0f;
+                printf("[INTRO] Estado: OPENING\n");
+            }
+            break;
+
+        case INTRO_OPENING:
+            if (playerPokeball.isOpen && opponentPokeball.isOpen) {
+                // Criar efeitos de revelação
+                CreatePokemonRevealEffect(playerPokeball.currentPos, true);
+                CreatePokemonRevealEffect(opponentPokeball.currentPos, false);
+
+                introState = INTRO_REVEALING;
+                introTimer = 0.0f;
+                pokemonRevealAlpha = 0.0f;
+                printf("[INTRO] Estado: REVEALING\n");
+            }
+            break;
+
+        case INTRO_REVEALING:
+            // Revelar pokémons mais lentamente para mais dramatismo
+            pokemonRevealAlpha += deltaTime * 1.5f; // Mais lento
+            if (pokemonRevealAlpha >= 1.0f) {
+                pokemonRevealAlpha = 1.0f;
+                introState = INTRO_COMPLETE;
+                introTimer = 0.0f;
+                printf("[INTRO] Estado: COMPLETE\n");
+            }
+            break;
+
+        case INTRO_COMPLETE:
+            if (introTimer >= 1.0f) { // Tempo maior para apreciar
+                introAnimationActive = false;
+                printf("[INTRO] Animação de introdução completa!\n");
+            }
+            break;
+    }
+
+    // Tocar som se mudou de estado
+    if (previousState != introState) {
+        PlayIntroSound(introState);
+    }
+
+    // Atualizar pokébolas
+    UpdatePokeballAnimation(&playerPokeball, deltaTime);
+    UpdatePokeballAnimation(&opponentPokeball, deltaTime);
+}
+
+
+// Função para desenhar a animação de introdução
+void DrawBattleIntroAnimation(void) {
+    if (!introAnimationActive) return;
+
+    // Desenhar fundo escurecido para dar foco
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), (Color){0, 0, 0, 50});
+
+    // Desenhar partículas primeiro (atrás das pokébolas)
+    DrawPokeballParticles(playerParticles);
+    DrawPokeballParticles(opponentParticles);
+
+    // Desenhar pokébolas melhoradas
+    if (!playerPokeball.isOpen) {
+        DrawEnhancedPokeball(&playerPokeball);
+    }
+
+    if (!opponentPokeball.isOpen) {
+        DrawEnhancedPokeball(&opponentPokeball);
+    }
+
+    // Desenhar pokémons sendo revelados (se estiver na fase de revelação)
+    if (introState >= INTRO_REVEALING && pokemonRevealAlpha > 0.0f &&
+        battleSystem && battleSystem->playerTeam && battleSystem->opponentTeam) {
+
+        PokeMonster* playerMonster = battleSystem->playerTeam->current;
+        PokeMonster* opponentMonster = battleSystem->opponentTeam->current;
+
+        // Desenhar com alpha crescente
+        drawMonsterInBattleWithAlpha(playerMonster, true, pokemonRevealAlpha);
+        drawMonsterInBattleWithAlpha(opponentMonster, false, pokemonRevealAlpha);
+    }
+
+    // Caixa de mensagem estilizada
+    Rectangle messageBox = {
+        GetScreenWidth() / 2 - 300,
+        GetScreenHeight() - 100,
+        600,
+        80
+    };
+
+    // Fundo da mensagem
+    DrawRectangleRounded(messageBox, 0.3f, 8, (Color){0, 0, 0, 200});
+    DrawRectangleRoundedLines(messageBox, 0.3f, 8, WHITE);
+
+    // Texto da mensagem
+    const char* message = GetIntroMessage(introState, true);
+    int fontSize = 24;
+    int textWidth = MeasureText(message, fontSize);
+
+    DrawText(message,
+            messageBox.x + (messageBox.width - textWidth) / 2,
+            messageBox.y + (messageBox.height - fontSize) / 2,
+            fontSize,
+            WHITE);
+
+    // Indicador de progresso
+    Rectangle progressBar = {
+        messageBox.x + 50,
+        messageBox.y + messageBox.height - 20,
+        messageBox.width - 100,
+        8
+    };
+
+    float progress = 0.0f;
+    switch (introState) {
+        case INTRO_WAITING: progress = 0.1f; break;
+        case INTRO_THROW_PLAYER: progress = 0.2f; break;
+        case INTRO_THROW_OPPONENT: progress = 0.3f; break;
+        case INTRO_FLYING: progress = 0.5f; break;
+        case INTRO_LANDING: progress = 0.6f; break;
+        case INTRO_OPENING: progress = 0.8f; break;
+        case INTRO_REVEALING: progress = 0.9f + pokemonRevealAlpha * 0.1f; break;
+        case INTRO_COMPLETE: progress = 1.0f; break;
+    }
+
+    DrawRectangleRec(progressBar, (Color){50, 50, 50, 255});
+    DrawRectangle(
+        progressBar.x,
+        progressBar.y,
+        progressBar.width * progress,
+        progressBar.height,
+        (Color){100, 200, 255, 255}
+    );
+
+    // Instrução para pular (apenas após primeira fase)
+    if (introState > INTRO_WAITING) {
+        const char* skipText = "Pressione qualquer tecla para pular";
+        DrawText(skipText,
+                GetScreenWidth() / 2 - MeasureText(skipText, 16) / 2,
+                GetScreenHeight() - 25,
+                16,
+                (Color){255, 255, 255, 150});
+    }
+
+    // Nome dos pokémons aparecendo durante revelação
+    if (introState == INTRO_REVEALING && pokemonRevealAlpha > 0.5f &&
+        battleSystem && battleSystem->playerTeam && battleSystem->opponentTeam) {
+
+        PokeMonster* playerMonster = battleSystem->playerTeam->current;
+        PokeMonster* opponentMonster = battleSystem->opponentTeam->current;
+
+        Color nameColor = (Color){255, 255, 255, (unsigned char)(255 * pokemonRevealAlpha)};
+
+        // Nome do pokémon do jogador
+        DrawText(playerMonster->name,
+                GetScreenWidth() / 3 - MeasureText(playerMonster->name, 20) / 2,
+                GetScreenHeight() / 1.5f,
+                20,
+                nameColor);
+
+        // Nome do pokémon oponente
+        DrawText(opponentMonster->name,
+                GetScreenWidth() * 2 / 3 - MeasureText(opponentMonster->name, 20) / 2,
+                GetScreenHeight() / 3,
+                20,
+                nameColor);
+    }
+}
+
+void SetupCustomBattleIntro(const char* playerPokeballColor, const char* opponentPokeballColor) {
+    // Permitir personalizar cores das pokébolas
+    if (strcmp(playerPokeballColor, "red") == 0) {
+        playerPokeball.tint = (Color){255, 100, 100, 255};
+    } else if (strcmp(playerPokeballColor, "blue") == 0) {
+        playerPokeball.tint = (Color){100, 100, 255, 255};
+    } else if (strcmp(playerPokeballColor, "green") == 0) {
+        playerPokeball.tint = (Color){100, 255, 100, 255};
+    }
+
+    if (strcmp(opponentPokeballColor, "red") == 0) {
+        opponentPokeball.tint = (Color){255, 100, 100, 255};
+    } else if (strcmp(opponentPokeballColor, "blue") == 0) {
+        opponentPokeball.tint = (Color){100, 100, 255, 255};
+    } else if (strcmp(opponentPokeballColor, "purple") == 0) {
+        opponentPokeball.tint = (Color){200, 100, 255, 255};
+    }
+}
+
+// Verificar se a animação de introdução está ativa
+bool IsBattleIntroActive(void) {
+    return introAnimationActive;
+}
+
+// Pular a animação de introdução
+void SkipBattleIntro(void) {
+    if (introAnimationActive) {
+        introAnimationActive = false;
+        pokemonRevealAlpha = 1.0f;
+        printf("[INTRO] Animação pulada pelo usuário\n");
+    }
+}
+
+// Função para criar partículas de abertura da pokébola
+void CreatePokeballOpeningEffect(Vector2 position, bool isPlayer) {
+    PokeballParticle* particles = isPlayer ? playerParticles : opponentParticles;
+
+    for (int i = 0; i < MAX_POKEBALL_PARTICLES; i++) {
+        if (!particles[i].active) {
+            // Configurar partícula
+            particles[i].position = position;
+
+            // Velocidade em círculo
+            float angle = ((float)i / MAX_POKEBALL_PARTICLES) * 2 * PI;
+            float speed = 100.0f + (rand() % 50);
+            particles[i].velocity = (Vector2){
+                cosf(angle) * speed,
+                sinf(angle) * speed - 50.0f // Tendência para cima
+            };
+
+            particles[i].life = 0.0f;
+            particles[i].maxLife = 1.5f + (rand() % 100) * 0.01f;
+            particles[i].color = isPlayer ?
+                (Color){255, 150, 150, 255} :
+                (Color){150, 150, 255, 255};
+            particles[i].size = 6.0f + (rand() % 4);
+            particles[i].active = true;
+
+            break;
+        }
+    }
+}
+
+// Função para atualizar partículas da pokébola
+void UpdatePokeballParticles(PokeballParticle* particles, float deltaTime) {
+    for (int i = 0; i < MAX_POKEBALL_PARTICLES; i++) {
+        if (!particles[i].active) continue;
+
+        // Atualizar posição
+        particles[i].position.x += particles[i].velocity.x * deltaTime;
+        particles[i].position.y += particles[i].velocity.y * deltaTime;
+
+        // Aplicar gravidade
+        particles[i].velocity.y += 100.0f * deltaTime;
+
+        // Reduzir velocidade (atrito)
+        particles[i].velocity.x *= 0.98f;
+        particles[i].velocity.y *= 0.98f;
+
+        // Atualizar vida
+        particles[i].life += deltaTime;
+
+        // Fade out
+        float t = particles[i].life / particles[i].maxLife;
+        particles[i].color.a = (unsigned char)(255 * (1.0f - t));
+        particles[i].size *= 0.99f;
+
+        // Desativar se morreu
+        if (particles[i].life >= particles[i].maxLife) {
+            particles[i].active = false;
+        }
+    }
+}
+
+// Função para desenhar partículas da pokébola
+void DrawPokeballParticles(PokeballParticle* particles) {
+    for (int i = 0; i < MAX_POKEBALL_PARTICLES; i++) {
+        if (!particles[i].active) continue;
+
+        DrawCircle(
+            (int)particles[i].position.x,
+            (int)particles[i].position.y,
+            particles[i].size,
+            particles[i].color
+        );
+    }
+}
+
+// Função melhorada para desenhar pokébola com mais detalhes
+void DrawEnhancedPokeball(PokeballAnimation* pokeball) {
+    if (pokeball == NULL) return;
+    float deltaTime = GetFrameTime();
+    introTimer += deltaTime;
+
+    Vector2 drawPos = {
+        pokeball->currentPos.x,
+        pokeball->currentPos.y - pokeball->bounceHeight
+    };
+
+    float drawRadius = 30.0f * pokeball->scale; // Pokébola maior
+
+    // Desenhar sombra melhorada
+    Color shadowColor = (Color){0, 0, 0, (unsigned char)(80 * pokeball->scale)};
+    DrawCircle((int)pokeball->currentPos.x + 3, (int)pokeball->currentPos.y + 8, drawRadius * 0.9f, shadowColor);
+
+    // Brilho de fundo (aura)
+    if (pokeball->isOpening) {
+        Color auraColor = (Color){255, 255, 255, (unsigned char)(50 * sinf(pokeball->openTimer * 8.0f))};
+        DrawCircle((int)drawPos.x, (int)drawPos.y, drawRadius * 1.8f, auraColor);
+    }
+
+    // Corpo principal da pokébola
+    DrawCircle((int)drawPos.x, (int)drawPos.y, drawRadius, pokeball->tint);
+
+    // Metade superior (branco/prata)
+    Color topColor = WHITE;
+    for (int i = 3; i >= 0; i--) {
+        Color ringColor = (Color){255, 255, 255, (unsigned char)(255 - i * 30)};
+        DrawCircle((int)drawPos.x, (int)drawPos.y - drawRadius * 0.15f, drawRadius * (0.85f - i * 0.05f), ringColor);
+    }
+
+    // Metade inferior (cor do time)
+    Color bottomColor = pokeball->tint;
+    DrawCircle((int)drawPos.x, (int)drawPos.y + drawRadius * 0.15f, drawRadius * 0.85f, bottomColor);
+
+    // Linha divisória (mais detalhada)
+    float lineThickness = drawRadius * 0.15f;
+    DrawRectangle(
+        (int)(drawPos.x - drawRadius),
+        (int)(drawPos.y - lineThickness/2),
+        (int)(drawRadius * 2),
+        (int)lineThickness,
+        BLACK
+    );
+
+    // Detalhes metálicos na linha
+    DrawRectangle(
+        (int)(drawPos.x - drawRadius * 0.8f),
+        (int)(drawPos.y - lineThickness/2 + 2),
+        (int)(drawRadius * 1.6f),
+        2,
+        (Color){150, 150, 150, 255}
+    );
+
+    // Botão central (mais detalhado)
+    float buttonRadius = drawRadius * 0.25f;
+
+    // Borda do botão
+    DrawCircle((int)drawPos.x, (int)drawPos.y, buttonRadius + 3, BLACK);
+
+    // Corpo do botão
+    DrawCircle((int)drawPos.x, (int)drawPos.y, buttonRadius, (Color){200, 200, 200, 255});
+
+    // Centro do botão
+    DrawCircle((int)drawPos.x, (int)drawPos.y, buttonRadius * 0.7f, WHITE);
+
+    // Luz no botão (se não estiver abrindo)
+    if (!pokeball->isOpening) {
+        Color lightColor = (Color){255, 255, 255, (unsigned char)(150 + 50 * sinf(pokeball->rotation * 0.1f))};
+        DrawCircle((int)drawPos.x - 2, (int)drawPos.y - 2, buttonRadius * 0.3f, lightColor);
+    }
+
+    // Efeito de brilho móvel
+    if (!pokeball->isOpen) {
+        float brightAngle = pokeball->rotation * DEG2RAD;
+        float brightX = drawPos.x + cosf(brightAngle) * (drawRadius * 0.6f);
+        float brightY = drawPos.y + sinf(brightAngle) * (drawRadius * 0.6f);
+
+        Color brightColor = (Color){255, 255, 255, 220};
+        DrawCircle((int)brightX, (int)brightY, drawRadius * 0.12f, brightColor);
+
+        // Segundo brilho menor
+        brightColor.a = 120;
+        DrawCircle((int)brightX + 5, (int)brightY + 5, drawRadius * 0.06f, brightColor);
+    }
+
+    // Efeito de abertura (múltiplos flashes)
+    if (pokeball->isOpening) {
+        for (int i = 1; i <= 3; i++) {
+            float flashIntensity = sinf(pokeball->openTimer * (4.0f + i));
+            if (flashIntensity > 0) {
+                Color flashColor = (Color){255, 255, 255, (unsigned char)(80 * flashIntensity)};
+                DrawCircle((int)drawPos.x, (int)drawPos.y, drawRadius * (1.0f + i * 0.3f), flashColor);
+            }
+        }
+
+        // Raios de luz saindo da pokébola
+        for (int i = 0; i < 8; i++) {
+            float rayAngle = (i * PI / 4) + pokeball->openTimer;
+            float rayLength = drawRadius * (2.0f + sinf(pokeball->openTimer * 3.0f));
+
+            Vector2 rayEnd = {
+                drawPos.x + cosf(rayAngle) * rayLength,
+                drawPos.y + sinf(rayAngle) * rayLength
+            };
+
+            Color rayColor = (Color){255, 255, 255, (unsigned char)(100 * sinf(pokeball->openTimer * 2.0f))};
+            DrawLineEx(drawPos, rayEnd, 3.0f, rayColor);
+        }
+    }
+
+    // Trilha durante voo
+    if (!pokeball->isLanded && (pokeball->velocity.x != 0 || pokeball->velocity.y != 0)) {
+        for (int i = 1; i <= 5; i++) {
+            Vector2 trailPos = {
+                drawPos.x - pokeball->velocity.x * deltaTime * i * 0.1f,
+                drawPos.y - pokeball->velocity.y * deltaTime * i * 0.1f
+            };
+
+            Color trailColor = pokeball->tint;
+            trailColor.a = (unsigned char)(255 * (1.0f - (float)i / 6.0f));
+            float trailSize = drawRadius * (1.0f - (float)i / 8.0f);
+
+            DrawCircle((int)trailPos.x, (int)trailPos.y, trailSize, trailColor);
+        }
+    }
+}
+
 // Sistema de typewriter para textos
 typedef struct
 {
@@ -216,8 +972,8 @@ void updateTypewriter(void)
 /**
  * Desenha um monstro na batalha
  */
-void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
-    if (monster == NULL) return;
+void drawMonsterInBattleWithAlpha(PokeMonster* monster, bool isPlayer, float alpha) {
+    if (monster == NULL || alpha <= 0.0f) return;
 
     Vector2 platformPos, monsterPos;
     Animation* currentAnim = NULL;
@@ -232,8 +988,9 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         currentAnim = &monster->frontAnimation;
     }
 
-    // APLICAR O SHAKE INDIVIDUAL
+    // APLICAR O SHAKE INDIVIDUAL (se houver)
     Vector2 finalPos = monsterPos;
+    extern PokemonShakeData playerShake, enemyShake; // Usar variáveis globais
     PokemonShakeData* shake = isPlayer ? &playerShake : &enemyShake;
 
     if (shake->isShaking) {
@@ -241,8 +998,8 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         finalPos.y += shake->shakeOffset.y;
     }
 
-    // Cor normal (remover o sistema de flash antigo)
-    Color drawColor = WHITE;
+    // Cor com alpha aplicado
+    Color drawColor = (Color){255, 255, 255, (unsigned char)(255 * alpha)};
 
     // Atualizar e desenhar animação
     if (currentAnim->frameCount > 0) {
@@ -255,7 +1012,7 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         float breatheEffect = sinf(battleTimer * 1.2f) * 0.03f;
         scale += breatheEffect;
 
-        // Desenhar com posição ajustada pelo shake
+        // Desenhar com alpha aplicado
         DrawTextureEx(
             currentFrame,
             (Vector2){
@@ -267,7 +1024,7 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
             drawColor
         );
     } else {
-        // Fallback estático caso a animação falhe
+        // Fallback estático
         Texture2D fallback = isPlayer ? monster->backAnimation.frames[0] : monster->frontAnimation.frames[0];
         if (fallback.id != 0) {
             DrawTextureEx(
@@ -283,8 +1040,8 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
         }
     }
 
-    // Desenhar indicador de status na posição ajustada
-    if (monster->statusCondition != STATUS_NONE) {
+    // Desenhar indicador de status (apenas se totalmente visível)
+    if (monster->statusCondition != STATUS_NONE && alpha >= 0.8f) {
         Vector2 statusPos = isPlayer
                                 ? (Vector2){finalPos.x - 50, finalPos.y - 80}
                                 : (Vector2){finalPos.x + 50, finalPos.y - 70};
@@ -294,42 +1051,42 @@ void drawMonsterInBattle(PokeMonster* monster, bool isPlayer) {
 
         switch (monster->statusCondition) {
         case STATUS_PARALYZED:
-            statusColor = (Color){240, 208, 48, 255};
+            statusColor = (Color){240, 208, 48, (unsigned char)(255 * alpha)};
             statusText = "PAR";
             break;
         case STATUS_SLEEPING:
-            statusColor = (Color){112, 88, 152, 255};
+            statusColor = (Color){112, 88, 152, (unsigned char)(255 * alpha)};
             statusText = "SLP";
             break;
         case STATUS_BURNING:
-            statusColor = (Color){240, 128, 48, 255};
+            statusColor = (Color){240, 128, 48, (unsigned char)(255 * alpha)};
             statusText = "BRN";
             break;
         case STATUS_ATK_DOWN:
-            statusColor = (Color){192, 48, 40, 255};
+            statusColor = (Color){192, 48, 40, (unsigned char)(255 * alpha)};
             statusText = "ATK↓";
             break;
         case STATUS_DEF_DOWN:
-            statusColor = (Color){48, 96, 240, 255};
+            statusColor = (Color){48, 96, 240, (unsigned char)(255 * alpha)};
             statusText = "DEF↓";
             break;
         case STATUS_SPD_DOWN:
-            statusColor = (Color){120, 200, 80, 255};
+            statusColor = (Color){120, 200, 80, (unsigned char)(255 * alpha)};
             statusText = "SPD↓";
             break;
         default:
-            statusColor = (Color){168, 168, 120, 255};
+            statusColor = (Color){168, 168, 120, (unsigned char)(255 * alpha)};
             statusText = "???";
             break;
         }
 
         DrawCircle(statusPos.x, statusPos.y, 22, statusColor);
-        DrawCircleLines(statusPos.x, statusPos.y, 22, BLACK);
+        DrawCircleLines(statusPos.x, statusPos.y, 22, (Color){0, 0, 0, (unsigned char)(255 * alpha)});
         DrawText(statusText,
                  statusPos.x - MeasureText(statusText, 14) / 2,
                  statusPos.y - 7,
                  14,
-                 WHITE);
+                 (Color){255, 255, 255, (unsigned char)(255 * alpha)});
     }
 }
 
@@ -1305,7 +2062,6 @@ void drawBattleScreen(void) {
     // Atualizar música
     UpdateMusicStream(battleMusic);
 
-
     // Fundo de batalha texturizado em tela inteira
     DrawTexturePro(
         battleBackground,
@@ -1328,36 +2084,54 @@ void drawBattleScreen(void) {
         return;
     }
 
+    // SE ESTAMOS NA ANIMAÇÃO DE INTRODUÇÃO
+    if (battleSystem->battleState == BATTLE_INTRO_ANIMATION) {
+        // Desenhar apenas a animação de pokébolas
+        DrawBattleIntroAnimation();
+
+        // Texto de instrução
+        const char* skipText = "Pressione qualquer tecla para pular";
+        DrawText(skipText,
+                GetScreenWidth() / 2 - MeasureText(skipText, 20) / 2,
+                GetScreenHeight() - 30,
+                20,
+                (Color){255, 255, 255, 180});
+
+        return; // Não desenhar mais nada durante a animação
+    }
+
     // Monstros ativos
     PokeMonster* playerMonster = battleSystem->playerTeam->current;
     PokeMonster* opponentMonster = battleSystem->opponentTeam->current;
 
+    // DESENHAR MONSTROS (com alpha se ainda estão sendo revelados)
+    float monsterAlpha = 1.0f;
 
-    // Desenhar monstros
-    drawMonsterInBattle(playerMonster, true);
-    drawMonsterInBattle(opponentMonster, false);
+    // Se acabamos de sair da animação de introdução, usar alpha gradual
+    if (battleSystem->battleState == BATTLE_INTRO) {
+        extern float pokemonRevealAlpha; // Usar variável global da animação
+        monsterAlpha = pokemonRevealAlpha;
+    }
 
+    drawMonsterInBattleWithAlpha(playerMonster, true, monsterAlpha);
+    drawMonsterInBattleWithAlpha(opponentMonster, false, monsterAlpha);
 
-    // Caixa do inimigo no topo
-    Rectangle enemyStatusBox = {
-        20,
-        20,
-        250,
-        80
-    };
+    // Desenhar efeitos APÓS os monstros mas ANTES da UI
+    DrawBattleEffects();
 
-    // Caixa do jogador mais para cima para evitar a sobreposição com a caixa de texto
+    // Caixas de status
+    Rectangle enemyStatusBox = {20, 20, 250, 80};
     Rectangle playerStatusBox = {
         GetScreenWidth() - 280,
-        GetScreenHeight() - 230, // Movido para cima, longe da caixa de texto
+        GetScreenHeight() - 230,
         250,
         80
     };
 
     drawMonsterStatusBox(playerMonster, playerStatusBox, true);
     drawMonsterStatusBox(opponentMonster, enemyStatusBox, false);
-    DrawBattleEffects();
-    // Caixa de mensagem ou menu de ações (maior e mais baixa)
+
+    // Caixa de mensagem ou menu de ações
     Rectangle actionBox = {
         20,
         GetScreenHeight() - 140,
@@ -1368,7 +2142,7 @@ void drawBattleScreen(void) {
     // Desenhar interface baseada no estado atual
     switch (battleSystem->battleState) {
         case BATTLE_INTRO:
-            // Apenas exibir a mensagem durante a introdução
+            // Durante a introdução, apenas mostrar mensagem
             drawBattleMessage(actionBox);
             break;
 
@@ -1376,12 +2150,11 @@ void drawBattleScreen(void) {
             if (isMonsterFainted(battleSystem->playerTeam->current)) {
                 battleSystem->battleState = BATTLE_FORCED_SWITCH;
                 battleSystem->playerTurn = true;
-                return; // Sair imediatamente
+                return;
             }
             if (battleSystem->playerTurn) {
                 drawBattleActionMenu(actionBox);
             } else {
-                // Mensagem de espera pelo bot
                 strcpy(currentMessage.message, "O oponente está escolhendo sua ação...");
                 currentMessage.displayTime = 0.5f;
                 currentMessage.elapsedTime = 0.0f;
@@ -1396,7 +2169,6 @@ void drawBattleScreen(void) {
             break;
 
         case BATTLE_SELECT_MONSTER:
-            // Ajuste de posicionamento para o menu de seleção de monstro
             actionBox = (Rectangle){
                 50,
                 GetScreenHeight() - 320,
@@ -1407,7 +2179,6 @@ void drawBattleScreen(void) {
             break;
 
         case BATTLE_FORCED_SWITCH:
-            // Também ajustando para a troca forçada
             actionBox = (Rectangle){
                 50,
                 GetScreenHeight() - 320,
@@ -1430,7 +2201,6 @@ void drawBattleScreen(void) {
             break;
 
         case BATTLE_OVER:
-            // Determinar vencedor
             {
                 int winner = getBattleWinner();
                 const char* resultMsg;
@@ -1446,7 +2216,6 @@ void drawBattleScreen(void) {
                 strcpy(currentMessage.message, resultMsg);
                 drawBattleMessage(actionBox);
 
-                // Botão para voltar ao menu
                 Rectangle menuBtn = {
                     GetScreenWidth() / 2 - 100,
                     GetScreenHeight() - 60,
@@ -1465,7 +2234,6 @@ void drawBattleScreen(void) {
             break;
 
         default:
-            // Outros estados, mostrar mensagem atual
             drawBattleMessage(actionBox);
             break;
     }
@@ -1485,8 +2253,6 @@ void updateBattleScreen(void) {
 
     UpdateBattleEffects();
     UpdatePokemonShakes();
-
-
 
     // Animar plataformas
     platformYOffset1 = sinf(battleTimer * 0.5f) * 5.0f;

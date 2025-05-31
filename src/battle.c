@@ -83,7 +83,11 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
 
     // Resetar contadores e estado
     battleSystem->turn = 1;
-    battleSystem->battleState = BATTLE_INTRO;
+
+    // INICIAR COM ANIMAÇÃO DE INTRODUÇÃO
+    battleSystem->battleState = BATTLE_INTRO_ANIMATION;
+    StartBattleIntroAnimation(); // Iniciar animação de pokébolas
+
     battleSystem->playerTurn = true;
     battleSystem->itemUsed = false;
     battleSystem->selectedAttack = 0;
@@ -104,8 +108,10 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     memset(&currentAnimation, 0, sizeof(currentAnimation));
     stateTransitionDelay = 0.0f;
 
-    // Mensagem inicial
+    // Mensagem inicial (será mostrada após a animação)
     strcpy(battleMessage, "Uma batalha selvagem começou!");
+
+    printf("[BATTLE] Nova batalha iniciada com animação de introdução\n");
 }
 
 // Atualiza o estado da batalha
@@ -115,8 +121,9 @@ void updateBattle(void) {
     // Atualização global de timers
     float deltaTime = GetFrameTime();
 
-    // Verificar se a batalha acabou
-    if (isBattleOver() && battleSystem->battleState != BATTLE_OVER &&
+    // Verificar se a batalha acabou (exceto durante a animação de introdução)
+    if (battleSystem->battleState != BATTLE_INTRO_ANIMATION &&
+        isBattleOver() && battleSystem->battleState != BATTLE_OVER &&
         battleSystem->battleState != BATTLE_MESSAGE_DISPLAY) {
         battleSystem->battleState = BATTLE_OVER;
 
@@ -131,14 +138,35 @@ void updateBattle(void) {
         }
         return;
     }
+
     UpdateBattleEffects();
 
     // Atualizar estado atual
     switch (battleSystem->battleState) {
+        case BATTLE_INTRO_ANIMATION:
+            // NOVO CASO: Atualizar animação de pokébolas
+            UpdateBattleIntroAnimation();
+
+            // Verificar se a animação terminou
+            if (!IsBattleIntroActive()) {
+                battleSystem->battleState = BATTLE_INTRO;
+                stateTransitionDelay = 0.0f;
+                printf("[BATTLE] Animação de introdução completa, mudando para BATTLE_INTRO\n");
+            }
+
+            // Permitir pular a animação
+            if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                SkipBattleIntro();
+                battleSystem->battleState = BATTLE_INTRO;
+                stateTransitionDelay = 0.0f;
+                printf("[BATTLE] Animação de introdução pulada pelo usuário\n");
+            }
+            break;
+
         case BATTLE_INTRO:
-            // Lógica para introdução
+            // Lógica para introdução (após animação das pokébolas)
             stateTransitionDelay += deltaTime;
-            if (stateTransitionDelay >= 1.5f) {
+            if (stateTransitionDelay >= 1.0f) { // Reduzido para 1s pois já tivemos a animação
                 stateTransitionDelay = 0.0f;
                 battleSystem->playerTurn = true;
                 battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
@@ -153,7 +181,7 @@ void updateBattle(void) {
             }
             break;
 
-        case BATTLE_MESSAGE_DISPLAY:
+         case BATTLE_MESSAGE_DISPLAY:
             // Atualizar mensagem atual
             currentMessage.elapsedTime += deltaTime;
 
