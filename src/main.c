@@ -524,6 +524,15 @@ void updateGame(void)
 // Limpa recursos alocados
 void cleanupGame(void)
 {
+    printf("[CLEANUP] Iniciando limpeza completa do jogo...\n");
+
+    // Limpar efeitos de batalha PRIMEIRO
+    ClearAllBattleEffects();
+
+    // Limpar renderizador de batalha
+    extern void cleanupBattleRenderer(void);
+    cleanupBattleRenderer();
+
     // Descarregar texturas dos monstros
     unloadMonsterTextures();
 
@@ -532,15 +541,25 @@ void cleanupGame(void)
 
     // Liberar estruturas de batalha
     freeBattleSystem();
-    UnloadPokemonTheme();
-    UnloadTexture(battleBackground);
 
-    // Liberar recursos visuais
+    // Descarregar recursos de interface
+    UnloadPokemonTheme();
+
+    // Descarregar background de batalha SEPARADAMENTE
+    if (battleBackground.id != 0) {
+        printf("[CLEANUP] Descarregando background de batalha (ID: %u)\n", battleBackground.id);
+        UnloadTexture(battleBackground);
+        battleBackground.id = 0; // Garantir que o ID seja zerado
+    }
+
+    // Liberar recursos visuais gerais
     unloadTextures();
     unloadSounds();
 
     // Encerrar API de IA
     shutdownAI();
+
+    printf("[CLEANUP] Limpeza completa finalizada\n");
 }
 
 // Função para alterar a tela atual

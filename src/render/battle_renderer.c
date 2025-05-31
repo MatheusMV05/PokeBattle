@@ -119,6 +119,8 @@ void CreatePokemonRevealEffect(Vector2 position, bool isPlayer) {
 
 
 // Função para inicializar a animação de introdução
+// Substitua esta parte da função StartBattleIntroAnimation() no battle_renderer.c
+
 void StartBattleIntroAnimation(void) {
     printf("[INTRO] Iniciando animação de introdução da batalha\n");
 
@@ -127,42 +129,49 @@ void StartBattleIntroAnimation(void) {
     introTimer = 0.0f;
     pokemonRevealAlpha = 0.0f;
 
-    // Configurar pokébola do jogador
-    playerPokeball.startPos = (Vector2){-100, GetScreenHeight() - 200}; // Vem da esquerda
-    playerPokeball.targetPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f + 50}; // Posição final
+    // Posições AJUSTADAS - pokémon do jogador mais à esquerda
+    Vector2 playerPokemonPos = (Vector2){GetScreenWidth() / 4, GetScreenHeight() / 1.8f - 20}; // Era /3, agora /4
+    Vector2 opponentPokemonPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+
+    printf("[DEBUG] Tamanho da tela: %dx%d\n", GetScreenWidth(), GetScreenHeight());
+    printf("[DEBUG] Player target: (%.1f, %.1f)\n", playerPokemonPos.x, playerPokemonPos.y);
+    printf("[DEBUG] Opponent target: (%.1f, %.1f)\n", opponentPokemonPos.x, opponentPokemonPos.y);
+
+    // RESETAR COMPLETAMENTE ambas as pokébolas
+    memset(&playerPokeball, 0, sizeof(PokeballAnimation));
+    memset(&opponentPokeball, 0, sizeof(PokeballAnimation));
+
+    // Configurar pokébola do jogador - POSIÇÃO AJUSTADA
+    playerPokeball.startPos = (Vector2){-150, GetScreenHeight() / 2}; // Mais para a esquerda
+    playerPokeball.targetPos = playerPokemonPos;
     playerPokeball.currentPos = playerPokeball.startPos;
     playerPokeball.velocity = (Vector2){0, 0};
     playerPokeball.rotation = 0.0f;
-    playerPokeball.rotationSpeed = 720.0f; // 2 rotações por segundo
+    playerPokeball.rotationSpeed = 720.0f;
     playerPokeball.scale = 1.0f;
-    playerPokeball.bounceHeight = 0.0f;
-    playerPokeball.bounceTimer = 0.0f;
-    playerPokeball.openTimer = 0.0f;
     playerPokeball.isLanded = false;
     playerPokeball.isOpening = false;
     playerPokeball.isOpen = false;
-    playerPokeball.tint = (Color){255, 100, 100, 255}; // Vermelho
+    playerPokeball.tint = (Color){255, 100, 100, 255};
 
-    // Configurar pokébola do oponente
-    opponentPokeball.startPos = (Vector2){GetScreenWidth() + 100, GetScreenHeight() - 150}; // Vem da direita
-    opponentPokeball.targetPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f + 50}; // Posição final
+    // Configurar pokébola do oponente - MANTÉM POSIÇÃO ORIGINAL
+    opponentPokeball.startPos = (Vector2){GetScreenWidth() - 50, -100};
+    opponentPokeball.targetPos = opponentPokemonPos;
     opponentPokeball.currentPos = opponentPokeball.startPos;
     opponentPokeball.velocity = (Vector2){0, 0};
     opponentPokeball.rotation = 0.0f;
-    opponentPokeball.rotationSpeed = -650.0f; // Rotação oposta
+    opponentPokeball.rotationSpeed = -650.0f;
     opponentPokeball.scale = 1.0f;
-    opponentPokeball.bounceHeight = 0.0f;
-    opponentPokeball.bounceTimer = 0.0f;
-    opponentPokeball.openTimer = 0.0f;
     opponentPokeball.isLanded = false;
     opponentPokeball.isOpening = false;
     opponentPokeball.isOpen = false;
-    opponentPokeball.tint = (Color){100, 100, 255, 255}; // Azul
+    opponentPokeball.tint = (Color){100, 100, 255, 255};
 
-    printf("[INTRO] Pokébolas configuradas - Jogador: (%.1f,%.1f) -> (%.1f,%.1f)\n",
+    printf("[INTRO] Player: start(%.1f,%.1f) -> target(%.1f,%.1f)\n",
            playerPokeball.startPos.x, playerPokeball.startPos.y,
            playerPokeball.targetPos.x, playerPokeball.targetPos.y);
-    printf("[INTRO] Oponente: (%.1f,%.1f) -> (%.1f,%.1f)\n",
+
+    printf("[INTRO] Opponent: start(%.1f,%.1f) -> target(%.1f,%.1f)\n",
            opponentPokeball.startPos.x, opponentPokeball.startPos.y,
            opponentPokeball.targetPos.x, opponentPokeball.targetPos.y);
 }
@@ -171,70 +180,88 @@ void StartBattleIntroAnimation(void) {
 void UpdatePokeballAnimation(PokeballAnimation* pokeball, float deltaTime) {
     if (pokeball == NULL) return;
 
+    // Identificar qual pokébola
+    bool isPlayer = (pokeball == &playerPokeball);
+    const char* name = isPlayer ? "PLAYER" : "OPPONENT";
+
     // Atualizar rotação
     pokeball->rotation += pokeball->rotationSpeed * deltaTime;
 
-    // Atualizar posição baseada na velocidade
-    pokeball->currentPos.x += pokeball->velocity.x * deltaTime;
-    pokeball->currentPos.y += pokeball->velocity.y * deltaTime;
+    // SÓ atualizar posição baseada na velocidade se NÃO tiver pousado
+    if (!pokeball->isLanded) {
+        pokeball->currentPos.x += pokeball->velocity.x * deltaTime;
+        pokeball->currentPos.y += pokeball->velocity.y * deltaTime;
 
-    // Verificar se pousou
-    if (!pokeball->isLanded && pokeball->currentPos.y >= pokeball->targetPos.y) {
-        pokeball->isLanded = true;
-        pokeball->currentPos.y = pokeball->targetPos.y;
-        pokeball->bounceTimer = 0.0f;
-        pokeball->velocity = (Vector2){0, 0};
+        // Aplicar gravidade apenas durante o voo
+        if (introState == INTRO_FLYING) {
+            pokeball->velocity.y += 450.0f * deltaTime;
+        }
+        // DEBUG detalhado
+        if (!isPlayer) { // Só para opponent
+            printf("[UPDATE %s] Antes - Pos: (%.1f, %.1f), Vel: (%.1f, %.1f)\n",
+                   name, pokeball->currentPos.x, pokeball->currentPos.y,
+                   pokeball->velocity.x, pokeball->velocity.y);
+        }
 
-        // Efeito de pouso MELHORADO
-        CreateDamageEffect(pokeball->currentPos, 0, false, false);
-        TriggerScreenShake(4.0f, 0.4f);
-        PlaySound(hitSound);
+        pokeball->currentPos.x += pokeball->velocity.x * deltaTime;
+        pokeball->currentPos.y += pokeball->velocity.y * deltaTime;
 
-        // Criar partículas de impacto
-        bool isPlayer = (pokeball == &playerPokeball);
-        CreatePokeballOpeningEffect(pokeball->currentPos, isPlayer);
+        if (!isPlayer) { // Só para opponent
+            printf("[UPDATE %s] Depois - Pos: (%.1f, %.1f)\n",
+                   name, pokeball->currentPos.x, pokeball->currentPos.y);
+        }
 
-        printf("[INTRO] Pokébola pousou com efeitos melhorados\n");
+        // Verificar se pousou
+        if (pokeball->currentPos.y >= pokeball->targetPos.y) {
+            pokeball->isLanded = true;
+            pokeball->currentPos.y = pokeball->targetPos.y;
+            pokeball->bounceTimer = 0.0f;
+            pokeball->velocity = (Vector2){0, 0};
+
+            // Efeito de pouso
+            CreateDamageEffect(pokeball->currentPos, 0, false, false);
+            TriggerScreenShake(4.0f, 0.4f);
+            PlaySound(hitSound);
+
+            CreatePokeballOpeningEffect(pokeball->currentPos, isPlayer);
+
+            printf("[INTRO] Pokébola %s pousou em (%.1f, %.1f)\n",
+                   name, pokeball->currentPos.x, pokeball->currentPos.y);
+        }
     }
 
     // Animação de bounce após pousar
     if (pokeball->isLanded && !pokeball->isOpening) {
-        pokeball->bounceTimer += deltaTime * 8.0f; // Frequência do bounce
-        pokeball->bounceHeight = sinf(pokeball->bounceTimer) * 10.0f * expf(-pokeball->bounceTimer * 0.3f); // Decaimento
+        pokeball->bounceTimer += deltaTime * 8.0f;
+        pokeball->bounceHeight = sinf(pokeball->bounceTimer) * 10.0f * expf(-pokeball->bounceTimer * 0.3f);
 
-        if (pokeball->bounceTimer > 6.0f) { // Após 6 unidades de tempo, parar de bouncing
+        if (pokeball->bounceTimer > 6.0f) {
             pokeball->bounceHeight = 0.0f;
         }
     }
 
-    // Animação de abertura
     if (pokeball->isOpening) {
         pokeball->openTimer += deltaTime * 3.0f;
-        pokeball->scale = 1.0f + sinf(pokeball->openTimer * 2.0f) * 0.4f; // Pulsar mais intenso
+        pokeball->scale = 1.0f + sinf(pokeball->openTimer * 2.0f) * 0.4f;
 
-        // Criar partículas durante abertura
-        if (fmodf(pokeball->openTimer, 0.1f) < deltaTime) { // A cada 0.1s
-            bool isPlayer = (pokeball == &playerPokeball);
+        if (fmodf(pokeball->openTimer, 0.1f) < deltaTime) {
             CreatePokeballOpeningEffect(pokeball->currentPos, isPlayer);
         }
 
         if (pokeball->openTimer >= 2.0f) {
             pokeball->isOpen = true;
             pokeball->isOpening = false;
-            pokeball->scale = 0.3f; // Encolher muito após abrir
+            pokeball->scale = 0.3f;
 
-            // Efeito de abertura FINAL
             CreateHealEffect(pokeball->currentPos, 0);
             TriggerScreenShake(6.0f, 0.5f);
             PlaySound(selectSound);
 
-            // Explosão final de partículas
-            bool isPlayer = (pokeball == &playerPokeball);
             for (int i = 0; i < 5; i++) {
                 CreatePokeballOpeningEffect(pokeball->currentPos, isPlayer);
             }
 
-            printf("[INTRO] Pokébola abriu com efeito final!\n");
+            printf("[INTRO] Pokébola %s abriu!\n", name);
         }
     }
 }
@@ -309,7 +336,7 @@ void UpdateBattleIntroAnimation(void) {
 
     switch (introState) {
         case INTRO_WAITING:
-            if (introTimer >= 0.8f) { // Tempo maior para apreciar
+            if (introTimer >= 0.8f) {
                 introState = INTRO_THROW_PLAYER;
                 introTimer = 0.0f;
                 printf("[INTRO] Estado: THROW_PLAYER\n");
@@ -317,58 +344,65 @@ void UpdateBattleIntroAnimation(void) {
             break;
 
         case INTRO_THROW_PLAYER:
-            {
-                Vector2 direction = {
-                    playerPokeball.targetPos.x - playerPokeball.startPos.x,
-                    playerPokeball.targetPos.y - playerPokeball.startPos.y
-                };
-                float distance = sqrtf(direction.x * direction.x + direction.y * direction.y);
+        {
+            Vector2 direction = {
+                playerPokeball.targetPos.x - playerPokeball.startPos.x,
+                playerPokeball.targetPos.y - playerPokeball.startPos.y
+            };
 
-                // Velocidade do lançamento (mais realista)
-                playerPokeball.velocity.x = (direction.x / distance) * 450.0f;
-                playerPokeball.velocity.y = (direction.y / distance) * 350.0f - 150.0f; // Arco mais alto
+            float timeToTarget = 1.5f;
+            playerPokeball.velocity.x = direction.x / timeToTarget;
+            playerPokeball.velocity.y = (direction.y / timeToTarget) - (0.5f * 450.0f * timeToTarget);
 
-                introState = INTRO_THROW_OPPONENT;
-                introTimer = 0.0f;
-                printf("[INTRO] Estado: THROW_OPPONENT\n");
-            }
+            printf("[INTRO] Player pokeball lançada! Vel: (%.1f, %.1f)\n",
+                   playerPokeball.velocity.x, playerPokeball.velocity.y);
+
+            introState = INTRO_THROW_OPPONENT;
+            introTimer = 0.0f;
+        }
             break;
 
         case INTRO_THROW_OPPONENT:
-            if (introTimer >= 0.5f) { // Delay maior entre lançamentos
+            if (introTimer >= 0.3f) {
+                // CORREÇÃO: Cálculo de velocidade corrigido
                 Vector2 direction = {
-                    opponentPokeball.targetPos.x - opponentPokeball.startPos.x,
-                    opponentPokeball.targetPos.y - opponentPokeball.startPos.y
+                    opponentPokeball.targetPos.x - opponentPokeball.currentPos.x,
+                    opponentPokeball.targetPos.y - opponentPokeball.currentPos.y
                 };
-                float distance = sqrtf(direction.x * direction.x + direction.y * direction.y);
 
-                opponentPokeball.velocity.x = (direction.x / distance) * 420.0f;
-                opponentPokeball.velocity.y = (direction.y / distance) * 320.0f - 130.0f;
+                float timeToTarget = 1.5f;
+                float gravity = 450.0f;
+
+                // Fórmula física correta para lançamento parabólico
+                opponentPokeball.velocity.x = direction.x / timeToTarget;
+                opponentPokeball.velocity.y = (direction.y / timeToTarget) - (0.5f * gravity * timeToTarget);
+
+                printf("[INTRO] Opponent pokeball launched! Vel: (%.1f, %.1f)\n",
+                       opponentPokeball.velocity.x, opponentPokeball.velocity.y);
 
                 introState = INTRO_FLYING;
                 introTimer = 0.0f;
-                printf("[INTRO] Estado: FLYING\n");
             }
             break;
 
         case INTRO_FLYING:
-            // Aplicar gravidade mais realista
+            // Aplicar gravidade
             playerPokeball.velocity.y += 450.0f * deltaTime;
             opponentPokeball.velocity.y += 450.0f * deltaTime;
 
-            // Resistência do ar
-            playerPokeball.velocity.x *= 0.995f;
-            opponentPokeball.velocity.x *= 0.995f;
+            printf("[DEBUG] Player pos: (%.1f, %.1f) | Opponent pos: (%.1f, %.1f)\n",
+                   playerPokeball.currentPos.x, playerPokeball.currentPos.y,
+                   opponentPokeball.currentPos.x, opponentPokeball.currentPos.y);
 
             if (playerPokeball.isLanded && opponentPokeball.isLanded) {
                 introState = INTRO_LANDING;
                 introTimer = 0.0f;
-                printf("[INTRO] Estado: LANDING\n");
+                printf("[INTRO] Estado: LANDING - Ambas pokébolas pousaram\n");
             }
             break;
 
         case INTRO_LANDING:
-            if (introTimer >= 2.0f) { // Tempo maior para bounce
+            if (introTimer >= 2.0f) {
                 playerPokeball.isOpening = true;
                 opponentPokeball.isOpening = true;
                 introState = INTRO_OPENING;
@@ -379,7 +413,6 @@ void UpdateBattleIntroAnimation(void) {
 
         case INTRO_OPENING:
             if (playerPokeball.isOpen && opponentPokeball.isOpen) {
-                // Criar efeitos de revelação
                 CreatePokemonRevealEffect(playerPokeball.currentPos, true);
                 CreatePokemonRevealEffect(opponentPokeball.currentPos, false);
 
@@ -391,8 +424,7 @@ void UpdateBattleIntroAnimation(void) {
             break;
 
         case INTRO_REVEALING:
-            // Revelar pokémons mais lentamente para mais dramatismo
-            pokemonRevealAlpha += deltaTime * 1.5f; // Mais lento
+            pokemonRevealAlpha += deltaTime * 1.5f;
             if (pokemonRevealAlpha >= 1.0f) {
                 pokemonRevealAlpha = 1.0f;
                 introState = INTRO_COMPLETE;
@@ -402,7 +434,7 @@ void UpdateBattleIntroAnimation(void) {
             break;
 
         case INTRO_COMPLETE:
-            if (introTimer >= 1.0f) { // Tempo maior para apreciar
+            if (introTimer >= 1.0f) {
                 introAnimationActive = false;
                 printf("[INTRO] Animação de introdução completa!\n");
             }
@@ -424,33 +456,46 @@ void UpdateBattleIntroAnimation(void) {
 void DrawBattleIntroAnimation(void) {
     if (!introAnimationActive) return;
 
-    // Desenhar fundo escurecido para dar foco
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), (Color){0, 0, 0, 50});
+    // 1. Desenhar fundo da batalha PRIMEIRO
+    DrawTexturePro(
+        battleBackground,
+        (Rectangle){0, 0, (float)battleBackground.width, (float)battleBackground.height},
+        (Rectangle){0, 0, (float)GetScreenWidth(), (float)GetScreenHeight()},
+        (Vector2){0, 0},
+        0.0f,
+        WHITE
+    );
 
-    // Desenhar partículas primeiro (atrás das pokébolas)
+    // 2. Desenhar partículas
     DrawPokeballParticles(playerParticles);
     DrawPokeballParticles(opponentParticles);
 
-    // Desenhar pokébolas melhoradas
+    // 3. Desenhar pokébolas se não estiverem abertas
     if (!playerPokeball.isOpen) {
         DrawEnhancedPokeball(&playerPokeball);
     }
-
     if (!opponentPokeball.isOpen) {
         DrawEnhancedPokeball(&opponentPokeball);
     }
 
-    // Desenhar pokémons sendo revelados (se estiver na fase de revelação)
+    // 4. Desenhar Pokémon sendo revelados (último)
     if (introState >= INTRO_REVEALING && pokemonRevealAlpha > 0.0f &&
         battleSystem && battleSystem->playerTeam && battleSystem->opponentTeam) {
 
         PokeMonster* playerMonster = battleSystem->playerTeam->current;
         PokeMonster* opponentMonster = battleSystem->opponentTeam->current;
 
-        // Desenhar com alpha crescente
-        drawMonsterInBattleWithAlpha(playerMonster, true, pokemonRevealAlpha);
-        drawMonsterInBattleWithAlpha(opponentMonster, false, pokemonRevealAlpha);
-    }
+        // Verificar se as texturas estão carregadas
+        if (playerMonster && playerMonster->backAnimation.frames &&
+            playerMonster->backAnimation.frames[0].id != 0) {
+            drawMonsterInBattleWithAlpha(playerMonster, true, pokemonRevealAlpha);
+            }
+
+        if (opponentMonster && opponentMonster->frontAnimation.frames &&
+            opponentMonster->frontAnimation.frames[0].id != 0) {
+            drawMonsterInBattleWithAlpha(opponentMonster, false, pokemonRevealAlpha);
+            }
+        }
 
     // Caixa de mensagem estilizada
     Rectangle messageBox = {
@@ -2059,18 +2104,28 @@ void drawConfirmDialog(const char* message, const char* yesText, const char* noT
  * Função principal para desenhar a tela de batalha
  */
 void drawBattleScreen(void) {
+    // VALIDAÇÃO: Garantir que as texturas estão válidas
+    ensureBattleTexturesValid();
+
     // Atualizar música
     UpdateMusicStream(battleMusic);
 
     // Fundo de batalha texturizado em tela inteira
-    DrawTexturePro(
-        battleBackground,
-        (Rectangle){0, 0, (float)battleBackground.width, (float)battleBackground.height},
-        (Rectangle){0, 0, (float)GetScreenWidth(), (float)GetScreenHeight()},
-        (Vector2){0, 0},
-        0.0f,
-        WHITE
-    );
+    if (battleBackground.id != 0) {
+        DrawTexturePro(
+            battleBackground,
+            (Rectangle){0, 0, (float)battleBackground.width, (float)battleBackground.height},
+            (Rectangle){0, 0, (float)GetScreenWidth(), (float)GetScreenHeight()},
+            (Vector2){0, 0},
+            0.0f,
+            WHITE
+        );
+    } else {
+        // Fallback se a textura não carregar
+        DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(),
+                              (Color){30, 50, 100, 255},
+                              (Color){10, 20, 40, 255});
+    }
 
     // Verificar se a batalha está inicializada
     if (battleSystem == NULL ||
@@ -2113,8 +2168,18 @@ void drawBattleScreen(void) {
         monsterAlpha = pokemonRevealAlpha;
     }
 
-    drawMonsterInBattleWithAlpha(playerMonster, true, monsterAlpha);
-    drawMonsterInBattleWithAlpha(opponentMonster, false, monsterAlpha);
+    // Verificar texturas antes de desenhar
+    if (battleSystem->playerTeam->current &&
+        battleSystem->playerTeam->current->backAnimation.frames &&
+        battleSystem->playerTeam->current->backAnimation.frames[0].id != 0) {
+        drawMonsterInBattleWithAlpha(battleSystem->playerTeam->current, true, monsterAlpha);
+        }
+
+    if (battleSystem->opponentTeam->current &&
+        battleSystem->opponentTeam->current->frontAnimation.frames &&
+        battleSystem->opponentTeam->current->frontAnimation.frames[0].id != 0) {
+        drawMonsterInBattleWithAlpha(battleSystem->opponentTeam->current, false, monsterAlpha);
+        }
 
     // Desenhar efeitos APÓS os monstros mas ANTES da UI
     DrawBattleEffects();
@@ -2291,23 +2356,61 @@ void applyDamageEffect(AnimatedSprite* sprite)
 
 void resetBattleSprites(void)
 {
-    // Resetar sprite do jogador
-    if (playerSprite.texture.id != 0)
-    {
-        playerSprite.texture.id = 0;
-    }
+    printf("[RESET] Limpando sprites de batalha...\n");
 
-    // Resetar sprite do inimigo
-    if (enemySprite.texture.id != 0)
-    {
-        enemySprite.texture.id = 0;
-    }
-
-    // Limpar outras propriedades se necessário
+    // Resetar sprite do jogador - NÃO descarregar texturas aqui
+    // Apenas resetar propriedades de renderização
     playerSprite.frameCount = 0;
     playerSprite.currentFrame = 0;
+    playerSprite.timer = 0.0f;
+    playerSprite.scale = 1.0f;
+    playerSprite.bounceHeight = 0.0f;
+    playerSprite.flashAlpha = 0.0f;
+    playerSprite.tint = WHITE;
+
+    // Resetar sprite do inimigo
     enemySprite.frameCount = 0;
     enemySprite.currentFrame = 0;
+    enemySprite.timer = 0.0f;
+    enemySprite.scale = 1.0f;
+    enemySprite.bounceHeight = 0.0f;
+    enemySprite.flashAlpha = 0.0f;
+    enemySprite.tint = WHITE;
+
+    // Resetar timers globais
+    battleTimer = 0.0f;
+    platformYOffset1 = 0.0f;
+    platformYOffset2 = 0.0f;
+
+    // Resetar sistema de typewriter
+    memset(&typewriter, 0, sizeof(TypewriterText));
+
+    printf("[RESET] Sprites resetados com sucesso\n");
+}
+
+void cleanupBattleRenderer(void)
+{
+    printf("[CLEANUP] Limpando recursos do renderizador de batalha...\n");
+
+    // Limpar partículas
+    memset(playerParticles, 0, sizeof(playerParticles));
+    memset(opponentParticles, 0, sizeof(opponentParticles));
+
+    // Resetar animações de pokébolas
+    memset(&playerPokeball, 0, sizeof(PokeballAnimation));
+    memset(&opponentPokeball, 0, sizeof(PokeballAnimation));
+
+    // Resetar estado de introdução
+    introAnimationActive = false;
+    introState = INTRO_WAITING;
+    introTimer = 0.0f;
+    pokemonRevealAlpha = 0.0f;
+
+    // Resetar shakes
+    memset(&playerShake, 0, sizeof(PokemonShakeData));
+    memset(&enemyShake, 0, sizeof(PokemonShakeData));
+
+    printf("[CLEANUP] Limpeza do renderizador completa\n");
 }
 
 int countMonsters(MonsterList* team)
@@ -2322,4 +2425,51 @@ int countMonsters(MonsterList* team)
     return count;
 }
 
+void validateBattleBackground(void) {
+    // Verificar se o background ainda é válido
+    if (battleBackground.id == 0) {
+        printf("[VALIDATION] Background de batalha inválido, recarregando...\n");
+        battleBackground = LoadTexture("resources/battle_background.png");
+
+        if (battleBackground.id == 0) {
+            printf("[ERROR] Falha ao recarregar background de batalha!\n");
+        } else {
+            printf("[VALIDATION] Background recarregado com sucesso (ID: %u)\n", battleBackground.id);
+        }
+    }
+}
+
+void ensureBattleTexturesValid(void) {
+    // Validar background
+    validateBattleBackground();
+
+    // Verificar texturas dos Pokémons ativos
+    if (battleSystem && battleSystem->playerTeam && battleSystem->playerTeam->current) {
+        PokeMonster* player = battleSystem->playerTeam->current;
+
+        // Verificar animação traseira do jogador
+        if (player->backAnimation.frames && player->backAnimation.frameCount > 0) {
+            for (int i = 0; i < player->backAnimation.frameCount; i++) {
+                if (player->backAnimation.frames[i].id == 0) {
+                    printf("[WARNING] Frame %d da animação traseira do %s está inválido\n",
+                           i, player->name);
+                }
+            }
+        }
+    }
+
+    if (battleSystem && battleSystem->opponentTeam && battleSystem->opponentTeam->current) {
+        PokeMonster* opponent = battleSystem->opponentTeam->current;
+
+        // Verificar animação frontal do oponente
+        if (opponent->frontAnimation.frames && opponent->frontAnimation.frameCount > 0) {
+            for (int i = 0; i < opponent->frontAnimation.frameCount; i++) {
+                if (opponent->frontAnimation.frames[i].id == 0) {
+                    printf("[WARNING] Frame %d da animação frontal do %s está inválido\n",
+                           i, opponent->name);
+                }
+            }
+        }
+    }
+}
 

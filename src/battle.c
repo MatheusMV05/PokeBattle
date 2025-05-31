@@ -1859,24 +1859,51 @@ void initBattleEffects(void) {
  * Reinicia a batalha
  */
 void resetBattle(void) {
+    printf("[BATTLE RESET] Iniciando reset completo da batalha...\n");
+
     if (battleSystem == NULL) {
+        printf("[BATTLE RESET] Sistema de batalha não inicializado\n");
         return;
     }
 
-    // Resetar estado
+    // Resetar estado da batalha
     battleSystem->turn = 0;
     battleSystem->battleState = BATTLE_IDLE;
     battleSystem->playerTurn = true;
     battleSystem->selectedAttack = 0;
     battleSystem->selectedAction = 0;
     battleSystem->itemUsed = false;
+    battleSystem->playerItemUsed = false;
+    battleSystem->botItemUsed = false;
 
     // Limpar estruturas de dados
     clearQueue(battleSystem->actionQueue);
     clearStack(battleSystem->effectStack);
 
-    // Limpar mensagem
+    // Resetar flags globais
+    actionQueueReady = false;
+    stateTransitionDelay = 0.0f;
+
+    // Limpar mensagens
     battleMessage[0] = '\0';
+    memset(&currentMessage, 0, sizeof(currentMessage));
+    memset(&currentAnimation, 0, sizeof(currentAnimation));
+
+    // Limpar todos os efeitos visuais
+    ClearAllBattleEffects();
+
+    // Resetar sprites e renderizador
+    resetBattleSprites();
+
+    // Chamar limpeza do renderizador se a função existir
+    extern void cleanupBattleRenderer(void);
+    cleanupBattleRenderer();
+
+    // Resetar barras de HP
+    extern void ResetHPBarAnimations(void);
+    ResetHPBarAnimations();
+
+    printf("[BATTLE RESET] Reset completo finalizado\n");
 }
 
 bool hasActiveMonstersLeft(MonsterList* team) {

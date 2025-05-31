@@ -47,5 +47,12 @@ bool isTypewriterComplete(void);
 bool isTypewriterWaitingInput(void);
 void drawTypewriterText(Vector2 position, float fontSize, Color color);
 void triggerDamageEffects(bool isPlayer);
+// Funções de limpeza e reset
+void cleanupBattleRenderer(void);
+void resetBattleSprites(void);
+
+// Funções para gerenciamento de texturas de batalha
+void ensureBattleTexturesValid(void);
+void validateBattleBackground(void);
 
 #endif
