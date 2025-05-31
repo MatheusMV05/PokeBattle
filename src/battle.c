@@ -19,6 +19,7 @@
 #include "resources.h"
 #include "globals.h"
 #include "battle_renderer.h"
+#include "battle_effects.h"
 #include "hp_bar.h"
 
 static bool botPotionUsed = false;     // Controla se o bot já usou poção na batalha
@@ -55,6 +56,7 @@ void initializeBattleSystem(void) {
 
     // Inicializar sistema de barras de HP
     InitHPBarSystem();
+    InitBattleEffectsSystem();
 
     // Verificar se tudo foi alocado corretamente
     if (battleSystem->actionQueue == NULL || battleSystem->effectStack == NULL) {
@@ -73,6 +75,7 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     // Resetar as animações de barras de HP
     ResetHPBarAnimations();
     resetBattleSprites();
+    ClearAllBattleEffects();
 
     // Configurar os times
     battleSystem->playerTeam = playerTeam;
@@ -80,7 +83,11 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
 
     // Resetar contadores e estado
     battleSystem->turn = 1;
-    battleSystem->battleState = BATTLE_INTRO;
+
+    // INICIAR COM ANIMAÇÃO DE INTRODUÇÃO
+    battleSystem->battleState = BATTLE_INTRO_ANIMATION;
+    StartBattleIntroAnimation(); // Iniciar animação de pokébolas
+
     battleSystem->playerTurn = true;
     battleSystem->itemUsed = false;
     battleSystem->selectedAttack = 0;
@@ -101,8 +108,10 @@ void startNewBattle(MonsterList* playerTeam, MonsterList* opponentTeam) {
     memset(&currentAnimation, 0, sizeof(currentAnimation));
     stateTransitionDelay = 0.0f;
 
-    // Mensagem inicial
+    // Mensagem inicial (será mostrada após a animação)
     strcpy(battleMessage, "Uma batalha selvagem começou!");
+
+    printf("[BATTLE] Nova batalha iniciada com animação de introdução\n");
 }
 
 // Atualiza o estado da batalha
@@ -112,8 +121,9 @@ void updateBattle(void) {
     // Atualização global de timers
     float deltaTime = GetFrameTime();
 
-    // Verificar se a batalha acabou
-    if (isBattleOver() && battleSystem->battleState != BATTLE_OVER &&
+    // Verificar se a batalha acabou (exceto durante a animação de introdução)
+    if (battleSystem->battleState != BATTLE_INTRO_ANIMATION &&
+        isBattleOver() && battleSystem->battleState != BATTLE_OVER &&
         battleSystem->battleState != BATTLE_MESSAGE_DISPLAY) {
         battleSystem->battleState = BATTLE_OVER;
 
@@ -129,12 +139,34 @@ void updateBattle(void) {
         return;
     }
 
+    UpdateBattleEffects();
+
     // Atualizar estado atual
     switch (battleSystem->battleState) {
+        case BATTLE_INTRO_ANIMATION:
+            // NOVO CASO: Atualizar animação de pokébolas
+            UpdateBattleIntroAnimation();
+
+            // Verificar se a animação terminou
+            if (!IsBattleIntroActive()) {
+                battleSystem->battleState = BATTLE_INTRO;
+                stateTransitionDelay = 0.0f;
+                printf("[BATTLE] Animação de introdução completa, mudando para BATTLE_INTRO\n");
+            }
+
+            // Permitir pular a animação
+            if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                SkipBattleIntro();
+                battleSystem->battleState = BATTLE_INTRO;
+                stateTransitionDelay = 0.0f;
+                printf("[BATTLE] Animação de introdução pulada pelo usuário\n");
+            }
+            break;
+
         case BATTLE_INTRO:
-            // Lógica para introdução
+            // Lógica para introdução (após animação das pokébolas)
             stateTransitionDelay += deltaTime;
-            if (stateTransitionDelay >= 1.5f) {
+            if (stateTransitionDelay >= 1.0f) { // Reduzido para 1s pois já tivemos a animação
                 stateTransitionDelay = 0.0f;
                 battleSystem->playerTurn = true;
                 battleSystem->battleState = BATTLE_MESSAGE_DISPLAY;
@@ -149,7 +181,7 @@ void updateBattle(void) {
             }
             break;
 
-        case BATTLE_MESSAGE_DISPLAY:
+         case BATTLE_MESSAGE_DISPLAY:
             // Atualizar mensagem atual
             currentMessage.elapsedTime += deltaTime;
 
@@ -252,6 +284,12 @@ void updateBattle(void) {
 
         case BATTLE_EXECUTING_ACTIONS:
 
+            stateTransitionDelay += deltaTime;
+            if (stateTransitionDelay < 0.3f) {
+                break; // Aguardar antes de executar
+            }
+            stateTransitionDelay = 0.0f;
+
             if (!isQueueEmpty(battleSystem->actionQueue)) {
                 int action, parameter;
                 PokeMonster* monster;
@@ -341,6 +379,10 @@ void updateBattle(void) {
     break;
 
         case BATTLE_TURN_END:
+            stateTransitionDelay += deltaTime;
+            if (stateTransitionDelay < 1.0f) {
+                break;
+            }
             // Processar fim de turno
             printf("[DEBUG TURN END] Processando fim de turno %d\n", battleSystem->turn);
             processTurnEnd();
@@ -428,31 +470,99 @@ void executeAttack(PokeMonster* attacker, PokeMonster* defender, int attackIndex
         sprintf(battleMessage, "%s usou %s!", attacker->name, attack->name);
     }
 
+    // Criar efeito visual do ataque
+    Vector2 attackerPos, defenderPos;
+
+    // Determinar posições baseadas em quem está atacando
+    if (attacker == battleSystem->playerTeam->current) {
+        // Jogador atacando
+        attackerPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+        defenderPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+        CreateAttackEffect(attack->type, attackerPos, defenderPos, true);
+    } else {
+        // Oponente atacando
+        attackerPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+        defenderPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+        CreateAttackEffect(attack->type, attackerPos, defenderPos, false);
+    }
+
     // Calcular dano (se for um ataque de dano)
     if (attack->power > 0) {
-        int damage = calculateDamage(attacker, defender, attack);
+    int damage = calculateDamage(attacker, defender, attack);
 
-        // Aplicar dano
-        defender->hp -= damage;
-        if (defender->hp < 0) {
-            defender->hp = 0;
-        }
-
-        // Adicionar informação de dano à mensagem
-        char damageText[50];
-        sprintf(damageText, " Causou %d de dano!", damage);
-        strncat(battleMessage, damageText, sizeof(battleMessage) - strlen(battleMessage) - 1);
-
-        // Tocar som de ataque e hit
-        PlaySound(attackSound);
-        PlaySound(hitSound);
+    // Verificar crítico (5% de chance)
+    bool isCritical = (rand() % 100) < 5;
+    if (isCritical) {
+        damage = (int)(damage * 1.5f);
     }
+
+    // Aplicar dano
+    defender->hp -= damage;
+    if (defender->hp < 0) {
+        defender->hp = 0;
+    }
+
+    // ATIVAR SHAKE NO POKÉMON QUE RECEBEU DANO
+    bool isPlayerTarget = (defender == battleSystem->playerTeam->current);
+
+    // Intensidade do shake baseada no dano e crítico
+    float shakeIntensity = 8.0f + (damage * 0.1f); // Base + proporcional ao dano
+    if (isCritical) {
+        shakeIntensity *= 1.5f; // Shake mais forte para críticos
+    }
+
+    // Duração baseada na intensidade
+    float shakeDuration = 0.6f + (damage * 0.01f); // 0.6s base + proporcional
+    if (isCritical) {
+        shakeDuration += 0.3f; // Duração maior para críticos
+    }
+
+    // Ativar o shake no Pokémon correto
+    TriggerPokemonShake(isPlayerTarget, shakeIntensity, shakeDuration);
+
+    printf("[DAMAGE] %s recebeu %d de dano%s, shake: intensidade=%.1f, duração=%.1f\n",
+           defender->name, damage, isCritical ? " (CRÍTICO)" : "",
+           shakeIntensity, shakeDuration);
+
+    // Criar efeito visual de dano
+    Vector2 damagePos;
+
+    if (isPlayerTarget) {
+        damagePos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 50};
+    } else {
+        damagePos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 50};
+    }
+
+    CreateDamageEffect(damagePos, damage, isPlayerTarget, isCritical);
+
+    // Adicionar informação de dano à mensagem
+    char damageText[50];
+    if (isCritical) {
+        sprintf(damageText, " Acerto crítico! Causou %d de dano!", damage);
+    } else {
+        sprintf(damageText, " Causou %d de dano!", damage);
+    }
+    strncat(battleMessage, damageText, sizeof(battleMessage) - strlen(battleMessage) - 1);
+
+    // Tocar som de ataque e hit
+    PlaySound(attackSound);
+    PlaySound(hitSound);
+}
 
     // Verificar e aplicar efeito de status (com chance)
     if (attack->statusEffect > 0 && attack->statusChance > 0) {
         int statusRoll = rand() % 100;
         if (statusRoll < attack->statusChance) {
             applyStatusEffect(defender, attack->statusEffect, attack->statusPower, 3);
+
+            // Criar efeito visual de status
+            Vector2 statusPos;
+            if (defender == battleSystem->playerTeam->current) {
+                statusPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+            } else {
+                statusPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+            }
+            CreateStatusEffect(statusPos, attack->statusEffect);
 
             // Adicionar informação de status à mensagem
             char statusText[50];
@@ -472,6 +582,15 @@ void executeAttack(PokeMonster* attacker, PokeMonster* defender, int attackIndex
 
     // Verificar se o monstro desmaiou
     if (isMonsterFainted(defender)) {
+        // Criar efeito visual de desmaiado
+        Vector2 faintPos;
+        if (defender == battleSystem->playerTeam->current) {
+            faintPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+        } else {
+            faintPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+        }
+        CreateFaintEffect(faintPos);
+
         char faintedText[50];
         sprintf(faintedText, " %s desmaiou!", defender->name);
         strncat(battleMessage, faintedText, sizeof(battleMessage) - strlen(battleMessage) - 1);
@@ -870,6 +989,15 @@ void processStatusEffects(PokeMonster* monster) {
 
                 if (monster->hp < 0) monster->hp = 0;
 
+                // Criar efeito visual de queimadura contínua
+                Vector2 burnPos;
+                if (monster == battleSystem->playerTeam->current) {
+                    burnPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+                } else {
+                    burnPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+                }
+                CreateContinuousStatusEffect(burnPos, STATUS_BURNING, 2.0f);
+
                 sprintf(battleMessage, "%s sofreu %d de dano por estar em chamas!",
                        monster->name, damage);
             }
@@ -877,10 +1005,28 @@ void processStatusEffects(PokeMonster* monster) {
 
         case STATUS_SLEEPING:
             printf("[DEBUG STATUS] %s está dormindo (não pode atacar)\n", monster->name);
+
+            // Criar efeito visual de sono contínuo
+            Vector2 sleepPos;
+            if (monster == battleSystem->playerTeam->current) {
+                sleepPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+            } else {
+                sleepPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+            }
+            CreateContinuousStatusEffect(sleepPos, STATUS_SLEEPING, 1.5f);
             break;
 
         case STATUS_PARALYZED:
             printf("[DEBUG STATUS] %s está paralisado\n", monster->name);
+
+            // Criar efeito visual de paralisia contínuo
+            Vector2 paralyzePos;
+            if (monster == battleSystem->playerTeam->current) {
+                paralyzePos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+            } else {
+                paralyzePos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+            }
+            CreateContinuousStatusEffect(paralyzePos, STATUS_PARALYZED, 1.0f);
             break;
     }
 
@@ -1364,6 +1510,15 @@ void useItem(ItemType itemType, PokeMonster* target) {
                 target->hp = target->maxHp;
             }
 
+            // Criar efeito visual de cura
+            Vector2 healPos;
+            if (target == battleSystem->playerTeam->current) {
+                healPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+            } else {
+                healPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+            }
+            CreateHealEffect(healPos, hpToHeal);
+
             // Mensagem informando quanto foi curado
             if (hpToHeal > 0) {
                 sprintf(battleMessage, "Poção usada! %s recuperou %d de HP!", target->name, hpToHeal);
@@ -1461,10 +1616,31 @@ break;
             if (rand() % 2 == 0) {
                 // Cura total
                 target->hp = target->maxHp;
+
+                // Criar efeito visual de cura massiva
+                Vector2 healPos;
+                if (target == battleSystem->playerTeam->current) {
+                    healPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+                } else {
+                    healPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+                }
+                CreateHealEffect(healPos, target->maxHp);
+                TriggerScreenFlash((Color){100, 255, 100, 150}, 1.0f, 0.5f);
+
                 sprintf(battleMessage, "Moeda da Sorte: CARA! %s recuperou todo o HP!", target->name);
             } else {
                 // HP = 0
                 target->hp = 0;
+
+                // Criar efeito visual de desmaiado
+                Vector2 faintPos;
+                if (target == battleSystem->playerTeam->current) {
+                    faintPos = (Vector2){GetScreenWidth() / 3, GetScreenHeight() / 1.8f - 20};
+                } else {
+                    faintPos = (Vector2){GetScreenWidth() * 2 / 3, GetScreenHeight() / 2.6f - 20};
+                }
+                CreateFaintEffect(faintPos);
+
                 sprintf(battleMessage, "Moeda da Sorte: COROA! %s desmaiou!", target->name);
 
                 // Se o jogador desmaiou, forçar troca
@@ -1683,24 +1859,51 @@ void initBattleEffects(void) {
  * Reinicia a batalha
  */
 void resetBattle(void) {
+    printf("[BATTLE RESET] Iniciando reset completo da batalha...\n");
+
     if (battleSystem == NULL) {
+        printf("[BATTLE RESET] Sistema de batalha não inicializado\n");
         return;
     }
 
-    // Resetar estado
+    // Resetar estado da batalha
     battleSystem->turn = 0;
     battleSystem->battleState = BATTLE_IDLE;
     battleSystem->playerTurn = true;
     battleSystem->selectedAttack = 0;
     battleSystem->selectedAction = 0;
     battleSystem->itemUsed = false;
+    battleSystem->playerItemUsed = false;
+    battleSystem->botItemUsed = false;
 
     // Limpar estruturas de dados
     clearQueue(battleSystem->actionQueue);
     clearStack(battleSystem->effectStack);
 
-    // Limpar mensagem
+    // Resetar flags globais
+    actionQueueReady = false;
+    stateTransitionDelay = 0.0f;
+
+    // Limpar mensagens
     battleMessage[0] = '\0';
+    memset(&currentMessage, 0, sizeof(currentMessage));
+    memset(&currentAnimation, 0, sizeof(currentAnimation));
+
+    // Limpar todos os efeitos visuais
+    ClearAllBattleEffects();
+
+    // Resetar sprites e renderizador
+    resetBattleSprites();
+
+    // Chamar limpeza do renderizador se a função existir
+    extern void cleanupBattleRenderer(void);
+    cleanupBattleRenderer();
+
+    // Resetar barras de HP
+    extern void ResetHPBarAnimations(void);
+    ResetHPBarAnimations();
+
+    printf("[BATTLE RESET] Reset completo finalizado\n");
 }
 
 bool hasActiveMonstersLeft(MonsterList* team) {

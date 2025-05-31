@@ -35,6 +35,34 @@ typedef enum {
 } MonsterType;
 
 typedef struct {
+    Vector2 position;
+    Vector2 velocity;
+    float life;
+    float maxLife;
+    Color color;
+    float size;
+    bool active;
+} PokeballParticle;
+
+// Estrutura para animação de uma pokébola
+typedef struct {
+    Vector2 startPos;        // Posição inicial (fora da tela)
+    Vector2 targetPos;       // Posição final (onde o pokémon fica)
+    Vector2 currentPos;      // Posição atual
+    Vector2 velocity;        // Velocidade atual
+    float rotation;          // Rotação da pokébola
+    float rotationSpeed;     // Velocidade de rotação
+    float scale;             // Escala da pokébola
+    float bounceHeight;      // Altura do bounce quando pousar
+    float bounceTimer;       // Timer do bounce
+    float openTimer;         // Timer para abertura
+    bool isLanded;           // Se pousou no chão
+    bool isOpening;          // Se está se abrindo
+    bool isOpen;             // Se já abriu completamente
+    Color tint;              // Cor da pokébola
+} PokeballAnimation;
+
+typedef struct {
     const char* name;
     int pokedexNum;
 } MonsterMapping;
@@ -108,19 +136,6 @@ typedef struct {
     Vector2 target;
 } BattleEffect;
 
-// Tipos de efeito
-enum {
-    EFFECT_NONE = 0,
-    EFFECT_FLASH,
-    EFFECT_SHAKE,
-    EFFECT_PARTICLES,
-    EFFECT_SLASH,
-    EFFECT_FIRE,
-    EFFECT_WATER,
-    EFFECT_ELECTRIC,
-    EFFECT_NATURE
-};
-
 // Estrutura para resoluções
 typedef struct {
     int width;
@@ -138,6 +153,14 @@ typedef struct {
     int capacity;
     int count;
 } ActionQueue;
+
+typedef struct {
+    char messages[5][256]; // Até 5 mensagens em sequência
+    int messageCount;
+    int currentMessage;
+    float timePerMessage;
+    bool waitingForInput;
+} MessageSequence;
 
 // Estrutura para a pilha de efeitos
 typedef struct {
