@@ -951,8 +951,24 @@ void updateMonsterSelection(void)
         float wheelMove = GetMouseWheelMove();
         if (wheelMove != 0)
         {
-            scrollOffset -= wheelMove * 30 * GetScaleY(); // 30 pixels por tick da roda
+            // Calcular o limite máximo de scroll (mesmo cálculo usado na barra de rolagem)
+            int monsterCount = getMonsterCount();
+            float cardHeight = 180 * GetScaleY();
+            float spacingY = 20 * GetScaleY();
+            float startY = 80 * GetScaleY();
+            int columns = (int)((GetScreenWidth() - 20 * GetScaleX()) / (230 * GetScaleX() + 20 * GetScaleX()));
+            if (columns < 1) columns = 1;
+
+            float contentHeight = GetScreenHeight() - startY - 80 * GetScaleY();
+            int totalRows = (monsterCount + columns - 1) / columns;
+            float contentTotalHeight = totalRows * (cardHeight + spacingY);
+            float maxScroll = contentTotalHeight - contentHeight;
+
+            scrollOffset -= wheelMove * 30 * GetScaleY();
+
+            // Limites simples
             if (scrollOffset < 0) scrollOffset = 0;
+            if (scrollOffset > maxScroll) scrollOffset = maxScroll;  // <-- ESTA É A LINHA QUE FALTAVA
         }
     }
 }
