@@ -201,7 +201,6 @@ int partitionMonsters(PokeMonster** monsters, int left, int right) {
 ## 👥 Contribuidores
 
 * Julia Torres
-* Fatima Beatriz
 * Maria Claudia
 * Matheus Martins
 * Vinicius Jose
