@@ -300,7 +300,6 @@ void drawCredits(void)
 
     const char* devNames[] = {
         "Julia Torres",
-        "Fatima Beatriz",
         "Maria Claudia",
         "Matheus Martins",
         "Vinicius Jose"
